@@ -189,10 +189,14 @@ lwm2m_transaction_t * transaction_new(coap_message_type_t type,
     transacP->message = lwm2m_malloc(sizeof(coap_packet_t));
     if (NULL == transacP->message) goto error;
 
-    coap_init_message(transacP->message, type, method, mID);
+    coap_init_message(transacP->message, type, method
+#if !defined(COAP_TCP)
+		, mID
+#endif
+		);
 
-    transacP->mID = mID;
-    transacP->peerType = peerType;
+	transacP->mID = mID;
+	transacP->peerType = peerType;
     transacP->peerP = peerP;
 
     if (altPath != NULL)
@@ -227,6 +231,7 @@ lwm2m_transaction_t * transaction_new(coap_message_type_t type,
             coap_set_header_uri_path_segment(transacP->message, transacP->resourceStringID);
         }
     }
+
     if (0 < token_len)
     {
         if (NULL != token)
@@ -239,13 +244,21 @@ lwm2m_transaction_t * transaction_new(coap_message_type_t type,
             time_t tv_sec = lwm2m_gettime();
 
             // initialize first 6 bytes, leave the last 2 random
-            temp_token[0] = mID;
-            temp_token[1] = mID >> 8;
+#if defined(COAP_TCP)
+			temp_token[0] = tv_sec;
+			temp_token[1] = tv_sec >> 8;
+			temp_token[2] = tv_sec >> 16;
+			temp_token[3] = tv_sec >> 24;
+#else
+			temp_token[0] = mID;
+			temp_token[1] = mID >> 8;
             temp_token[2] = tv_sec;
             temp_token[3] = tv_sec >> 8;
             temp_token[4] = tv_sec >> 16;
             temp_token[5] = tv_sec >> 24;
-            // use just the provided amount of bytes
+#endif
+			
+			// use just the provided amount of bytes
             coap_set_header_token(transacP->message, temp_token, token_len);
         }
     }
@@ -267,8 +280,8 @@ void transaction_free(lwm2m_transaction_t * transacP)
 void transaction_remove(lwm2m_context_t * contextP,
                         lwm2m_transaction_t * transacP)
 {
-    contextP->transactionList = (lwm2m_transaction_t *) LWM2M_LIST_RM(contextP->transactionList, transacP->mID, NULL);
-    transaction_free(transacP);
+	contextP->transactionList = (lwm2m_transaction_t *)LWM2M_LIST_RM(contextP->transactionList, transacP->mID, NULL);
+	transaction_free(transacP);
 }
 
 bool transaction_handle_response(lwm2m_context_t * contextP,
@@ -319,7 +332,9 @@ bool transaction_handle_response(lwm2m_context_t * contextP,
             {
                 if ((COAP_TYPE_ACK == message->type) || (COAP_TYPE_RST == message->type))
                 {
-                    if (transacP->mID == message->mid)
+#if !defined(COAP_TCP)
+					if (transacP->mID == message->mid)
+#endif
 	                {
     	                found = true;
         	            transacP->ack_received = true;
@@ -330,12 +345,13 @@ bool transaction_handle_response(lwm2m_context_t * contextP,
 
             if (reset || prv_transaction_check_finished(transacP, message))
             {
-                // HACK: If a message is sent from the monitor callback,
+#if !defined(COAP_TCP)
+				// HACK: If a message is sent from the monitor callback,
                 // it will arrive before the registration ACK.
                 // So we resend transaction that were denied for authentication reason.
                 if (!reset)
                 {
-                    if (COAP_TYPE_CON == message->type && NULL != response)
+					if (COAP_TYPE_CON == message->type && NULL != response)
                     {
                         coap_init_message(response, COAP_TYPE_ACK, 0, message->mid);
                         message_send(contextP, response, fromSessionH);
@@ -348,10 +364,12 @@ bool transaction_handle_response(lwm2m_context_t * contextP,
                 	    return true;
                 	}
 				}       
-                if (transacP->callback != NULL)
+#endif
+				if (transacP->callback != NULL)
                 {
                     transacP->callback(transacP, message);
                 }
+
                 transaction_remove(contextP, transacP);
                 return true;
             }

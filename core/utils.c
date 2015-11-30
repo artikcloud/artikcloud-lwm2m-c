@@ -47,6 +47,7 @@
 */
 
 #include "internals.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -287,6 +288,11 @@ lwm2m_binding_t lwm2m_stringToBinding(uint8_t * buffer,
 
     switch (buffer[0])
     {
+#if defined(COAP_TCP)
+	case 'T':
+		return BINDING_T;   // TCP
+#else
+
     case 'U':
         switch (length)
         {
@@ -314,24 +320,24 @@ lwm2m_binding_t lwm2m_stringToBinding(uint8_t * buffer,
         }
         break;
 
-        case 'S':
-            switch (length)
+    case 'S':
+        switch (length)
+        {
+        case 1:
+            return BINDING_S;
+        case 2:
+            if (buffer[1] == 'Q')
             {
-            case 1:
-                return BINDING_S;
-            case 2:
-                if (buffer[1] == 'Q')
-                {
-                    return BINDING_SQ;
-                }
-                break;
-            default:
-                break;
+                return BINDING_SQ;
             }
             break;
-
         default:
             break;
+        }
+        break;
+#endif
+    default:
+        break;
     }
 
     return BINDING_UNKNOWN;
@@ -407,8 +413,18 @@ int prv_isAltPathValid(const char * altPath)
 }
 
 #ifndef LWM2M_EMBEDDED_MODE
+#if defined(WIN32)
+#include <Windows.h>
+#endif
 time_t lwm2m_gettime(void)
 {
+#if defined(WIN32)
+
+	SYSTEMTIME st;
+	GetSystemTime(&st);
+
+	return (time_t) st.wSecond;
+#else
     struct timeval tv;
 
     if (0 != gettimeofday(&tv, NULL))
@@ -417,5 +433,6 @@ time_t lwm2m_gettime(void)
     }
 
     return tv.tv_sec;
+#endif
 }
 #endif

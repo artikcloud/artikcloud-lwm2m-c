@@ -60,9 +60,15 @@
 #define COAP_RESPONSE_TIMEOUT                2
 #define COAP_MAX_RETRANSMIT                  4
 
+#if defined(COAP_TCP)
+#define COAP_HEADER_LEN                      2 /* | version:0x03 type:0x0C tkl:0xF0 | code | */
+#define COAP_ETAG_LEN                        8 /* The maximum number of bytes for the ETag */
+#define COAP_TOKEN_LEN                       6 /* The maximum number of bytes for the Token */
+#else
 #define COAP_HEADER_LEN                      4 /* | version:0x03 type:0x0C tkl:0xF0 | code | mid:0x00FF | mid:0xFF00 | */
 #define COAP_ETAG_LEN                        8 /* The maximum number of bytes for the ETag */
 #define COAP_TOKEN_LEN                       8 /* The maximum number of bytes for the Token */
+#endif
 #define COAP_MAX_ACCEPT_NUM                  2 /* The maximum number of accept preferences to parse/store */
 
 #define COAP_HEADER_VERSION_MASK             0xC0
@@ -79,8 +85,8 @@
  * Conservative size limit, as not all options have to be set at the same time.
  */
 #ifndef COAP_MAX_HEADER_SIZE
-/*                            Hdr CoT Age  Tag              Obs  Tok               Blo strings */
-#define COAP_MAX_HEADER_SIZE  (4 + 3 + 5 + 1+COAP_ETAG_LEN + 3 + 1+COAP_TOKEN_LEN + 4 + 30) /* 70 */
+/*                            Hdr               CoT Age  Tag              Obs  Tok               Blo strings */
+#define COAP_MAX_HEADER_SIZE  (COAP_HEADER_LEN + 3 + 5 + 1+COAP_ETAG_LEN + 3 + 1+COAP_TOKEN_LEN + 4 + 30) /* 70 */
 #endif /* COAP_MAX_HEADER_SIZE */
 
 #define COAP_MAX_PACKET_SIZE  (COAP_MAX_HEADER_SIZE + REST_MAX_CHUNK_SIZE)
@@ -214,7 +220,10 @@ typedef struct {
   uint8_t version;
   coap_message_type_t type;
   uint8_t code;
+
+#if !defined(COAP_TCP)
   uint16_t mid;
+#endif
 
   uint8_t options[COAP_OPTION_PROXY_URI / OPTION_MAP_SIZE + 1]; /* Bitmap to check if option is set */
 
@@ -316,7 +325,11 @@ extern char *coap_error_message;
 
 uint16_t coap_get_mid(void);
 
-void coap_init_message(void *packet, coap_message_type_t type, uint8_t code, uint16_t mid);
+void coap_init_message(void *packet, coap_message_type_t type, uint8_t code
+#if !defined(COAP_TCP)
+	, uint16_t mid
+#endif
+	);
 size_t coap_serialize_message(void *packet, uint8_t *buffer);
 coap_status_t coap_parse_message(void *request, uint8_t *data, uint16_t data_len);
 void coap_free_header(void *packet);

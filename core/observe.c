@@ -193,7 +193,9 @@ coap_status_t handle_observe_request(lwm2m_context_t * contextP,
 }
 
 void cancel_observe(lwm2m_context_t * contextP,
+#if !defined(COAP_TCP)
                     uint16_t mid,
+#endif
                     void * fromSessionH)
 {
     lwm2m_observed_t * observedP;
@@ -206,8 +208,11 @@ void cancel_observe(lwm2m_context_t * contextP,
     {
         lwm2m_watcher_t * targetP = NULL;
 
-        if (observedP->watcherList->lastMid == mid
-         && observedP->watcherList->server->sessionH == fromSessionH)
+        if (
+#if !defined(COAP_TCP)
+			observedP->watcherList->lastMid == mid &&
+#endif
+			observedP->watcherList->server->sessionH == fromSessionH)
         {
             targetP = observedP->watcherList;
             observedP->watcherList = observedP->watcherList->next;
@@ -217,10 +222,13 @@ void cancel_observe(lwm2m_context_t * contextP,
             lwm2m_watcher_t * parentP;
 
             parentP = observedP->watcherList;
-            while (parentP->next != NULL
-                && (parentP->next->lastMid != mid
-                 || parentP->next->server->sessionH != fromSessionH))
-            {
+            while (parentP->next != NULL && 
+#if defined(COAP_TCP)
+				parentP->next->server->sessionH != fromSessionH)
+#else
+				(parentP->next->lastMid != mid || parentP->next->server->sessionH != fromSessionH))
+#endif
+			{
                 parentP = parentP->next;
             }
             if (parentP->next != NULL)
@@ -263,15 +271,21 @@ void lwm2m_resource_value_changed(lwm2m_context_t * contextP,
         {
             coap_packet_t message[1];
 
-            coap_init_message(message, COAP_TYPE_NON, COAP_205_CONTENT, 0);
+            coap_init_message(message, COAP_TYPE_NON, COAP_205_CONTENT
+#if !defined(COAP_TCP)
+				, 0
+#endif
+				);
             coap_set_header_content_type(message, format);
             coap_set_payload(message, buffer, length);
 
             for (watcherP = listP->item->watcherList ; watcherP != NULL ; watcherP = watcherP->next)
             {
-                watcherP->lastMid = contextP->nextMID++;
+#if !defined(COAP_TCP)
+				watcherP->lastMid = contextP->nextMID++;
                 message->mid = watcherP->lastMid;
-                coap_set_header_token(message, watcherP->token, watcherP->tokenLen);
+#endif
+				coap_set_header_token(message, watcherP->token, watcherP->tokenLen);
                 coap_set_header_observe(message, watcherP->counter++);
                 (void)message_send(contextP, message, watcherP->server->sessionH);
             }

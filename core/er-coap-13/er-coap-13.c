@@ -48,7 +48,7 @@
 
 #include "liblwm2m.h" /* for lwm2m_malloc() and lwm2m_free() */
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -390,7 +390,11 @@ coap_get_mid()
 /*- MEASSAGE PROCESSING -------------------------------------------------------------*/
 /*-----------------------------------------------------------------------------------*/
 void
-coap_init_message(void *packet, coap_message_type_t type, uint8_t code, uint16_t mid)
+coap_init_message(void *packet, coap_message_type_t type, uint8_t code
+#if !defined(COAP_TCP)
+	, uint16_t mid
+#endif
+	)
 {
   coap_packet_t *const coap_pkt = (coap_packet_t *) packet;
 
@@ -399,7 +403,9 @@ coap_init_message(void *packet, coap_message_type_t type, uint8_t code, uint16_t
 
   coap_pkt->type = type;
   coap_pkt->code = code;
+#if !defined(COAP_TCP)
   coap_pkt->mid = mid;
+#endif
 }
 
 void
@@ -424,16 +430,20 @@ coap_serialize_message(void *packet, uint8_t *buffer)
   coap_pkt->buffer = buffer;
   coap_pkt->version = 1;
 
+#if !defined(COAP_TCP)
   PRINTF("-Serializing MID %u to %p, ", coap_pkt->mid, coap_pkt->buffer);
-
+#endif
   /* set header fields */
   coap_pkt->buffer[0]  = 0x00;
   coap_pkt->buffer[0] |= COAP_HEADER_VERSION_MASK & (coap_pkt->version)<<COAP_HEADER_VERSION_POSITION;
   coap_pkt->buffer[0] |= COAP_HEADER_TYPE_MASK & (coap_pkt->type)<<COAP_HEADER_TYPE_POSITION;
   coap_pkt->buffer[0] |= COAP_HEADER_TOKEN_LEN_MASK & (coap_pkt->token_len)<<COAP_HEADER_TOKEN_LEN_POSITION;
   coap_pkt->buffer[1] = coap_pkt->code;
+
+#if !defined(COAP_TCP)
   coap_pkt->buffer[2] = (uint8_t) ((coap_pkt->mid)>>8);
   coap_pkt->buffer[3] = (uint8_t) (coap_pkt->mid);
+#endif
 
   /* set Token */
   PRINTF("Token (len %u)", coap_pkt->token_len);
@@ -523,11 +533,13 @@ coap_parse_message(void *packet, uint8_t *data, uint16_t data_len)
   coap_pkt->buffer = data;
 
   /* parse header fields */
-  coap_pkt->version = (COAP_HEADER_VERSION_MASK & coap_pkt->buffer[0])>>COAP_HEADER_VERSION_POSITION;
+  coap_pkt->version = coap_pkt->buffer[0] >> COAP_HEADER_VERSION_POSITION;
   coap_pkt->type = (COAP_HEADER_TYPE_MASK & coap_pkt->buffer[0])>>COAP_HEADER_TYPE_POSITION;
   coap_pkt->token_len = MIN(COAP_TOKEN_LEN, (COAP_HEADER_TOKEN_LEN_MASK & coap_pkt->buffer[0])>>COAP_HEADER_TOKEN_LEN_POSITION);
   coap_pkt->code = coap_pkt->buffer[1];
+#if !defined(COAP_TCP)
   coap_pkt->mid = coap_pkt->buffer[2]<<8 | coap_pkt->buffer[3];
+#endif
 
   if (coap_pkt->version != 1)
   {

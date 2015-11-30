@@ -149,7 +149,15 @@ int prv_getRegisterPayload(lwm2m_context_t * contextP, uint8_t * buffer, size_t 
 int object_getServers(lwm2m_context_t * contextP);
 
 // defined in transaction.c
-lwm2m_transaction_t * transaction_new(coap_message_type_t type, coap_method_t method, char * altPath, lwm2m_uri_t * uriP, uint16_t mID, uint8_t token_len, uint8_t* token, lwm2m_endpoint_type_t peerType, void * peerP);
+lwm2m_transaction_t * transaction_new(coap_message_type_t type,
+	coap_method_t method,
+	char * altPath,
+	lwm2m_uri_t * uriP,
+	uint16_t mID,
+	uint8_t token_len,
+	uint8_t* token,
+	lwm2m_endpoint_type_t peerType,
+	void * peerP);
 
 int transaction_send(lwm2m_context_t * contextP, lwm2m_transaction_t * transacP);
 void transaction_free(lwm2m_transaction_t * transacP);
@@ -162,7 +170,11 @@ coap_status_t handle_delete_all(lwm2m_context_t * context);
 
 // defined in observe.c
 coap_status_t handle_observe_request(lwm2m_context_t * contextP, lwm2m_uri_t * uriP, lwm2m_server_t * serverP, coap_packet_t * message, coap_packet_t * response);
-void cancel_observe(lwm2m_context_t * contextP, uint16_t mid, void * fromSessionH);
+void cancel_observe(lwm2m_context_t * contextP,
+#if !defined(COAP_TCP)
+	uint16_t mid,
+#endif
+	void * fromSessionH);
 
 // defined in registration.c
 coap_status_t handle_registration_request(lwm2m_context_t * contextP, lwm2m_uri_t * uriP, void * fromSessionH, coap_packet_t * message, coap_packet_t * response);

@@ -79,7 +79,9 @@ lwm2m_context_t * lwm2m_init(lwm2m_connect_server_callback_t connectCallback,
         contextP->bufferSendCallback = bufferSendCallback;
         contextP->userData = userData;
         srand(time(NULL));
-        contextP->nextMID = rand();
+#if !defined(COAP_TCP)
+		contextP->nextMID = rand();
+#endif
     }
 
     return contextP;
@@ -399,7 +401,7 @@ int lwm2m_start(lwm2m_context_t * contextP)
         LOG("lwm2m_start: security- or server-objects configuration error.\n");
         if (0 > result && cleanup)
         {
-            LOG("lwm2m_start: cleanup on error\n");
+            LOG("\n    *****  lwm2m_start: cleanup on error\n");
             delete_server_list(contextP);
             delete_bootstrap_server_list(contextP);
         }

@@ -60,7 +60,10 @@ extern "C" {
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+
+#ifndef WIN32
 #include <sys/time.h>
+#endif
 
 #ifdef LWM2M_SERVER_MODE
 #ifndef LWM2M_SUPPORT_JSON
@@ -74,7 +77,11 @@ extern "C" {
 #else
 #define lwm2m_malloc malloc
 #define lwm2m_free free
+#ifdef WIN32
+#define lwm2m_strdup _strdup
+#else
 #define lwm2m_strdup strdup
+#endif
 #endif
 #define lwm2m_strncmp strncmp
 #else
@@ -175,7 +182,9 @@ lwm2m_list_t * lwm2m_list_add(lwm2m_list_t * head, lwm2m_list_t * node);
 // Return the node with ID 'id' from the list 'head' or NULL if not found
 lwm2m_list_t * lwm2m_list_find(lwm2m_list_t * head, uint16_t id);
 // Remove the node with ID 'id' from the list 'head' and return the new list
+
 lwm2m_list_t * lwm2m_list_remove(lwm2m_list_t * head, uint16_t id, lwm2m_list_t ** nodeP);
+
 // Return the lowest unused ID in the list 'head'
 uint16_t lwm2m_list_newId(lwm2m_list_t * head);
 // Free a list. Do not use if nodes contain allocated pointers as it calls lwm2m_free on nodes only.
@@ -384,12 +393,16 @@ typedef enum
 typedef enum
 {
     BINDING_UNKNOWN = 0,
-    BINDING_U,   // UDP
+#if defined(COAP_TCP)
+	BINDING_T,   // TCP
+#else
+	BINDING_U,   // UDP
     BINDING_UQ,  // UDP queue mode
     BINDING_S,   // SMS
     BINDING_SQ,  // SMS queue mode
     BINDING_US,  // UDP plus SMS
     BINDING_UQS  // UDP queue mode plus SMS
+#endif
 } lwm2m_binding_t;
 
 typedef struct _lwm2m_server_
@@ -512,7 +525,9 @@ typedef struct _lwm2m_watcher_
     uint8_t token[8];
     size_t tokenLen;
     uint32_t counter;
+#if !defined(COAP_TCP)
     uint16_t lastMid;
+#endif
 } lwm2m_watcher_t;
 
 typedef struct _lwm2m_observed_

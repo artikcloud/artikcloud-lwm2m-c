@@ -82,6 +82,11 @@ static int prv_getRegistrationQuery(lwm2m_context_t * contextP, lwm2m_server_t *
 
     switch (server->binding)
     {
+#if defined(COAP_TCP)
+	case BINDING_T:
+		res = snprintf(buffer + index, length - index, "&b=T");
+		break;
+#else
     case BINDING_U:
         res = snprintf(buffer + index, length - index, "&b=U");
         break;
@@ -100,6 +105,7 @@ static int prv_getRegistrationQuery(lwm2m_context_t * contextP, lwm2m_server_t *
     case BINDING_UQS:
         res = snprintf(buffer + index, length - index, "&b=UQS");
         break;
+#endif
     default:
         res = 0;
     }
@@ -162,10 +168,23 @@ static void prv_register(lwm2m_context_t * contextP,
     payload_length = prv_getRegisterPayload(contextP, payload, sizeof(payload));
     if (payload_length == 0) return;
 
+#if defined(MSFT_EXTENSION)
+    /**
+     * 3=Uri-Host (len=9):iothub123, // new
+     * 11=Uri-Query (len=2):rd, // existing
+     * 15=Uri-Query (len=39):ep=1eb25d3d-017f-4260-a4aefeb9452f227e, // new
+     * 15=Uri-Query (len=23):sr=/devices/deviceId123, // new
+     * 15=Uri-Query (len=13):se=1451606399,  // new
+     * 15=Uri-Query (len=9):skn=owner,  // new
+     * 15=Uri-Query (len=25):sig=hmac-sha256-signature, // new
+     */
+#endif
+
     query_length = prv_getRegistrationQuery(contextP, server, query, sizeof(query));
 
     if (query_length == 0) return;
 
+#if !defined(COAP_TCP)
     if (0 != server->lifetime)
     {
         if (snprintf(query + query_length,
@@ -176,6 +195,7 @@ static void prv_register(lwm2m_context_t * contextP,
             return;
         }
     }
+#endif
 
     if (server->sessionH == NULL)
     {
@@ -185,6 +205,7 @@ static void prv_register(lwm2m_context_t * contextP,
     if (NULL != server->sessionH)
     {
         transaction = transaction_new(COAP_TYPE_CON, COAP_POST, NULL, NULL, contextP->nextMID++, 4, NULL, ENDPOINT_SERVER, (void *)server);
+
         if (transaction == NULL) return;
 
         coap_set_header_uri_path(transaction->message, "/"URI_REGISTRATION_SEGMENT);
@@ -241,7 +262,8 @@ static int prv_update_registration(lwm2m_context_t * contextP,
     lwm2m_transaction_t * transaction;
 
     transaction = transaction_new(COAP_TYPE_CON, COAP_POST, NULL, NULL, contextP->nextMID++, 4, NULL, ENDPOINT_SERVER, (void *)server);
-    if (transaction == NULL) return INTERNAL_SERVER_ERROR_5_00;
+
+	if (transaction == NULL) return INTERNAL_SERVER_ERROR_5_00;
 
     coap_set_header_uri_path(transaction->message, server->location);
 
@@ -320,6 +342,7 @@ void registration_update(lwm2m_context_t * contextP,
     {
         switch (targetP->status)
         {
+//#if !defined(COAP_TCP)
             case STATE_REGISTERED:
                 nextUpdate = targetP->lifetime;
                 if (30 < nextUpdate)
@@ -338,7 +361,7 @@ void registration_update(lwm2m_context_t * contextP,
                     *timeoutP = interval;
                 }
                 break;
-
+//#endif
             case STATE_DEREGISTERED:
                 // TODO: is it disabled?
                 prv_register(contextP, targetP);
@@ -420,6 +443,7 @@ void registration_deregister(lwm2m_context_t * contextP,
 
     lwm2m_transaction_t * transaction;
     transaction = transaction_new(COAP_TYPE_CON, COAP_DELETE, NULL, NULL, contextP->nextMID++, 4, NULL, ENDPOINT_SERVER, (void *)serverP);
+
     if (transaction == NULL) return;
 
     coap_set_header_uri_path(transaction->message, serverP->location);

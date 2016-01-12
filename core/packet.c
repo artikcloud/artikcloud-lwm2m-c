@@ -100,9 +100,9 @@ static void handle_reset(lwm2m_context_t * contextP,
 #ifdef LWM2M_CLIENT_MODE
     cancel_observe(contextP,
 #if !defined(COAP_TCP)
-		message->mid,
+        message->mid,
 #endif
-		fromSessionH);
+        fromSessionH);
 #endif
 }
 
@@ -202,19 +202,19 @@ void lwm2m_handle_packet(lwm2m_context_t * contextP,
         if (message->code >= COAP_GET && message->code <= COAP_DELETE)
         {
 #if defined(COAP_TCP)
-			LOG("    Parsed: ver %u, type %u, tkl %u, code %u\r\n", message->version, message->type, message->token_len, message->code);
+            LOG("    Parsed: ver %u, type %u, tkl %u, code %u\r\n", message->version, message->type, message->token_len, message->code);
 #else
-			LOG("    Parsed: ver %u, type %u, tkl %u, code %u, mid %u\r\n", message->version, message->type, message->token_len, message->code, message->mid);
+            LOG("    Parsed: ver %u, type %u, tkl %u, code %u, mid %u\r\n", message->version, message->type, message->token_len, message->code, message->mid);
 #endif
-		}
+        }
         else
         {
 #if defined(COAP_TCP)
-			LOG("    Parsed: ver %u, type %u, tkl %u, code %u.%.2u\r\n", message->version, message->type, message->token_len, message->code >> 5, message->code & 0x1F);
+            LOG("    Parsed: ver %u, type %u, tkl %u, code %u.%.2u\r\n", message->version, message->type, message->token_len, message->code >> 5, message->code & 0x1F);
 #else
-			LOG("    Parsed: ver %u, type %u, tkl %u, code %u.%.2u, mid %u\r\n", message->version, message->type, message->token_len, message->code >> 5, message->code & 0x1F, message->mid);
+            LOG("    Parsed: ver %u, type %u, tkl %u, code %u.%.2u, mid %u\r\n", message->version, message->type, message->token_len, message->code >> 5, message->code & 0x1F, message->mid);
 #endif
-		}
+        }
         LOG("    Content type: %d\r\n    Payload: %.*s\r\n\n", message->content_type, message->payload_len, message->payload);
 #endif
         if (message->code >= COAP_GET && message->code <= COAP_DELETE)
@@ -226,15 +226,15 @@ void lwm2m_handle_packet(lwm2m_context_t * contextP,
 
             /* prepare response */
 #if defined(COAP_TCP)
-			coap_init_message(response, COAP_TYPE_NON, CONTENT_2_05);
+            coap_init_message(response, COAP_TYPE_NON, CONTENT_2_05);
 #else
-			if (message->type == COAP_TYPE_CON)
+            if (message->type == COAP_TYPE_CON)
             {
                 /* Reliable CON requests are answered with an ACK. */
                 coap_init_message(response, COAP_TYPE_ACK, CONTENT_2_05, message->mid);
             }
             else
-			{
+            {
                 /* Unreliable NON requests are answered with a NON. */
                 coap_init_message(response, COAP_TYPE_NON, CONTENT_2_05, contextP->nextMID++);
             }
@@ -334,11 +334,11 @@ void lwm2m_handle_packet(lwm2m_context_t * contextP,
                     if (!done && message->type == COAP_TYPE_CON )
                     {
 #if defined(COAP_TCP)
-						coap_init_message(response, COAP_TYPE_NON, 0);
+                        coap_init_message(response, COAP_TYPE_NON, 0);
 #else
-						coap_init_message(response, COAP_TYPE_ACK, 0, message->mid);
+                        coap_init_message(response, COAP_TYPE_ACK, 0, message->mid);
 #endif
-						coap_error_code = message_send(contextP, response, fromSessionH);
+                        coap_error_code = message_send(contextP, response, fromSessionH);
                     }
                 }
                 break;
@@ -376,9 +376,9 @@ void lwm2m_handle_packet(lwm2m_context_t * contextP,
 
         /* Reuse input buffer for error message. */
 #if defined(COAP_TCP)
-		coap_init_message(message, COAP_TYPE_NON, coap_error_code);
+        coap_init_message(message, COAP_TYPE_NON, coap_error_code);
 #else
-		coap_init_message(message, COAP_TYPE_ACK, coap_error_code, message->mid);
+        coap_init_message(message, COAP_TYPE_ACK, coap_error_code, message->mid);
 #endif
         coap_set_payload(message, coap_error_message, strlen(coap_error_message));
         message_send(contextP, message, fromSessionH);

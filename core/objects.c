@@ -74,7 +74,8 @@ static lwm2m_object_t * prv_find_object(lwm2m_context_t * contextP,
     }
 
 #if defined(MSFT_LWM2M_CLIENT)
-    lwm2m_object_t *retValue = contextP->objectList[0];
+
+    lwm2m_object_t *retValue = contextP->objectList[2];
 
     retValue->objID = Id;
 

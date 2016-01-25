@@ -211,7 +211,7 @@ coap_status_t handle_dm_request(lwm2m_context_t * contextP,
         {
             if (NULL != strchr(message->payload, '?'))
             { // pending implementation....
-                result = COAP_204_CHANGED;
+                result = write_observe_attributes(contextP, uriP, serverP, message, response);
             }
 
             else if (LWM2M_URI_IS_SET_INSTANCE(uriP))

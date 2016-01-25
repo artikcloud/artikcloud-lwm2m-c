@@ -170,6 +170,7 @@ coap_status_t handle_delete_all(lwm2m_context_t * context);
 
 // defined in observe.c
 coap_status_t handle_observe_request(lwm2m_context_t * contextP, lwm2m_uri_t * uriP, lwm2m_server_t * serverP, coap_packet_t * message, coap_packet_t * response);
+coap_status_t write_observe_attributes(lwm2m_context_t * contextP, lwm2m_uri_t * uriP, lwm2m_server_t * serverP, coap_packet_t * message, coap_packet_t * response);
 void cancel_observe(lwm2m_context_t * contextP,
 #if !defined(COAP_TCP)
 	uint16_t mid,

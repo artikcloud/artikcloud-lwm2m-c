@@ -530,11 +530,31 @@ typedef struct _lwm2m_watcher_
 #endif
 } lwm2m_watcher_t;
 
+#define LWM2M_ATTRIB_FLAG_PMIN_ID    (uint8_t)0x020
+#define LWM2M_ATTRIB_FLAG_PMAX_ID    (uint8_t)0x10
+#define LWM2M_ATTRIB_FLAG_LT_ID      (uint8_t)0x08
+#define LWM2M_ATTRIB_FLAG_GT_ID      (uint8_t)0x04
+#define LWM2M_ATTRIB_FLAG_STEP_ID    (uint8_t)0x02
+#define LWM2M_ATTRIB_FLAG_CANCEL_ID  (uint8_t)0x01
+
+typedef struct _lwm2m_attributes_
+{
+    uint8_t     flag;           // indicates which segments are set
+
+    uint16_t    pmin;
+    uint16_t    pmax;
+    uint16_t    greater_then;
+    uint16_t    less_then;
+    uint16_t    step;
+    bool        cancel;
+} lwm2m_attributes_t;
+
 typedef struct _lwm2m_observed_
 {
     struct _lwm2m_observed_ * next;
 
     lwm2m_uri_t uri;
+    lwm2m_attributes_t * attrib;
     lwm2m_watcher_t * watcherList;
 } lwm2m_observed_t;
 

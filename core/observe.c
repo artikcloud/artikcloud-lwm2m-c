@@ -192,6 +192,93 @@ coap_status_t handle_observe_request(lwm2m_context_t * contextP,
     return COAP_205_CONTENT;
 }
 
+static int prv_extractAttribute(uint8_t* buffer, uint16_t *attributes)
+{
+    int retValue = 0; // all is happy
+
+    *attributes = 0;
+    while ((NULL != buffer) && ('0' <= *buffer) && ('9' >= *buffer))
+    {
+        *attributes *= 10;
+        *attributes += *buffer - '0';
+        buffer++;
+    }
+
+    if ((NULL != buffer) && ('&' != *buffer)) retValue = -1;
+
+    return retValue;
+}
+
+coap_status_t write_observe_attributes(lwm2m_context_t * contextP,
+                                     lwm2m_uri_t * uriP,
+                                     lwm2m_server_t * serverP,
+                                     coap_packet_t * message,
+                                     coap_packet_t * response)
+{
+    LOG("write_observe_attribute\r\n");
+
+    /**
+     * OMA-TS-LightweightM2M-V1_0-20141126-C  Section 8.2.4, Page 56:
+     * If the URI is not observed, the LWM2M Client MUST ignore the request and respond “2.04 Changed” to the LWM2M Server.
+     */
+    lwm2m_observed_t *observedP = prv_findObserved(contextP, uriP);
+    if (NULL == observedP) return COAP_204_CHANGED;
+
+    observedP->attrib = (lwm2m_attributes_t *)lwm2m_malloc(sizeof(lwm2m_attributes_t));
+    if (NULL == observedP->attrib) return COAP_500_INTERNAL_SERVER_ERROR;
+
+    uint8_t *walker = strchr(message->buffer, '?');
+    if (NULL == walker) return COAP_400_BAD_REQUEST;
+
+    walker++;
+    uint8_t *pEnd = strchr(walker, '&');
+    do
+    {
+        if (0 == strncmp(walker, "cancel", 6))
+        {
+            prv_unlinkObserved(contextP, observedP);
+            lwm2m_free(observedP->attrib);
+            lwm2m_free(observedP);
+        }
+
+        else if ((0 == strncmp(walker, "st=", 3)) && (0 == prv_extractAttribute(walker + 3, &(observedP->attrib->step))))
+        {
+            observedP->attrib->flag |= LWM2M_ATTRIB_FLAG_STEP_ID;
+        }
+
+        else if ((0 == strncmp(walker, "gt=", 3)) && (0 == prv_extractAttribute(walker + 3, &(observedP->attrib->greater_then))))
+        {
+            observedP->attrib->flag |= LWM2M_ATTRIB_FLAG_GT_ID;
+        }
+
+        else if ((0 == strncmp(walker, "lt=", 3)) && (0 == prv_extractAttribute(walker + 3, &(observedP->attrib->less_then))))
+        {
+            observedP->attrib->flag |= LWM2M_ATTRIB_FLAG_LT_ID;
+        }
+
+        else if ((0 == strncmp(walker, "pmax=", 5)) && (0 == prv_extractAttribute(walker + 5, &(observedP->attrib->pmax))))
+        {
+            observedP->attrib->flag |= LWM2M_ATTRIB_FLAG_PMAX_ID;
+        }
+
+        else if ((0 == strncmp(walker, "pmin=", 5)) && (0 == prv_extractAttribute(walker + 5, &(observedP->attrib->pmin))))
+        {
+            observedP->attrib->flag |= LWM2M_ATTRIB_FLAG_PMIN_ID;
+        }
+
+        walker = pEnd;
+        if (NULL != walker) walker++;
+    } while (NULL != pEnd);
+
+    if (NULL == observedP->attrib->flag)
+    {
+        lwm2m_free(observedP->attrib);
+        observedP->attrib = NULL;
+    }
+
+    return COAP_204_CHANGED;
+}
+
 void cancel_observe(lwm2m_context_t * contextP,
 #if !defined(COAP_TCP)
                     uint16_t mid,
@@ -243,6 +330,11 @@ void cancel_observe(lwm2m_context_t * contextP,
             if (observedP->watcherList == NULL)
             {
                 prv_unlinkObserved(contextP, observedP);
+                if (NULL != observedP->attrib)
+                {
+                    lwm2m_free(observedP->attrib);
+                    observedP->attrib = NULL;
+                }
                 lwm2m_free(observedP);
             }
             return;

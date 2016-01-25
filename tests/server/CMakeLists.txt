@@ -6,6 +6,11 @@ SET(LIBLWM2M_DIR ${PROJECT_SOURCE_DIR}/../../core)
 
 add_definitions(-DLWM2M_SERVER_MODE -DWITH_LOGS -DLWM2M_LITTLE_ENDIAN)
 
+if(TCP)
+add_definitions(-DCOAP_TCP)
+add_definitions(-DCOAP_MAX_HEADER_SIZE=370)
+endif(TCP)
+
 include_directories (${LIBLWM2M_DIR} ${PROJECT_SOURCE_DIR}/../utils)
 
 add_subdirectory(${LIBLWM2M_DIR} ${CMAKE_CURRENT_BINARY_DIR}/core)

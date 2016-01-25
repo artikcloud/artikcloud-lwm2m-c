@@ -32,7 +32,7 @@ int create_socket(const char * portStr)
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET6;
     hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_flags = AI_PASSIVE;
+    hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG;
 
     if (0 != getaddrinfo(NULL, portStr, &hints, &res))
     {
@@ -228,6 +228,10 @@ int connection_send(connection_t *connP,
     fprintf(stderr, "Sending %d bytes to [%s]:%hu\r\n", length, s, ntohs(port));
 
     output_buffer(stderr, buffer, length, 0);
+#endif
+
+#if defined(COAP_TCP)
+    if (2 != send_short(connP->sock, length)) return -1;
 #endif
 
     offset = 0;

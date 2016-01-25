@@ -642,12 +642,12 @@ int main(int argc, char *argv[])
 
     command_desc_t commands[] =
     {
-            {"list", "       List registered clients.", NULL, prv_output_clients, NULL},
-            {"read", "       Read from a client.", " read CLIENT# URI\r\n"
+            {"list", "List registered clients.", NULL, prv_output_clients, NULL},
+            {"read", "Read from a client.", " read CLIENT# URI\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri to read such as /3, /3//2, /3/0/2, /1024/11, /1024//1\r\n"
                                             "Result will be displayed asynchronously.", prv_read_client, NULL},
-            {"write", "       Write to a client.", " write CLIENT# URI DATA\r\n"
+            {"write", "Write to a client.", " write CLIENT# URI DATA\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri to write to such as /3, /3//2, /3/0/2, /1024/11, /1024//1\r\n"
                                             "   DATA: data to write\r\n"
@@ -658,29 +658,29 @@ int main(int argc, char *argv[])
                                             "   QUERY: attribute to write such as pmin=DATA, lt=DATA&st=DATA\r\n"
                                             "   ATTRIBUTES: pmin (minimum period), pmax (maximum period), gt (greater than), lt (less than), st (step), cancel\r\n"
                                             "Result will be displayed asynchronously.", prv_write_attrib_client, NULL},
-            {"exec", "       Execute a client resource.", " exec CLIENT# URI\r\n"
+            {"exec", "Execute a client resource.", " exec CLIENT# URI\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri of the resource to execute such as /3/0/2\r\n"
                                             "Result will be displayed asynchronously.", prv_exec_client, NULL},
-            {"del", "        Delete a client Object instance.", " del CLIENT# URI\r\n"
+            {"del", "Delete a client Object instance.", " del CLIENT# URI\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri of the instance to delete such as /1024/11\r\n"
                                             "Result will be displayed asynchronously.", prv_delete_client, NULL},
-            {"create", "     create an Object instance.", " create CLIENT# URI DATA\r\n"
+            {"create", "create an Object instance.", " create CLIENT# URI DATA\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri to which create the Object Instance such as /1024, /1024/45 \r\n"
                                             "   DATA: data to initialize the new Object Instance (0-255 for object 1024) \r\n"
                                             "Result will be displayed asynchronously.", prv_create_client, NULL},
-            {"observe", "    Observe from a client.", " observe CLIENT# URI\r\n"
+            {"observe", "Observe from a client.", " observe CLIENT# URI\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri to observe such as /3, /3/0/2, /1024/11\r\n"
                                             "Result will be displayed asynchronously.", prv_observe_client, NULL},
-            {"cancel", "     Cancel an observe.", " cancel CLIENT# URI\r\n"
+            {"cancel", "Cancel an observe.", " cancel CLIENT# URI\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri on which to cancel an observe such as /3, /3/0/2, /1024/11\r\n"
                                             "Result will be displayed asynchronously.", prv_cancel_client, NULL},
 
-            {"q", "          Quit the server.", NULL, prv_quit, NULL},
+            {"q", "Quit the server.", NULL, prv_quit, NULL},
 
             COMMAND_END_LIST
     };

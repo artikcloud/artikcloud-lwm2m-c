@@ -496,11 +496,9 @@ bool handle_observe_notify(lwm2m_context_t * contextP,
     observationP = (lwm2m_observation_t *)lwm2m_list_find((lwm2m_list_t *)clientP->observationList, obsID);
     if (observationP == NULL)
     {
-        coap_init_message(response, COAP_TYPE_RST, 0,
+        coap_init_message(response, COAP_TYPE_RST, 0
 #if !defined(COAP_TCP)
-            message->mid
-#else
-            0
+            , message->mid
 #endif
             );
         message_send(contextP, response, fromSessionH);
@@ -508,11 +506,9 @@ bool handle_observe_notify(lwm2m_context_t * contextP,
     else
     {
         if (message->type == COAP_TYPE_CON ) {
-            coap_init_message(response, COAP_TYPE_ACK, 0,
+            coap_init_message(response, COAP_TYPE_ACK, 0
 #if !defined(COAP_TCP)
-                message->mid
-#else
-                0
+                , message->mid
 #endif
                 );
             message_send(contextP, response, fromSessionH);

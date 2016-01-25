@@ -50,6 +50,7 @@
 
 #include "internals.h"
 #include <stdio.h>
+#include <strings.h>
 
 
 static lwm2m_media_type_t prv_convertMediaType(coap_content_type_t type)
@@ -208,7 +209,12 @@ coap_status_t handle_dm_request(lwm2m_context_t * contextP,
 
     case COAP_PUT:
         {
-            if (LWM2M_URI_IS_SET_INSTANCE(uriP))
+            if (NULL != strchr(message->payload, '?'))
+            { // pending implementation....
+                result = COAP_204_CHANGED;
+            }
+
+            else if (LWM2M_URI_IS_SET_INSTANCE(uriP))
             {
 #ifdef LWM2M_BOOTSTRAP
                 if (contextP->bsState == BOOTSTRAP_PENDING && object_isInstanceNew(contextP, uriP->objectId, uriP->instanceId))
@@ -225,6 +231,7 @@ coap_status_t handle_dm_request(lwm2m_context_t * contextP,
                     result = object_write(contextP, uriP, format, message->payload, message->payload_len);
                 }
             }
+
             else
             {
                 result = BAD_REQUEST_4_00;

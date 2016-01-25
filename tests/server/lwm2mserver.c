@@ -103,6 +103,10 @@ static char * prv_dump_binding(lwm2m_binding_t binding)
     {
     case BINDING_UNKNOWN:
         return "Not specified";
+#if defined(COAP_TCP)
+    case BINDING_T:
+        return "TCP";
+#else
     case BINDING_U:
         return "UDP";
     case BINDING_UQ:
@@ -115,6 +119,7 @@ static char * prv_dump_binding(lwm2m_binding_t binding)
         return "UDP plus SMS";
     case BINDING_UQS:
         return "UDP queue mode plus SMS";
+#endif
     default:
         return "";
     }
@@ -192,7 +197,6 @@ static int prv_read_id(char * buffer,
     return nb;
 }
 
-
 static void prv_result_callback(uint16_t clientID,
                                 lwm2m_uri_t * uriP,
                                 int status,
@@ -252,7 +256,6 @@ static void prv_read_client(char * buffer,
 
     result = prv_read_id(buffer, &clientId);
     if (result != 1) goto syntax_error;
-
     buffer = get_next_arg(buffer, &end);
     if (buffer[0] == 0) goto syntax_error;
 
@@ -299,23 +302,48 @@ static void prv_write_client(char * buffer,
     if (buffer[0] == 0) goto syntax_error;
 
     if (!check_end_of_args(end)) goto syntax_error;
-
     result = lwm2m_dm_write(lwm2mH, clientId, &uri, (uint8_t *)buffer, end - buffer, prv_result_callback, NULL);
 
     if (result == 0)
     {
         fprintf(stdout, "OK");
     }
+
     else
     {
         prv_print_error(result);
     }
+
     return;
 
 syntax_error:
     fprintf(stdout, "Syntax error !");
 }
 
+static void prv_write_attrib_client(char *buffer, void *user_data)
+{
+    uint16_t clientId = -1;
+    int result = prv_read_id(buffer, &clientId);
+    if (result != 1) goto syntax_error;
+
+    char *end = NULL;
+    buffer = get_next_arg(buffer, &end);
+    if (buffer[0] == 0) goto syntax_error;
+
+    lwm2m_uri_t uri;
+    result = lwm2m_stringToUri(buffer, end - buffer, &uri);
+    if (result == 0) goto syntax_error;
+
+    lwm2m_context_t *lwm2mH = (lwm2m_context_t *) user_data;
+    result = lwm2m_dm_write_attribute(lwm2mH, clientId, &uri, (uint8_t *)buffer, end - buffer, prv_result_callback, NULL);
+    goto happy;
+
+syntax_error:
+    fprintf(stdout, "Syntax error !");
+
+happy:
+    fprintf(stdout, "OK");
+}
 
 static void prv_exec_client(char * buffer,
                             void * user_data)
@@ -393,16 +421,15 @@ static void prv_create_client(char * buffer,
 
     if (!check_end_of_args(end)) goto syntax_error;
 
-   // TLV
+    // TLV
 
-   /* Client dependent part   */
-
+    /* Client dependent part   */
     if (uri.objectId == 1024)
     {
         result = lwm2m_PlainTextToInt64((uint8_t *)buffer, end - buffer, &value);
         temp_length = lwm2m_intToTLV(LWM2M_TYPE_RESOURCE, value, (uint16_t) 1, temp_buffer, MAX_PACKET_SIZE);
     }
-   /* End Client dependent part*/
+    /* End Client dependent part*/
 
     //Create
     result = lwm2m_dm_create(lwm2mH, clientId,&uri, temp_buffer, temp_length, prv_result_callback, NULL);
@@ -589,6 +616,19 @@ void print_usage(void)
     fprintf(stderr, "Launch a LWM2M server on localhost port "LWM2M_STANDARD_PORT_STR".\r\n\n");
 }
 
+uint32_t parse_int(uint8_t *bytes, size_t length)
+{
+    uint32_t retVal = 0;
+    size_t   i = 0;
+
+    while (i < length)
+    {
+        retVal <<= 8;
+        retVal |= bytes[i++];
+    }
+
+    return retVal;
+}
 
 int main(int argc, char *argv[])
 {
@@ -602,44 +642,50 @@ int main(int argc, char *argv[])
 
     command_desc_t commands[] =
     {
-            {"list", "List registered clients.", NULL, prv_output_clients, NULL},
-            {"read", "Read from a client.", " read CLIENT# URI\r\n"
+            {"list", "       List registered clients.", NULL, prv_output_clients, NULL},
+            {"read", "       Read from a client.", " read CLIENT# URI\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri to read such as /3, /3//2, /3/0/2, /1024/11, /1024//1\r\n"
                                             "Result will be displayed asynchronously.", prv_read_client, NULL},
-            {"write", "Write to a client.", " write CLIENT# URI DATA\r\n"
+            {"write", "       Write to a client.", " write CLIENT# URI DATA\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri to write to such as /3, /3//2, /3/0/2, /1024/11, /1024//1\r\n"
                                             "   DATA: data to write\r\n"
                                             "Result will be displayed asynchronously.", prv_write_client, NULL},
-            {"exec", "Execute a client resource.", " exec CLIENT# URI\r\n"
+            {"write_attrib", "Write attributes to a client.", " write attrib CLIENT# URI DATA\r\n"
+                                            "   CLIENT#: client number as returned by command 'list'\r\n"
+                                            "   URI&QUERY: uri to write to such as /3, /3//2, /3/0/2, /1024/11, /1024//1\r\n"
+                                            "   QUERY: attribute to write such as pmin=DATA, lt=DATA&st=DATA\r\n"
+                                            "   ATTRIBUTES: pmin (minimum period), pmax (maximum period), gt (greater than), lt (less than), st (step), cancel\r\n"
+                                            "Result will be displayed asynchronously.", prv_write_attrib_client, NULL},
+            {"exec", "       Execute a client resource.", " exec CLIENT# URI\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri of the resource to execute such as /3/0/2\r\n"
                                             "Result will be displayed asynchronously.", prv_exec_client, NULL},
-            {"del", "Delete a client Object instance.", " del CLIENT# URI\r\n"
+            {"del", "        Delete a client Object instance.", " del CLIENT# URI\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri of the instance to delete such as /1024/11\r\n"
                                             "Result will be displayed asynchronously.", prv_delete_client, NULL},
-            {"create", "create an Object instance.", " create CLIENT# URI DATA\r\n"
+            {"create", "     create an Object instance.", " create CLIENT# URI DATA\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri to which create the Object Instance such as /1024, /1024/45 \r\n"
                                             "   DATA: data to initialize the new Object Instance (0-255 for object 1024) \r\n"
                                             "Result will be displayed asynchronously.", prv_create_client, NULL},
-            {"observe", "Observe from a client.", " observe CLIENT# URI\r\n"
+            {"observe", "    Observe from a client.", " observe CLIENT# URI\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri to observe such as /3, /3/0/2, /1024/11\r\n"
                                             "Result will be displayed asynchronously.", prv_observe_client, NULL},
-            {"cancel", "Cancel an observe.", " cancel CLIENT# URI\r\n"
+            {"cancel", "     Cancel an observe.", " cancel CLIENT# URI\r\n"
                                             "   CLIENT#: client number as returned by command 'list'\r\n"
                                             "   URI: uri on which to cancel an observe such as /3, /3/0/2, /1024/11\r\n"
                                             "Result will be displayed asynchronously.", prv_cancel_client, NULL},
 
-            {"q", "Quit the server.", NULL, prv_quit, NULL},
+            {"q", "          Quit the server.", NULL, prv_quit, NULL},
 
             COMMAND_END_LIST
     };
 
-    sock = create_socket(LWM2M_STANDARD_PORT_STR);
+    sock = make_server_socket(atoi(LWM2M_STANDARD_PORT_STR));
     if (sock < 0)
     {
         fprintf(stderr, "Error opening socket: %d\r\n", errno);
@@ -654,7 +700,6 @@ int main(int argc, char *argv[])
     }
 
     signal(SIGINT, handle_sigint);
-
     for (i = 0 ; commands[i].name != NULL ; i++)
     {
         commands[i].userData = (void *)lwm2mH;
@@ -663,10 +708,19 @@ int main(int argc, char *argv[])
 
     lwm2m_set_monitoring_callback(lwm2mH, prv_monitor_callback, lwm2mH);
 
+    struct sockaddr_in clntAddr;
+    unsigned int       clntLen = sizeof(clntAddr);
+    int clientSock = accept(sock, (struct sockaddr *) &clntAddr, &clntLen);
+    if (clientSock < 0)
+    {
+        fprintf(stderr, "OOPS %d\n", errno);
+        return -200;
+    }
+
     while (0 == g_quit)
     {
         FD_ZERO(&readfds);
-        FD_SET(sock, &readfds);
+        FD_SET(clientSock, &readfds);
         FD_SET(STDIN_FILENO, &readfds);
 
         tv.tv_sec = 60;
@@ -680,44 +734,54 @@ int main(int argc, char *argv[])
         }
 
         result = select(FD_SETSIZE, &readfds, 0, 0, &tv);
-
         if ( result < 0 )
         {
             if (errno != EINTR)
             {
-              fprintf(stderr, "Error in select(): %d\r\n", errno);
+                fprintf(stderr, "Error in select(): %d\r\n", errno);
             }
         }
+
         else if (result > 0)
         {
             uint8_t buffer[MAX_PACKET_SIZE];
             int numBytes;
 
-            if (FD_ISSET(sock, &readfds))
+            if (FD_ISSET(clientSock, &readfds))
             {
-                struct sockaddr_storage addr;
-                socklen_t addrLen;
-
-                addrLen = sizeof(addr);
-                numBytes = recvfrom(sock, buffer, MAX_PACKET_SIZE, 0, (struct sockaddr *)&addr, &addrLen);
-
+                numBytes = recv(clientSock, buffer, 2 /*uint16_t*/, 0);
                 if (numBytes == -1)
                 {
                     fprintf(stderr, "Error in recvfrom(): %d\r\n", errno);
                 }
+
                 else
                 {
+                    struct sockaddr_storage addr;
+                    socklen_t addrLen = sizeof(addr);
+
+                    uint32_t msgLength = parse_int(buffer, 2);
+                    printf("\tmsgLength: %d\n", msgLength);
+
+                    numBytes = 0; /* number of bytes read */
+                    while (numBytes < msgLength)
+                    {
+                        numBytes += recvfrom(clientSock, &buffer[numBytes], msgLength - numBytes, 0, (struct sockaddr *) &addr, &addrLen);
+                    }
+                    printf("\trLength: %d\n", numBytes);
+
                     char s[INET6_ADDRSTRLEN];
                     in_port_t port;
                     connection_t * connP;
 
-					s[0] = 0;
+                    s[0] = 0;
                     if (AF_INET == addr.ss_family)
                     {
                         struct sockaddr_in *saddr = (struct sockaddr_in *)&addr;
-                        inet_ntop(saddr->sin_family, &saddr->sin_addr, s, INET6_ADDRSTRLEN);
+                        inet_ntop(saddr->sin_family, &saddr->sin_addr, s, INET_ADDRSTRLEN);
                         port = saddr->sin_port;
                     }
+
                     else if (AF_INET6 == addr.ss_family)
                     {
                         struct sockaddr_in6 *saddr = (struct sockaddr_in6 *)&addr;
@@ -731,18 +795,20 @@ int main(int argc, char *argv[])
                     connP = connection_find(connList, &addr, addrLen);
                     if (connP == NULL)
                     {
-                        connP = connection_new_incoming(connList, sock, (struct sockaddr *)&addr, addrLen);
+                        connP = connection_new_incoming(connList, clientSock, (struct sockaddr *)&addr, addrLen);
                         if (connP != NULL)
                         {
                             connList = connP;
                         }
                     }
+
                     if (connP != NULL)
                     {
                         lwm2m_handle_packet(lwm2mH, buffer, numBytes, connP);
                     }
                 }
             }
+
             else if (FD_ISSET(STDIN_FILENO, &readfds))
             {
                 numBytes = read(STDIN_FILENO, buffer, MAX_PACKET_SIZE - 1);
@@ -753,11 +819,13 @@ int main(int argc, char *argv[])
                     fprintf(stdout, "STDIN %d bytes '%s'\r\n> ", numBytes, buffer);
                     handle_command(commands, (char*)buffer);
                 }
+
                 if (g_quit == 0)
                 {
                     fprintf(stdout, "\r\n> ");
                     fflush(stdout);
                 }
+
                 else
                 {
                     fprintf(stdout, "\r\n");
@@ -767,6 +835,7 @@ int main(int argc, char *argv[])
     }
 
     lwm2m_close(lwm2mH);
+    close(clientSock);
     close(sock);
     connection_free(connList);
 

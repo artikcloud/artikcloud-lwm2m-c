@@ -38,6 +38,7 @@ typedef struct _connection_t
 } connection_t;
 
 int create_socket(const char * portStr);
+int make_server_socket(int port);
 
 connection_t * connection_find(connection_t * connList, struct sockaddr_storage * addr, size_t addrLen);
 connection_t * connection_new_incoming(connection_t * connList, int sock, struct sockaddr * addr, size_t addrLen);

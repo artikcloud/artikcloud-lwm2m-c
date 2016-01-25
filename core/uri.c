@@ -71,16 +71,14 @@ static int prv_parse_number(uint8_t * uriString,
         if ('0' <= uriString[*headP] && uriString[*headP] <= '9')
         {
             result += uriString[*headP] - '0';
-            result *= 10;
         }
         else
         {
-            return -1;
+            break;
         }
         *headP += 1;
     }
 
-    result /= 10;
     return result;
 }
 
@@ -245,7 +243,7 @@ int lwm2m_stringToUri(const char * buffer,
     uriP->resourceId = (uint16_t)readNum;
     uriP->flag |= LWM2M_URI_FLAG_RESOURCE_ID;
 
-    if (head != buffer_len) return 0;
+    if ((head != buffer_len) && (buffer[head] != '?')) return 0;
 
     return head;
 }

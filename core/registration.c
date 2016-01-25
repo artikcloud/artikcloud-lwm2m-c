@@ -168,18 +168,6 @@ static void prv_register(lwm2m_context_t * contextP,
     payload_length = prv_getRegisterPayload(contextP, payload, sizeof(payload));
     if (payload_length == 0) return;
 
-#if defined(MSFT_EXTENSION)
-    /**
-     * 3=Uri-Host (len=9):iothub123, // new
-     * 11=Uri-Query (len=2):rd, // existing
-     * 15=Uri-Query (len=39):ep=1eb25d3d-017f-4260-a4aefeb9452f227e, // new
-     * 15=Uri-Query (len=23):sr=/devices/deviceId123, // new
-     * 15=Uri-Query (len=13):se=1451606399,  // new
-     * 15=Uri-Query (len=9):skn=owner,  // new
-     * 15=Uri-Query (len=25):sig=hmac-sha256-signature, // new
-     */
-#endif
-
     query_length = prv_getRegistrationQuery(contextP, server, query, sizeof(query));
 
     if (query_length == 0) return;
@@ -342,7 +330,6 @@ void registration_update(lwm2m_context_t * contextP,
     {
         switch (targetP->status)
         {
-//#if !defined(COAP_TCP)
             case STATE_REGISTERED:
                 nextUpdate = targetP->lifetime;
                 if (30 < nextUpdate)
@@ -361,7 +348,7 @@ void registration_update(lwm2m_context_t * contextP,
                     *timeoutP = interval;
                 }
                 break;
-//#endif
+
             case STATE_DEREGISTERED:
                 // TODO: is it disabled?
                 prv_register(contextP, targetP);

@@ -440,6 +440,25 @@ int lwm2m_dm_write(lwm2m_context_t * contextP,
     }
 }
 
+int lwm2m_dm_write_attribute(lwm2m_context_t * contextP,
+                             uint16_t clientID,
+                             lwm2m_uri_t * uriP,
+                             uint8_t * buffer,
+                             int length,
+                             lwm2m_result_callback_t callback,
+                             void * userData)
+{
+    if (length == 0)
+    {
+        return COAP_400_BAD_REQUEST;
+    }
+
+    return prv_make_operation(contextP, clientID, uriP,
+            COAP_PUT,
+            LWM2M_CONTENT_TEXT, buffer, length,
+            callback, userData);
+}
+
 int lwm2m_dm_execute(lwm2m_context_t * contextP,
                      uint16_t clientID,
                      lwm2m_uri_t * uriP,

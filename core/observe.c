@@ -284,7 +284,7 @@ coap_status_t write_observe_attributes(lwm2m_context_t * contextP,
     return COAP_204_CHANGED;
 }
 
-#if !defined(COAP_TCP)
+#if defined(COAP_TCP)
 
 void cancel_observe(lwm2m_context_t * contextP, void * fromSessionH)
 {

@@ -98,11 +98,11 @@ static void handle_reset(lwm2m_context_t * contextP,
                          coap_packet_t * message)
 {
 #ifdef LWM2M_CLIENT_MODE
-    cancel_observe(contextP,
+
 #if !defined(COAP_TCP)
-        message->mid,
+    cancel_observe(contextP, message->mid, fromSessionH);
 #endif
-        fromSessionH);
+
 #endif
 }
 

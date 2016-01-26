@@ -224,8 +224,13 @@ coap_status_t write_observe_attributes(lwm2m_context_t * contextP,
     lwm2m_observed_t *observedP = prv_findObserved(contextP, uriP);
     if (NULL == observedP) return COAP_204_CHANGED;
 
-    observedP->attrib = (lwm2m_attributes_t *)lwm2m_malloc(sizeof(lwm2m_attributes_t));
-    if (NULL == observedP->attrib) return COAP_500_INTERNAL_SERVER_ERROR;
+    /* QUESTION: Does the OMA-TS-LightweightM2M-V1_0-20141126-C say anything about this?
+    */
+    if (NULL == observedP->attrib)
+    {
+        observedP->attrib = (lwm2m_attributes_t *)lwm2m_malloc(sizeof(lwm2m_attributes_t));
+        if (NULL == observedP->attrib) return COAP_500_INTERNAL_SERVER_ERROR;
+    }
 
     uint8_t *walker = strchr(message->buffer, '?');
     if (NULL == walker) return COAP_400_BAD_REQUEST;
@@ -279,10 +284,18 @@ coap_status_t write_observe_attributes(lwm2m_context_t * contextP,
     return COAP_204_CHANGED;
 }
 
-void cancel_observe(lwm2m_context_t * contextP,
 #if !defined(COAP_TCP)
+
+void cancel_observe(lwm2m_context_t * contextP, void * fromSessionH)
+{
+    // NO OP. The request should have failed up stream.
+    //
+}
+
+#else
+
+void cancel_observe(lwm2m_context_t * contextP,
                     uint16_t mid,
-#endif
                     void * fromSessionH)
 {
     lwm2m_observed_t * observedP;
@@ -296,9 +309,7 @@ void cancel_observe(lwm2m_context_t * contextP,
         lwm2m_watcher_t * targetP = NULL;
 
         if (
-#if !defined(COAP_TCP)
 			observedP->watcherList->lastMid == mid &&
-#endif
 			observedP->watcherList->server->sessionH == fromSessionH)
         {
             targetP = observedP->watcherList;
@@ -310,11 +321,7 @@ void cancel_observe(lwm2m_context_t * contextP,
 
             parentP = observedP->watcherList;
             while (parentP->next != NULL && 
-#if defined(COAP_TCP)
-				parentP->next->server->sessionH != fromSessionH)
-#else
 				(parentP->next->lastMid != mid || parentP->next->server->sessionH != fromSessionH))
-#endif
 			{
                 parentP = parentP->next;
             }
@@ -341,6 +348,7 @@ void cancel_observe(lwm2m_context_t * contextP,
         }
     }
 }
+#endif
 
 void lwm2m_resource_value_changed(lwm2m_context_t * contextP,
                                   lwm2m_uri_t * uriP)

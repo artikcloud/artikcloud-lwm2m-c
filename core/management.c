@@ -209,11 +209,9 @@ coap_status_t handle_dm_request(lwm2m_context_t * contextP,
 
     case COAP_PUT:
         {
-             
-            if (NULL != message->uri_query)
-            { // pending implementation....
-                // result = write_observe_attributes(contextP, uriP, serverP, message, response);
-                result = COAP_204_CHANGED;
+            if (IS_OPTION(message, COAP_OPTION_URI_QUERY))
+            {
+                result = write_observe_attributes(contextP, uriP, serverP, message, response);
             }
 
             else if (LWM2M_URI_IS_SET_INSTANCE(uriP))
@@ -381,6 +379,15 @@ static int prv_make_operation(lwm2m_context_t * contextP,
     if (buffer != NULL)
     {
         coap_set_header_content_type(transaction->message, format);
+        if ((COAP_PUT == method) && (NULL != uriP))
+        {
+            uint8_t *uriQueryString = strchr(buffer, '?');
+            if (NULL != uriQueryString)
+            {
+                coap_set_header_uri_query(transaction->message, uriQueryString);
+                length = uriQueryString - buffer;
+            }
+        }
         // TODO: Take care of fragmentation
         coap_set_payload(transaction->message, buffer, length);
     }

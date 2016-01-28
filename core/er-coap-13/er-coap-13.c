@@ -1075,7 +1075,17 @@ coap_set_header_uri_query(void *packet, const char *query)
     {
         int i = 0;
 
-        while (query[i] != 0 && query[i] != '&') i++;
+        // Hack.  For tk=, just take the entire rest of the string because the value has embedded &'s
+        // The correct fix is to URL encoded the value on the client and decoded on the server, but we're hacking for January private preview.
+        // query is guaranteed to be null delimited, so we don't have to check the length because the first '\0' will short circuit.
+        if (query[0] == 't' && query[1] == 'k' && query[2] == '=')
+        {
+            while (query[i] != 0) i++;
+        }
+        else
+        {
+            while (query[i] != 0 && query[i] != '&') i++;
+        }
         coap_add_multi_option(&(coap_pkt->uri_query), (uint8_t *)query, i, 0);
 
         if (query[i] == '&') i++;

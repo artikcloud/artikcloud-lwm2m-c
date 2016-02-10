@@ -261,7 +261,7 @@ size_t lwm2m_float64ToPlainText(double data,
     } while ((decPart - (int64_t)decPart > 0)
           && (i < _PRV_PRECISION));
 
-    decLength = prv_intToText(decPart, decString, _PRV_STR_LENGTH);
+    decLength = prv_intToText((int64_t)decPart, decString, _PRV_STR_LENGTH);
     if (decLength <= 1) return 0;
 
     *bufferP = (uint8_t *)lwm2m_malloc(intLength + 1 + decLength);

@@ -245,10 +245,10 @@ lwm2m_transaction_t * transaction_new(coap_message_type_t type,
 
             // initialize first 6 bytes, leave the last 2 random
 #if defined(COAP_TCP)
-			temp_token[0] = tv_sec;
-			temp_token[1] = tv_sec >> 8;
-			temp_token[2] = tv_sec >> 16;
-			temp_token[3] = tv_sec >> 24;
+			temp_token[0] = (uint8_t)(tv_sec & 0xFF);
+			temp_token[1] = (uint8_t)((tv_sec & 0xFF00) >> 8);
+            temp_token[2] = (uint8_t)((tv_sec & 0xFF0000) >> 16);
+			temp_token[3] = (uint8_t)((tv_sec & 0xFF000000) >> 24);
 #else
 			temp_token[0] = mID;
 			temp_token[1] = mID >> 8;
@@ -409,7 +409,7 @@ int transaction_send(lwm2m_context_t * contextP,
                                                 + ((coap_packet_t *)(transacP->message))->payload_len);
         if (transacP->buffer == NULL) return COAP_500_INTERNAL_SERVER_ERROR;
 
-        transacP->buffer_len = coap_serialize_message(transacP->message, transacP->buffer);
+        transacP->buffer_len = (uint16_t)coap_serialize_message(transacP->message, transacP->buffer);
         if (transacP->buffer_len == 0)
         {
             lwm2m_free(transacP->buffer);

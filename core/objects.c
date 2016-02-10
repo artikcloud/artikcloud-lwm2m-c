@@ -62,8 +62,6 @@
 static lwm2m_object_t * prv_find_object(lwm2m_context_t * contextP,
                                         uint16_t Id)
 {
-    int i;
-
     if (
 #ifdef LWM2M_BOOTSTRAP
         (contextP->bsState != BOOTSTRAP_PENDING) &&
@@ -398,7 +396,7 @@ int prv_getRegisterPayload(lwm2m_context_t * contextP,
     {
         result = snprintf((char *)buffer, length, REG_ALT_PATH_LINK, "/");
     }
-    if (result > 0 && result <= length)
+    if (result > 0 && result <= (int)length)
     {
         index = result;
     }
@@ -416,7 +414,7 @@ int prv_getRegisterPayload(lwm2m_context_t * contextP,
             result = snprintf((char *)buffer + index, length - index,
                               REG_OBJECT_PATH,
                               contextP->altPath?contextP->altPath:"", contextP->objectList[i]->objID);
-            if (result > 0 && result <= length - index)
+            if (result > 0 && result <= (int)(length - index))
             {
                 index += result;
             }
@@ -433,7 +431,7 @@ int prv_getRegisterPayload(lwm2m_context_t * contextP,
                 result = snprintf((char *)buffer + index, length - index,
                                   REG_OBJECT_INSTANCE_PATH,
                                   contextP->altPath?contextP->altPath:"", contextP->objectList[i]->objID, targetP->id);
-                if (result > 0 && result <= length - index)
+                if (result > 0 && result <= (int)(length - index))
                 {
                     index += result;
                 }
@@ -598,7 +596,7 @@ int object_getServers(lwm2m_context_t * contextP)
             lwm2m_data_free(size, dataP);
             return -1;
         }
-        targetP->shortID = value;
+        targetP->shortID = (uint16_t)(value & 0xFFFF);
 
         if (isBootstrap == true)
         {

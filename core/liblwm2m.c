@@ -78,7 +78,7 @@ lwm2m_context_t * lwm2m_init(lwm2m_connect_server_callback_t connectCallback,
         contextP->connectCallback = connectCallback;
         contextP->bufferSendCallback = bufferSendCallback;
         contextP->userData = userData;
-        srand(time(NULL));
+        srand((unsigned int)time(NULL));
 #if !defined(COAP_TCP)
 		contextP->nextMID = rand();
 #endif

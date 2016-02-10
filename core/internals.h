@@ -62,6 +62,10 @@
 
 #include "er-coap-13/er-coap-13.h"
 
+#ifdef LOG
+#undef LOG
+#endif
+
 #ifdef WITH_LOGS
 #define LOG(...) fprintf(stderr, __VA_ARGS__)
 #else

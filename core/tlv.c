@@ -83,17 +83,17 @@ static int prv_create_header(uint8_t * header,
     }
     else
     {
-        header[1] = id;
+        header[1] = (uint8_t)id;
         offset = 2;
     }
     if (data_len <= 7)
     {
-        header[0] += data_len;
+        header[0] += (uint8_t)data_len;
     }
     else if (data_len <= 0xFF)
     {
         header[0] |= 0x08;
-        header[offset] = data_len;
+        header[offset] = (uint8_t)data_len;
     }
     else if (data_len <= 0xFFFF)
     {
@@ -730,7 +730,7 @@ void lwm2m_data_encode_float(double value,
             {
                 float temp;
 
-                temp = value;
+                temp = (float)value;
 #ifdef LWM2M_BIG_ENDIAN
                 memcpy(dataP->value, &temp, length);
 #else

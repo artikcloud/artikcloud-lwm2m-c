@@ -352,9 +352,11 @@ int lwm2m_stringToUri(const char * buffer, size_t buffer_len, lwm2m_uri_t * uriP
  */
 
 typedef struct _lwm2m_object_t lwm2m_object_t;
+typedef struct _lwm2m_attributes_t lwm2m_attributes_t;
 
 typedef uint8_t (*lwm2m_read_callback_t) (uint16_t instanceId, int * numDataP, lwm2m_data_t ** dataArrayP, lwm2m_object_t * objectP);
 typedef uint8_t (*lwm2m_write_callback_t) (uint16_t instanceId, int numData, lwm2m_data_t * dataArray, lwm2m_object_t * objectP);
+typedef uint8_t (*lwm2m_write_attributes_callback_t) (lwm2m_uri_t *uriP, lwm2m_attributes_t *attribP);
 typedef uint8_t (*lwm2m_execute_callback_t) (uint16_t instanceId, uint16_t resourceId, uint8_t * buffer, int length, lwm2m_object_t * objectP);
 typedef uint8_t (*lwm2m_create_callback_t) (uint16_t instanceId, int numData, lwm2m_data_t * dataArray, lwm2m_object_t * objectP);
 typedef uint8_t (*lwm2m_delete_callback_t) (uint16_t instanceId, lwm2m_object_t * objectP);
@@ -362,15 +364,16 @@ typedef void (*lwm2m_close_callback_t) (lwm2m_object_t * objectP);
 
 struct _lwm2m_object_t
 {
-    uint16_t                 objID;
-    lwm2m_list_t *           instanceList;
-    lwm2m_read_callback_t    readFunc;
-    lwm2m_write_callback_t   writeFunc;
-    lwm2m_execute_callback_t executeFunc;
-    lwm2m_create_callback_t  createFunc;
-    lwm2m_delete_callback_t  deleteFunc;
-    lwm2m_close_callback_t   closeFunc;
-    void *                   userData;
+    uint16_t                          objID;
+    lwm2m_list_t *                    instanceList;
+    lwm2m_read_callback_t             readFunc;
+    lwm2m_write_callback_t            writeFunc;
+    lwm2m_write_attributes_callback_t  writeAttributesFunc;
+    lwm2m_execute_callback_t          executeFunc;
+    lwm2m_create_callback_t           createFunc;
+    lwm2m_delete_callback_t           deleteFunc;
+    lwm2m_close_callback_t            closeFunc;
+    void *                            userData;
 };
 
 /*
@@ -470,10 +473,14 @@ typedef struct _lwm2m_client_
     char *                  msisdn;
     char *                  altPath;
     uint32_t                lifetime;
+#ifdef LWM2M_SERVER_MODE
     time_t                  endOfLife;
+#endif
     void *                  sessionH;
     lwm2m_client_object_t * objectList;
+#ifdef LWM2M_SERVER_MODE
     lwm2m_observation_t *   observationList;
+#endif
 } lwm2m_client_t;
 
 
@@ -530,14 +537,13 @@ typedef struct _lwm2m_watcher_
 #endif
 } lwm2m_watcher_t;
 
-#define LWM2M_ATTRIB_FLAG_PMIN_ID    (uint8_t)0x020
-#define LWM2M_ATTRIB_FLAG_PMAX_ID    (uint8_t)0x10
-#define LWM2M_ATTRIB_FLAG_LT_ID      (uint8_t)0x08
-#define LWM2M_ATTRIB_FLAG_GT_ID      (uint8_t)0x04
-#define LWM2M_ATTRIB_FLAG_STEP_ID    (uint8_t)0x02
-#define LWM2M_ATTRIB_FLAG_CANCEL_ID  (uint8_t)0x01
+#define LWM2M_ATTRIB_FLAG_PMIN_ID    (uint8_t)0x10
+#define LWM2M_ATTRIB_FLAG_PMAX_ID    (uint8_t)0x08
+#define LWM2M_ATTRIB_FLAG_LT_ID      (uint8_t)0x04
+#define LWM2M_ATTRIB_FLAG_GT_ID      (uint8_t)0x02
+#define LWM2M_ATTRIB_FLAG_STEP_ID    (uint8_t)0x01
 
-typedef struct _lwm2m_attributes_
+struct _lwm2m_attributes_t
 {
     uint8_t     flag;           // indicates which segments are set
 
@@ -547,15 +553,16 @@ typedef struct _lwm2m_attributes_
     uint16_t    less_then;
     uint16_t    step;
     bool        cancel;
-} lwm2m_attributes_t;
+};
 
 typedef struct _lwm2m_observed_
 {
     struct _lwm2m_observed_ * next;
 
     lwm2m_uri_t uri;
-    lwm2m_attributes_t * attrib;
-    lwm2m_watcher_t * watcherList;
+    lwm2m_attributes_t *attrib;
+    lwm2m_watcher_t    *watcherList;
+    time_t              newValueStamp;
 } lwm2m_observed_t;
 
 #ifdef LWM2M_BOOTSTRAP

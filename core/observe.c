@@ -219,6 +219,8 @@ coap_status_t write_observe_attributes(lwm2m_context_t * contextP,
                                      coap_packet_t * message,
                                      coap_packet_t * response)
 {
+    if (!LWM2M_URI_IS_SET_INSTANCE(uriP) && LWM2M_URI_IS_SET_RESOURCE(uriP)) return COAP_400_BAD_REQUEST;
+
     /**
      * OMA-TS-LightweightM2M-V1_0-20141126-C  Section 8.2.4, Page 56:
      * If the URI is not observed, the LWM2M Client MUST ignore the request and respond “2.04 Changed” to the LWM2M Server.
@@ -226,74 +228,149 @@ coap_status_t write_observe_attributes(lwm2m_context_t * contextP,
     lwm2m_observed_t *observedP = prv_findObserved(contextP, uriP);
     if (NULL == observedP) return COAP_204_CHANGED;
 
-    /*
-     * multiple option requests are cumulative.
-     * QUESTION: Does the OMA-TS-LightweightM2M-V1_0-20141126-C say anything about this?
-    */
-    if (NULL == observedP->attrib)
-    {
-        observedP->attrib = (lwm2m_attributes_t *)lwm2m_malloc(sizeof(lwm2m_attributes_t));
-        if (NULL == observedP->attrib) return COAP_500_INTERNAL_SERVER_ERROR;
-        memset(observedP->attrib, 0, sizeof(lwm2m_attributes_t));
-    }
-
     coap_status_t retValue = COAP_204_CHANGED;
     multi_option_t *query = message->uri_query;
 
-    /*
-     * if at least one recoginzed option is present, we silently ignore options that don't match any of the recognized 6.
-     * QUESTION: Does the OMA-TS-LightweightM2M-V1_0-20141126-C say anything about this?
-     */
+    lwm2m_attributes_t newAttributes = { 0 };
+    if (observedP->attrib != NULL)
+    {
+        memcpy(&newAttributes, observedP->attrib, sizeof(lwm2m_attributes_t));
+    }
+
     while (NULL != query)
     {
         if (0 == strncmp(query->data, "cancel", 6))
         {
-            prv_unlinkObserved(contextP, observedP);
-            lwm2m_free(observedP->attrib);
-            lwm2m_free(observedP);
+            if (observedP != NULL)
+            {
+                prv_unlinkObserved(contextP, observedP);
+                lwm2m_free(observedP->attrib);
+                lwm2m_free(observedP);
+            }
 
             return COAP_204_CHANGED;
         }
 
         else if (0 == strncmp(query->data, "st=", 3))
         {
-            prv_extractAttribute(query->data + 3, &(observedP->attrib->step));
-            observedP->attrib->flag |= LWM2M_ATTRIB_FLAG_STEP_ID;
+            /* Greater Than, Less Than, and Step MUST be specified only when Resource ID is indicated.  */
+            if (LWM2M_URI_IS_SET_RESOURCE(uriP) == false)
+            {
+                newAttributes.flag = 0;
+                break;
+            }
+
+            prv_extractAttribute(query->data + 3, &(newAttributes.step));
+            newAttributes.flag |= LWM2M_ATTRIB_FLAG_STEP_ID;
         }
 
         else if (0 == strncmp(query->data, "gt=", 3))
         {
-            prv_extractAttribute(query->data + 3, &(observedP->attrib->greater_then));
-            observedP->attrib->flag |= LWM2M_ATTRIB_FLAG_GT_ID;
+            /* Greater Than, Less Than, and Step MUST be specified only when Resource ID is indicated.  */
+            if (LWM2M_URI_IS_SET_RESOURCE(uriP) == false)
+            {
+                newAttributes.flag = 0;
+                break;
+            }
+
+            prv_extractAttribute(query->data + 3, &(newAttributes.greater_then));
+            newAttributes.flag |= LWM2M_ATTRIB_FLAG_GT_ID;
         }
 
         else if (0 == strncmp(query->data, "lt=", 3))
         {
-            prv_extractAttribute(query->data + 3, &(observedP->attrib->less_then));
-            observedP->attrib->flag |= LWM2M_ATTRIB_FLAG_LT_ID;
+            /* Greater Than, Less Than, and Step MUST be specified only when Resource ID is indicated.  */
+            if (LWM2M_URI_IS_SET_RESOURCE(uriP) == false)
+            {
+                newAttributes.flag = 0;
+                break;
+            }
+
+            prv_extractAttribute(query->data + 3, &(newAttributes.less_then));
+            newAttributes.flag |= LWM2M_ATTRIB_FLAG_LT_ID;
         }
 
         else if (0 == strncmp(query->data, "pmax=", 5))
         {
-            prv_extractAttribute(query->data + 5, &(observedP->attrib->pmax));
-            observedP->attrib->flag |= LWM2M_ATTRIB_FLAG_PMAX_ID;
+            if ((newAttributes.flag & LWM2M_ATTRIB_FLAG_PMIN_ID) == 0)
+            {
+                newAttributes.flag = 0;
+                break;
+            }
+
+            prv_extractAttribute(query->data + 5, &(newAttributes.pmax));
+            if (newAttributes.pmax < newAttributes.pmin)
+            {
+                newAttributes.flag = 0;
+                break;
+            }
+
+            newAttributes.flag |= LWM2M_ATTRIB_FLAG_PMAX_ID;
         }
 
         else if (0 == strncmp(query->data, "pmin=", 5))
         {
-            prv_extractAttribute(query->data + 5, &(observedP->attrib->pmin));
-            observedP->attrib->flag |= LWM2M_ATTRIB_FLAG_PMIN_ID;
+            prv_extractAttribute(query->data + 5, &(newAttributes.pmin));
+            if (((newAttributes.flag & LWM2M_ATTRIB_FLAG_PMAX_ID) == LWM2M_ATTRIB_FLAG_PMAX_ID) && (newAttributes.pmax < newAttributes.pmin))
+            {
+                newAttributes.flag = 0;
+                break;
+            }
+
+            newAttributes.flag |= LWM2M_ATTRIB_FLAG_PMIN_ID;
         }
 
         query = query->next;
     }
 
-    if (0 == observedP->attrib->flag)
+    if (newAttributes.flag == 0)
     {
-        lwm2m_free(observedP->attrib);
-        observedP->attrib = NULL;
-
         retValue = COAP_400_BAD_REQUEST;
+    }
+
+    else
+    {
+        lwm2m_object_t *pGlobalObject = contextP->objectList[2];
+        pGlobalObject->objID = uriP->objectId;
+        if (pGlobalObject->writeAttributesFunc(uriP, &newAttributes) != COAP_204_CHANGED)
+            return COAP_400_BAD_REQUEST;
+
+        if (NULL == observedP->attrib)
+        {
+            observedP->attrib = (lwm2m_attributes_t *)lwm2m_malloc(sizeof(lwm2m_attributes_t));
+            if (NULL == observedP->attrib) return COAP_500_INTERNAL_SERVER_ERROR;
+            memset(observedP->attrib, 0, sizeof(lwm2m_attributes_t));
+        }
+
+        /*
+        * In this implementation, multiple 'write attributes' requests are cumulative.
+        * QUESTION: Does the OMA-TS-LightweightM2M-V1_0-20141126-C say anything about this?
+        */
+        observedP->attrib->flag |= newAttributes.flag;
+        if ((newAttributes.flag & LWM2M_ATTRIB_FLAG_GT_ID) == LWM2M_ATTRIB_FLAG_GT_ID)
+        {
+            observedP->attrib->greater_then = newAttributes.greater_then;
+        }
+
+        if ((newAttributes.flag & LWM2M_ATTRIB_FLAG_LT_ID) == LWM2M_ATTRIB_FLAG_LT_ID)
+        {
+            observedP->attrib->less_then = newAttributes.less_then;
+        }
+
+        if ((newAttributes.flag & LWM2M_ATTRIB_FLAG_STEP_ID) == LWM2M_ATTRIB_FLAG_STEP_ID)
+        {
+            observedP->attrib->step = newAttributes.step;
+        }
+
+        if ((newAttributes.flag & LWM2M_ATTRIB_FLAG_PMAX_ID) == LWM2M_ATTRIB_FLAG_PMAX_ID)
+        {
+            observedP->attrib->pmax = newAttributes.pmax;
+        }
+
+        if ((newAttributes.flag & LWM2M_ATTRIB_FLAG_PMIN_ID) == LWM2M_ATTRIB_FLAG_PMIN_ID)
+        {
+            observedP->attrib->pmin = newAttributes.pmin;
+        }
     }
 
     return retValue;

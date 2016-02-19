@@ -563,6 +563,7 @@ typedef struct _lwm2m_observed_
     lwm2m_attributes_t *attrib;
     lwm2m_watcher_t    *watcherList;
     time_t              newValueStamp;
+    bool                hasNewValue;
 } lwm2m_observed_t;
 
 #ifdef LWM2M_BOOTSTRAP

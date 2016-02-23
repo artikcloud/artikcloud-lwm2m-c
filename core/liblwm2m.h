@@ -562,7 +562,7 @@ typedef struct _lwm2m_observed_
     lwm2m_uri_t uri;
     lwm2m_attributes_t *attrib;
     lwm2m_watcher_t    *watcherList;
-    time_t              newValueStamp;
+    time_t              lastModifyTimeStamp;
     bool                hasNewValue;
 } lwm2m_observed_t;
 

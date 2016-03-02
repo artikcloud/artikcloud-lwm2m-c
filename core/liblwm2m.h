@@ -1,4 +1,4 @@
-/*******************************************************************************
+﻿/*******************************************************************************
  *
  * Copyright (c) 2013, 2014 Intel Corporation and others.
  * All rights reserved. This program and the accompanying materials
@@ -545,14 +545,13 @@ typedef struct _lwm2m_watcher_
 
 struct _lwm2m_attributes_t
 {
-    uint8_t     flag;           // indicates which segments are set
+    uint8_t      flag;           // indicates which segments are set
 
-    uint16_t    pmin;
-    uint16_t    pmax;
-    uint16_t    greater_then;
-    uint16_t    less_then;
-    uint16_t    step;
-    bool        cancel;
+    unsigned int pmin;
+    unsigned int pmax;
+    int          greater_then;
+    int          less_then;
+    uint16_t     step;
 };
 
 typedef struct _lwm2m_observed_

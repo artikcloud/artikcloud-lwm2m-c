@@ -219,7 +219,7 @@ static int prv_extractAttribute(uint8_t* buffer, double *attribValue)
         }
     }
 
-    attribValue *= sign;
+    *attribValue *= sign;
     return retValue;
 }
 

@@ -192,24 +192,34 @@ coap_status_t handle_observe_request(lwm2m_context_t * contextP,
     return COAP_205_CONTENT;
 }
 
-static int prv_extractAttribute(uint8_t* buffer, uint16_t *attributes)
+static int prv_extractAttribute(uint8_t* buffer, double *attribValue)
 {
     int retValue = 0; // all is happy
+    int sign = 1;
 
-    *attributes = 0;
+    if (*buffer == '-')
+    {
+        sign = -1;
+        buffer++;
+    }
+
+    *attribValue = 0;
     while (NULL != buffer)
     {
         if (('0' <= *buffer) && ('9' >= *buffer))
         {
-            *attributes *= 10;
-            *attributes += *buffer - '0';
+            *attribValue *= 10;
+            *attribValue += *buffer - '0';
             buffer++;
         }
 
         else
+        {
             break;
+        }
     }
 
+    attribValue *= sign;
     return retValue;
 }
 

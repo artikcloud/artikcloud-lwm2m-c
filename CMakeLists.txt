@@ -4,6 +4,8 @@ project (wakaama)
 
 option(DTLS "Enable DTLS" ON)
 
+set(ARTIK_LWM2M ON)
+
 include(${CMAKE_CURRENT_LIST_DIR}/core/wakaama.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/examples/shared/shared.cmake)
 

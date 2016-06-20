@@ -11,6 +11,7 @@ set(EXT_SOURCES
 set(CORE_HEADERS
     ${WAKAAMA_SOURCES_DIR}/liblwm2m.h)
 
+if(ARTIK_LWM2M)
 set(OBJECT_SOURCES_DIR ${WAKAAMA_SOURCES_DIR}/lwm2m_object)
 set(OBJECT_SOURCES
     ${OBJECT_SOURCES_DIR}/lwm2mclient.h
@@ -25,7 +26,8 @@ set(OBJECT_SOURCES
     ${OBJECT_SOURCES_DIR}/object_access_control.c
     ${OBJECT_SOURCES_DIR}/test_object.c
     )
-    
+endif()
+
 set(WAKAAMA_SOURCES
     ${WAKAAMA_SOURCES_DIR}/liblwm2m.c
     ${WAKAAMA_SOURCES_DIR}/uri.c
@@ -41,9 +43,13 @@ set(WAKAAMA_SOURCES
     ${WAKAAMA_SOURCES_DIR}/management.c
     ${WAKAAMA_SOURCES_DIR}/observe.c
     ${WAKAAMA_SOURCES_DIR}/json.c
-    ${WAKAAMA_SOURCES_DIR}/discover.c
+    ${WAKAAMA_SOURCES_DIR}/discover.c  
     ${EXT_SOURCES}
-    ${OBJECT_SOURCES})
+    )
+
+if(ARTIK_LWM2M)
+	set(WAKAAMA_SOURCES ${WAKAAMA_SOURCES} ${OBJECT_SOURCES})
+endif()
 
 # This will not work for multi project cmake generators like the Visual Studio Generator
 if(CMAKE_BUILD_TYPE MATCHES Debug)

@@ -108,6 +108,9 @@ typedef struct
     int addressFamily;
 } client_data_t;
 
+lwm2m_context_t * lwm2mH = NULL;
+client_data_t data;
+
 static void prv_quit(char * buffer,
                      void * user_data)
 {
@@ -801,11 +804,10 @@ void print_usage(void)
     fprintf(stdout, "\r\n");
 }
 
-int main(int argc, char *argv[])
+int client_start(int argc, char *argv[])
 {
-    client_data_t data;
+
     int result;
-    lwm2m_context_t * lwm2mH = NULL;
     int i;
     const char * localPort = "56830";
     const char * server = NULL;
@@ -1332,38 +1334,56 @@ int main(int argc, char *argv[])
             }
         }
     }
+}
 
-    /*
-     * Finally when the loop is left smoothly - asked by user in the command line interface - we unregister our client from it
-     */
-    if (g_quit == 1)
-    {
+void client_stop(void)
+{
+ 	/*
+	 * Finally when the loop is left smoothly - asked by user in the command line interface - we unregister our client from it
+	 */
+	if (g_quit == 1)
+	{
 #ifdef LWM2M_BOOTSTRAP
-        close_backup_object();
+		close_backup_object();
 #endif
-        lwm2m_close(lwm2mH);
-    }
-    close(data.sock);
-    connection_free(data.connList);
+		lwm2m_close(lwm2mH);
+	}
+	close(data.sock);
+	connection_free(data.connList);
 
-    clean_security_object(objArray[0]);
-    lwm2m_free(objArray[0]);
-    clean_server_object(objArray[1]);
-    lwm2m_free(objArray[1]);
-    free_object_device(objArray[2]);
-    free_object_firmware(objArray[3]);
-    free_object_location(objArray[4]);
-    free_test_object(objArray[5]);
-    free_object_conn_m(objArray[6]);
-    free_object_conn_s(objArray[7]);
-    acl_ctrl_free_object(objArray[8]);
+	clean_security_object(objArray[0]);
+	lwm2m_free(objArray[0]);
+	clean_server_object(objArray[1]);
+	lwm2m_free(objArray[1]);
+	free_object_device(objArray[2]);
+	free_object_firmware(objArray[3]);
+	free_object_location(objArray[4]);
+	free_test_object(objArray[5]);
+	free_object_conn_m(objArray[6]);
+	free_object_conn_s(objArray[7]);
+	acl_ctrl_free_object(objArray[8]);
 
 #ifdef MEMORY_TRACE
-    if (g_quit == 1)
-    {
-        trace_print(0, 1);
-    }
+	if (g_quit == 1)
+	{
+		trace_print(0, 1);
+	}
 #endif
+}
 
-    return 0;
+
+int main(int argc, char *argv[])
+{
+	int ret;
+	
+    ret = client_start(argc, argv);
+	if (ret == -1 ) {
+		 printf("client start fail %d\n",ret);
+	}
+	if (g_quit >0) {
+		printf("cleint stop\n");
+		client_stop();
+	}
+	return 0;
+   
 }

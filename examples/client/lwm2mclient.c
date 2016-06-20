@@ -604,24 +604,6 @@ static void prv_remove(char * buffer,
     return;
 }
 
-#ifdef LWM2M_BOOTSTRAP
-
-static void prv_initiate_bootstrap(char * buffer,
-                                   void * user_data)
-{
-    lwm2m_context_t * lwm2mH = (lwm2m_context_t *)user_data;
-    lwm2m_server_t * targetP;
-
-    // HACK !!!
-    lwm2mH->state = STATE_BOOTSTRAP_REQUIRED;
-    targetP = lwm2mH->bootstrapServerList;
-    while (targetP != NULL)
-    {
-        targetP->lifetime = 0;
-        targetP = targetP->next;
-    }
-}
-
 static void prv_display_objects(char * buffer,
                                 void * user_data)
 {
@@ -658,6 +640,23 @@ static void prv_display_objects(char * buffer,
                 break;
             }
         }
+    }
+}
+
+#ifdef LWM2M_BOOTSTRAP
+static void prv_initiate_bootstrap(char * buffer,
+                                   void * user_data)
+{
+    lwm2m_context_t * lwm2mH = (lwm2m_context_t *)user_data;
+    lwm2m_server_t * targetP;
+
+    // HACK !!!
+    lwm2mH->state = STATE_BOOTSTRAP_REQUIRED;
+    targetP = lwm2mH->bootstrapServerList;
+    while (targetP != NULL)
+    {
+        targetP->lifetime = 0;
+        targetP = targetP->next;
     }
 }
 
@@ -795,7 +794,7 @@ void print_usage(void)
     fprintf(stdout, "  -t TIME\tSet the lifetime of the Client. Default: 300\r\n");
     fprintf(stdout, "  -b\t\tBootstrap requested.\r\n");
     fprintf(stdout, "  -c\t\tChange battery level over time.\r\n");
-#ifdef WITH_TINYDTLS    
+#ifdef WITH_TINYDTLS
     fprintf(stdout, "  -i STRING\tSet the device management or bootstrap server PSK identity. If not set use none secure mode\r\n");
     fprintf(stdout, "  -s HEXSTRING\tSet the device management or bootstrap server Pre-Shared-Key. If not set use none secure mode\r\n");    
 #endif
@@ -1199,6 +1198,7 @@ int main(int argc, char *argv[])
         if (result != 0)
         {
             fprintf(stderr, "lwm2m_step() failed: 0x%X\r\n", result);
+#ifdef LWM2M_BOOTSTRAP
             if(previousState == STATE_BOOTSTRAPPING)
             {
 #ifdef WITH_LOGS
@@ -1208,6 +1208,9 @@ int main(int argc, char *argv[])
                 lwm2mH->state = STATE_INITIAL;
             }
             else return -1;
+#else
+			return -1;
+#endif
         }
 #ifdef LWM2M_BOOTSTRAP
         update_bootstrap_info(&previousState, lwm2mH);

@@ -784,50 +784,43 @@ static void close_backup_object()
 }
 #endif
 
-void print_usage(void)
+int set_client_port(char * localport, char * server, char *serverPort)
 {
-    fprintf(stdout, "Usage: lwm2mclient [OPTION]\r\n");
-    fprintf(stdout, "Launch a LWM2M client.\r\n");
-    fprintf(stdout, "Options:\r\n");
-    fprintf(stdout, "  -n NAME\tSet the endpoint name of the Client. Default: testlwm2mclient\r\n");
-    fprintf(stdout, "  -l PORT\tSet the local UDP port of the Client. Default: 56830\r\n");
-    fprintf(stdout, "  -h HOST\tSet the hostname of the LWM2M Server to connect to. Default: localhost\r\n");
-    fprintf(stdout, "  -p PORT\tSet the port of the LWM2M Server to connect to. Default: "LWM2M_STANDARD_PORT_STR"\r\n");
-    fprintf(stdout, "  -4\t\tUse IPv4 connection. Default: IPv6 connection\r\n");
-    fprintf(stdout, "  -t TIME\tSet the lifetime of the Client. Default: 300\r\n");
-    fprintf(stdout, "  -b\t\tBootstrap requested.\r\n");
-    fprintf(stdout, "  -c\t\tChange battery level over time.\r\n");
-#ifdef WITH_TINYDTLS
-    fprintf(stdout, "  -i STRING\tSet the device management or bootstrap server PSK identity. If not set use none secure mode\r\n");
-    fprintf(stdout, "  -s HEXSTRING\tSet the device management or bootstrap server Pre-Shared-Key. If not set use none secure mode\r\n");    
-#endif
-    fprintf(stdout, "\r\n");
-}
+     memset(&data, 0, sizeof(client_data_t));
 
-int client_start(int argc, char *argv[])
+	 if (server == DEFAULT_SERVER_IPV6)
+	 	    data.addressFamily = AF_INET6;
+	 else
+	 	    data.addressFamily = AF_INET;
+
+    /*
+     *This call an internal function that create an IPV6 socket on the port 5683.
+     */
+    fprintf(stderr, "Trying to bind LWM2M Client to port %s\r\n", localport);
+    data.sock = create_socket(localport, data.addressFamily);
+    if (data.sock < 0)
+    {
+        fprintf(stderr, "Failed to open socket: %d %s\r\n", errno, strerror(errno));
+        return -1;
+    }
+
+}
+int client_start(char * pskId, char * psk, char * name, int lifetime, int batterylevelchanging, char * serverUri)
 {
 
     int result;
     int i;
-    const char * localPort = "56830";
-    const char * server = NULL;
-    const char * serverPort = LWM2M_STANDARD_PORT_STR;
-    char * name = "testlwm2mclient";
-    int lifetime = 300;
-    int batterylevelchanging = 0;
     time_t reboot_time = 0;
     int opt;
     bool bootstrapRequested = false;
-    bool serverPortChanged = false;
 
 #ifdef LWM2M_BOOTSTRAP
     lwm2m_client_state_t previousState = STATE_INITIAL;
 #endif
 
-    char * pskId = NULL;
-    char * psk = NULL;
     uint16_t pskLen = -1;
     char * pskBuffer = NULL;
+    int serverId = 123;
 
     /*
      * The function start by setting up the command line interface (which may or not be useful depending on your project)
@@ -860,124 +853,7 @@ int client_start(int argc, char *argv[])
 
             COMMAND_END_LIST
     };
-
-    memset(&data, 0, sizeof(client_data_t));
-    data.addressFamily = AF_INET6;
-
-    opt = 1;
-    while (opt < argc)
-    {
-        if (argv[opt] == NULL
-            || argv[opt][0] != '-'
-            || argv[opt][2] != 0)
-        {
-            print_usage();
-            return 0;
-        }
-        switch (argv[opt][1])
-        {
-        case 'b':
-            bootstrapRequested = true;
-            if (!serverPortChanged) serverPort = LWM2M_BSSERVER_PORT_STR;
-            break;
-        case 'c':
-            batterylevelchanging = 1;
-            break;
-        case 't':
-            opt++;
-            if (opt >= argc)
-            {
-                print_usage();
-                return 0;
-            }
-            if (1 != sscanf(argv[opt], "%d", &lifetime))
-            {
-                print_usage();
-                return 0;
-            }
-            break;
-#ifdef WITH_TINYDTLS
-        case 'i':
-            opt++;
-            if (opt >= argc)
-            {
-                print_usage();
-                return 0;
-            }
-            pskId = argv[opt];
-            break;
-        case 's':
-            opt++;
-            if (opt >= argc)
-            {
-                print_usage();
-                return 0;
-            }
-            psk = argv[opt];
-            break;
-#endif						
-        case 'n':
-            opt++;
-            if (opt >= argc)
-            {
-                print_usage();
-                return 0;
-            }
-            name = argv[opt];
-            break;
-        case 'l':
-            opt++;
-            if (opt >= argc)
-            {
-                print_usage();
-                return 0;
-            }
-            localPort = argv[opt];
-            break;
-        case 'h':
-            opt++;
-            if (opt >= argc)
-            {
-                print_usage();
-                return 0;
-            }
-            server = argv[opt];
-            break;
-        case 'p':
-            opt++;
-            if (opt >= argc)
-            {
-                print_usage();
-                return 0;
-            }
-            serverPort = argv[opt];
-            serverPortChanged = true;
-            break;
-        case '4':
-            data.addressFamily = AF_INET;
-            break;
-        default:
-            print_usage();
-            return 0;
-        }
-        opt += 1;
-    }
-
-    if (!server)
-    {
-        server = (AF_INET == data.addressFamily ? DEFAULT_SERVER_IPV4 : DEFAULT_SERVER_IPV6);
-    }
-
-    /*
-     *This call an internal function that create an IPV6 socket on the port 5683.
-     */
-    fprintf(stderr, "Trying to bind LWM2M Client to port %s\r\n", localPort);
-    data.sock = create_socket(localPort, data.addressFamily);
-    if (data.sock < 0)
-    {
-        fprintf(stderr, "Failed to open socket: %d %s\r\n", errno, strerror(errno));
-        return -1;
-    }
+    
 
     /*
      * Now the main function fill an array with each object, this list will be later passed to liblwm2m.
@@ -1015,9 +891,7 @@ int client_start(int argc, char *argv[])
     }
 #endif
 
-    char serverUri[50];
-    int serverId = 123;
-    sprintf (serverUri, "coap://%s:%s", server, serverPort);
+	printf(" serverUri =  %s\n",serverUri);
 #ifdef LWM2M_BOOTSTRAP
     objArray[0] = get_security_object(serverId, serverUri, pskId, pskBuffer, pskLen, bootstrapRequested);
 #else
@@ -1142,7 +1016,6 @@ int client_start(int argc, char *argv[])
     {
         commands[i].userData = (void *)lwm2mH;
     }
-    fprintf(stdout, "LWM2M Client \"%s\" started on port %s\r\n", name, localPort);
     fprintf(stdout, "> "); fflush(stdout);
     /*
      * We now enter in a while loop that will handle the communications from the server
@@ -1375,8 +1248,27 @@ void client_stop(void)
 int main(int argc, char *argv[])
 {
 	int ret;
+
+	char * localPort = "56830";
+    char * server = DEFAULT_SERVER_IPV6;
+    char * serverPort = LWM2M_STANDARD_PORT_STR;
+    char serverUri[50];
+
+    char * bsPskId = NULL;
+    char * psk = NULL;
+	char * client_name = "artik_lwm2mclient"; 
+	int lifetime = 300;
+	int batterylevelchanging =0;
 	
-    ret = client_start(argc, argv);
+	ret = set_client_port(localPort, server, serverPort);
+	if (ret == -1 ) {
+		printf("set_client_port fail %d\n",ret);
+		goto exit;
+	}
+	
+	sprintf (serverUri, "coap://%s:%s", server, serverPort);
+	
+    ret = client_start(bsPskId, psk, client_name, lifetime, batterylevelchanging, serverUri);
 	if (ret == -1 ) {
 		 printf("client start fail %d\n",ret);
 	}
@@ -1384,6 +1276,8 @@ int main(int argc, char *argv[])
 		printf("cleint stop\n");
 		client_stop();
 	}
+	
+exit:	
 	return 0;
    
 }

@@ -35,6 +35,7 @@
  */
 
 #include "liblwm2m.h"
+#include "lwm2mclient.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -225,7 +226,7 @@ void display_firmware_object(lwm2m_object_t * object)
 #endif
 }
 
-lwm2m_object_t * get_object_firmware(void)
+lwm2m_object_t * get_object_firmware(object_firmware * default_value)
 {
     /*
      * The get_object_firmware function create the object itself and return a pointer to the structure that represent it.
@@ -274,9 +275,9 @@ lwm2m_object_t * get_object_firmware(void)
          */
         if (NULL != firmwareObj->userData)
         {
-            ((firmware_data_t*)firmwareObj->userData)->state = 1;
-            ((firmware_data_t*)firmwareObj->userData)->supported = false;
-            ((firmware_data_t*)firmwareObj->userData)->result = 0;
+            ((firmware_data_t*)firmwareObj->userData)->state = default_value->state;
+            ((firmware_data_t*)firmwareObj->userData)->supported = default_value->supported;
+            ((firmware_data_t*)firmwareObj->userData)->result = default_value->result;
         }
         else
         {

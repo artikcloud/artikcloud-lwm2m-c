@@ -31,23 +31,56 @@
 
 extern int g_reboot;
 
+#define MAX_LEN 100
+
 /*
  * object_device.c
  */
-lwm2m_object_t * get_object_device(void);
+typedef struct {
+	char manufacturer[MAX_LEN];		/*PRV_MANUFACTURER*/
+	char model_number[MAX_LEN]; 	/*PRV_MODEL_NUMBER*/
+	char serial_number[MAX_LEN]; 	/*PRV_SERIAL_NUMBER*/
+	char firmware_version[MAX_LEN]; /*PRV_FIRMWARE_VERSION*/
+	int power_source_1;				/*PRV_POWER_SOURCE_1*/
+	int power_source_2;				/*PRV_POWER_SOURCE_2*/
+	int power_voltage_1; 			/*PRV_POWER_VOLTAGE_1*/
+	int power_voltage_2; 			/*PRV_POWER_VOLTAGE_2*/
+	int power_current_1; 			/*PRV_POWER_CURRENT_1*/
+	int power_current_2; 			/*PRV_POWER_CURRENT_2*/
+	int battery_level; 				/*PRV_BATTERY_LEVEL*/
+	int memory_free; 				/*PRV_MEMORY_FREE*/
+	int error_code; 				/*PRV_ERROR_CODE*/
+	char time_zone[MAX_LEN]; 		/*PRV_TIME_ZONE*/
+	char binding_mode[MAX_LEN];		/*PRV_BINDING_MODE*/
+} object_device;
+
+lwm2m_object_t * get_object_device(object_device *default_value);
 void free_object_device(lwm2m_object_t * objectP);
 uint8_t device_change(lwm2m_data_t * dataArray, lwm2m_object_t * objectP);
 void display_device_object(lwm2m_object_t * objectP);
 /*
  * object_firmware.c
  */
-lwm2m_object_t * get_object_firmware(void);
+typedef struct
+{
+    uint8_t state;  /*STATE*/
+    bool supported; /*SUPPORTED*/
+    uint8_t result; /*RESULT*/
+}object_firmware;
+
+lwm2m_object_t * get_object_firmware(object_firmware *default_value);
 void free_object_firmware(lwm2m_object_t * objectP);
 void display_firmware_object(lwm2m_object_t * objectP);
 /*
  * object_location.c
  */
-lwm2m_object_t * get_object_location(void);
+ typedef struct {
+	char  latitude[MAX_LEN];	/*Latitude */
+	char  longitude[MAX_LEN]; 	/*Longitude*/
+	char  altidude[MAX_LEN]; 	/*Altidude*/
+	char  uncertainty[MAX_LEN]; /*Uncertainty*/
+} object_location;
+lwm2m_object_t * get_object_location(object_location *default_value);
 void free_object_location(lwm2m_object_t * object);
 void display_location_object(lwm2m_object_t * objectP);
 /*
@@ -68,7 +101,22 @@ void copy_server_object(lwm2m_object_t * objectDest, lwm2m_object_t * objectSrc)
 /*
  * object_connectivity_moni.c
  */
-lwm2m_object_t * get_object_conn_m(void);
+typedef struct {
+	int  network_bearer;			/*VALUE_NETWORK_BEARER_GSM*/
+	int  avl_network_bearer; 		/*VALUE_AVL_NETWORK_BEARER_1*/
+	int  radio_signal_strength; 	/*VALUE_RADIO_SIGNAL_STRENGTH*/
+	int  link_quality; 				/*VALUE_LINK_QUALITY*/
+	char ip_addr[MAX_LEN];			/*VALUE_IP_ADDRESS_1*/
+	char ip_addr2[MAX_LEN];			/*VALUE_IP_ADDRESS_2*/
+	char router_ip_addr[MAX_LEN];	/*VALUE_ROUTER_IP_ADDRESS_1*/
+	char router_ip_addr2[MAX_LEN];	/*VALUE_ROUTER_IP_ADDRESS_2*/
+	int  link_utilization; 			/*VALUE_LINK_UTILIZATION*/
+	char apn[MAX_LEN]; 				/*VALUE_APN_1*/
+	int  cell_id; 					/*VALUE_CELL_ID*/
+	int  smnc; 						/*VALUE_SMNC*/
+	int  smcc; 						/*VALUE_SMCC*/
+} object_conn_monitoring;
+lwm2m_object_t * get_object_conn_m(object_conn_monitoring *default_value);
 void free_object_conn_m(lwm2m_object_t * objectP);
 uint8_t connectivity_moni_change(lwm2m_data_t * dataArray, lwm2m_object_t * objectP);
 
@@ -107,5 +155,4 @@ void clean_security_object(lwm2m_object_t * objectP);
 char * get_server_uri(lwm2m_object_t * objectP, uint16_t secObjInstID);
 void display_security_object(lwm2m_object_t * objectP);
 void copy_security_object(lwm2m_object_t * objectDest, lwm2m_object_t * objectSrc);
-
 #endif /* LWM2MCLIENT_H_ */

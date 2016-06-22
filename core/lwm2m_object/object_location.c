@@ -42,6 +42,7 @@
  */
 
 #include "liblwm2m.h"
+#include "lwm2mclient.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -243,7 +244,7 @@ void location_setLocationAtTime(lwm2m_object_t* locationObj,
   * @return gives back allocated LWM2M data object structure pointer. On error, 
   * NULL value is returned.
   */
-lwm2m_object_t * get_object_location(void)
+lwm2m_object_t * get_object_location(object_location *default_value)
 {
     //-------------------------------------------------------------------- JH --
     lwm2m_object_t * locationObj;
@@ -280,10 +281,10 @@ lwm2m_object_t * get_object_location(void)
         if (NULL != locationObj->userData)
         {
             location_data_t* data = (location_data_t*)locationObj->userData;
-            strcpy (data->latitude,     "27.986065");  // Mount Everest :)
-            strcpy (data->longitude,    "86.922623");
-            strcpy (data->altitude,     "8495.0000");
-            strcpy (data->uncertainty,  "0.01");
+            strcpy (data->latitude,     default_value->latitude);  // Mount Everest :)
+            strcpy (data->longitude,    default_value->longitude);
+            strcpy (data->altitude,     default_value->altidude);
+            strcpy (data->uncertainty,  default_value->uncertainty);
             location_setVelocity(locationObj, 0, 0, 255); // 255: speedUncertainty not supported!
             data->timestamp   = time(NULL);
         }

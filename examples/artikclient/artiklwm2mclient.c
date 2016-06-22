@@ -110,6 +110,52 @@ typedef struct
 
 lwm2m_context_t * lwm2mH = NULL;
 client_data_t data;
+static object_device default_object_device = {
+	"SAMSUNG",					/*PRV_MANUFACTURER*/
+	"Lightweight M2M Client",	/*PRV_MODEL_NUMBER*/
+	"345000123",				/*PRV_SERIAL_NUMBER*/
+	"1.0",						/*PRV_FIRMWARE_VERSION*/
+	1,							/*PRV_POWER_SOURCE_1*/
+	5,							/*PRV_POWER_SOURCE_2*/
+	3800,						/*PRV_POWER_VOLTAGE_1*/
+	5000,						/*PRV_POWER_VOLTAGE_2*/
+	125,						/*PRV_POWER_CURRENT_1*/
+	900,						/*PRV_POWER_CURRENT_2*/
+	100,						/*PRV_BATTERY_LEVEL*/
+	15,							/*PRV_MEMORY_FREE*/
+	0,							/*PRV_ERROR_CODE*/
+	"Europe/Berlin",			/*PRV_TIME_ZONE*/
+	"U"							/*PRV_BINDING_MODE*/
+};
+
+static object_firmware default_object_firmware ={
+	1,		/*STATE*/
+	false,	/*SUPPORTED*/
+	0		/*RESULT*/
+};
+
+static object_conn_monitoring default_conn_monitoring = {
+	0,					/*VALUE_NETWORK_BEARER_GSM*/
+	0,					/*VALUE_AVL_NETWORK_BEARER_1*/
+	80,					/*VALUE_RADIO_SIGNAL_STRENGTH*/
+	98,					/*VALUE_LINK_QUALITY*/
+	"192.168.178.101",	/*VALUE_IP_ADDRESS_1*/
+	"192.168.178.102",  /*VALUE_IP_ADDRESS_2*/
+	"192.168.178.001",	/*VALUE_ROUTER_IP_ADDRESS_1*/
+	"192.168.178.002",  /*VALUE_ROUTER_IP_ADDRESS_2*/
+	666,				/*VALUE_LINK_UTILIZATION*/
+	"web.vodafone.de",	/*VALUE_APN_1*/
+	69696969,			/*VALUE_CELL_ID*/
+	33,					/*VALUE_SMNC*/
+	44					/*VALUE_SMCC*/
+};
+
+static object_location default_location ={
+	"27.986065", /*Latitude */
+	"86.922623", /*Longitude*/
+	"8495.0000", /*Altidude*/
+	"0.01"		 /*Uncertainty*/
+};
 
 static void prv_quit(char * buffer,
                      void * user_data)
@@ -911,21 +957,21 @@ int client_start(char * pskId, char * psk, char * name, int lifetime, int batter
         return -1;
     }
 
-    objArray[2] = get_object_device();
+    objArray[2] = get_object_device(&default_object_device);
     if (NULL == objArray[2])
     {
         fprintf(stderr, "Failed to create Device object\r\n");
         return -1;
     }
 
-    objArray[3] = get_object_firmware();
+    objArray[3] = get_object_firmware(&default_object_firmware);
     if (NULL == objArray[3])
     {
         fprintf(stderr, "Failed to create Firmware object\r\n");
         return -1;
     }
 
-    objArray[4] = get_object_location();
+    objArray[4] = get_object_location(&default_location);
     if (NULL == objArray[4])
     {
         fprintf(stderr, "Failed to create location object\r\n");
@@ -939,7 +985,7 @@ int client_start(char * pskId, char * psk, char * name, int lifetime, int batter
         return -1;
     }
 
-    objArray[6] = get_object_conn_m();
+    objArray[6] = get_object_conn_m(&default_conn_monitoring);
     if (NULL == objArray[6])
     {
         fprintf(stderr, "Failed to create connectivity monitoring object\r\n");
@@ -1244,7 +1290,6 @@ void client_stop(void)
 #endif
 }
 
-
 int main(int argc, char *argv[])
 {
 	int ret;
@@ -1267,7 +1312,7 @@ int main(int argc, char *argv[])
 	}
 	
 	sprintf (serverUri, "coap://%s:%s", server, serverPort);
-	
+
     ret = client_start(bsPskId, psk, client_name, lifetime, batterylevelchanging, serverUri);
 	if (ret == -1 ) {
 		 printf("client start fail %d\n",ret);

@@ -195,10 +195,23 @@ void copy_security_object(lwm2m_object_t * objectDest, lwm2m_object_t * objectSr
 	char * client_name;
 	int lifetime;
 	int  batterylevelchanging;
-} server_info;
+	int serverId;
+} object_security_server;
 
+typedef struct {
+	object_security_server server;
+	object_device device;
+	object_firmware firmware;
+	object_location location;
+	object_conn_monitoring monitoring;
+}object_container;
+
+void * lwm2m_connect_server(uint16_t secObjInstID,
+                            void * userData);
+void lwm2m_close_connection(void * sessionH,
+                            void * userData);
 int set_client_port(char * localport, bool ipv6);
-int client_start(server_info server_data, char * serverUri);
+int client_start(object_container  init_val, char * serverUri);
 void client_stop(void);
 int get_quit(void);
 #endif /* LWM2MCLIENT_H_ */

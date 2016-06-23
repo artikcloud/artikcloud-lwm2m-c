@@ -14,7 +14,7 @@ set(CORE_HEADERS
 if(ARTIK_LWM2M)
 set(OBJECT_SOURCES_DIR ${WAKAAMA_SOURCES_DIR}/lwm2m_object)
 set(OBJECT_SOURCES
-    ${OBJECT_SOURCES_DIR}/lwm2mclient.h
+    ${OBJECT_SOURCES_DIR}/lwm2mclient.c
     ${OBJECT_SOURCES_DIR}/system_api.c
     ${OBJECT_SOURCES_DIR}/object_security.c
     ${OBJECT_SOURCES_DIR}/object_server.c

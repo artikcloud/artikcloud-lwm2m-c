@@ -28,10 +28,39 @@
 #define LWM2MCLIENT_H_
 
 #include "liblwm2m.h"
+#ifdef WITH_TINYDTLS
+#include "dtlsconnection.h"
+#else
+#include "connection.h"
+#endif
 
 extern int g_reboot;
 
 #define MAX_LEN 100
+#define MAX_PACKET_SIZE 1024
+#define DEFAULT_SERVER_IPV6 "[::1]"
+#define DEFAULT_SERVER_IPV4 "127.0.0.1"
+
+#define OBJ_COUNT 9
+lwm2m_object_t * objArray[OBJ_COUNT];
+
+// only backup security and server objects
+#define BACKUP_OBJECT_COUNT 2
+lwm2m_object_t * backupObjectArray[BACKUP_OBJECT_COUNT];
+
+typedef struct
+{
+    lwm2m_object_t * securityObjP;
+    lwm2m_object_t * serverObject;
+    int sock;
+#ifdef WITH_TINYDTLS
+    dtls_connection_t * connList;
+    lwm2m_context_t * lwm2mH;
+#else
+    connection_t * connList;
+#endif
+    int addressFamily;
+} client_data_t;
 
 /*
  * object_device.c
@@ -155,4 +184,21 @@ void clean_security_object(lwm2m_object_t * objectP);
 char * get_server_uri(lwm2m_object_t * objectP, uint16_t secObjInstID);
 void display_security_object(lwm2m_object_t * objectP);
 void copy_security_object(lwm2m_object_t * objectDest, lwm2m_object_t * objectSrc);
+
+
+/*
+ * lwm2mclient.c
+ */
+ typedef struct {
+	char * bsPskId;
+	char * psk;
+	char * client_name;
+	int lifetime;
+	int  batterylevelchanging;
+} server_info;
+
+int set_client_port(char * localport, bool ipv6);
+int client_start(server_info server_data, char * serverUri);
+void client_stop(void);
+int get_quit(void);
 #endif /* LWM2MCLIENT_H_ */

@@ -80,36 +80,12 @@
 #include <errno.h>
 #include <signal.h>
 
-#define MAX_PACKET_SIZE 1024
-#define DEFAULT_SERVER_IPV6 "[::1]"
-#define DEFAULT_SERVER_IPV4 "127.0.0.1"
-
 int g_reboot = 0;
 static int g_quit = 0;
 
-#define OBJ_COUNT 9
-lwm2m_object_t * objArray[OBJ_COUNT];
+static lwm2m_context_t * lwm2mH_main = NULL;
+static client_data_t data;
 
-// only backup security and server objects
-# define BACKUP_OBJECT_COUNT 2
-lwm2m_object_t * backupObjectArray[BACKUP_OBJECT_COUNT];
-
-typedef struct
-{
-    lwm2m_object_t * securityObjP;
-    lwm2m_object_t * serverObject;
-    int sock;
-#ifdef WITH_TINYDTLS
-    dtls_connection_t * connList;
-    lwm2m_context_t * lwm2mH;
-#else
-    connection_t * connList;
-#endif
-    int addressFamily;
-} client_data_t;
-
-lwm2m_context_t * lwm2mH = NULL;
-client_data_t data;
 static object_device default_object_device = {
 	"SAMSUNG",					/*PRV_MANUFACTURER*/
 	"Lightweight M2M Client",	/*PRV_MODEL_NUMBER*/
@@ -830,11 +806,11 @@ static void close_backup_object()
 }
 #endif
 
-int set_client_port(char * localport, char * server, char *serverPort)
+int set_client_port(char * localport, bool ipv6)
 {
      memset(&data, 0, sizeof(client_data_t));
 
-	 if (server == DEFAULT_SERVER_IPV6)
+	 if (ipv6 == true)
 	 	    data.addressFamily = AF_INET6;
 	 else
 	 	    data.addressFamily = AF_INET;
@@ -847,11 +823,11 @@ int set_client_port(char * localport, char * server, char *serverPort)
     if (data.sock < 0)
     {
         fprintf(stderr, "Failed to open socket: %d %s\r\n", errno, strerror(errno));
-        return -1;
+        return data.sock;
     }
 
 }
-int client_start(char * pskId, char * psk, char * name, int lifetime, int batterylevelchanging, char * serverUri)
+int client_start(server_info  server_data, char * serverUri)
 {
 
     int result;
@@ -868,6 +844,11 @@ int client_start(char * pskId, char * psk, char * name, int lifetime, int batter
     char * pskBuffer = NULL;
     int serverId = 123;
 
+	char * pskId = server_data.bsPskId;
+	char * psk = server_data.psk;
+	char * name = server_data.client_name;
+	int lifetime = server_data.lifetime;
+	int batterylevelchanging = server_data.batterylevelchanging;
     /*
      * The function start by setting up the command line interface (which may or not be useful depending on your project)
      *
@@ -1025,22 +1006,22 @@ int client_start(char * pskId, char * psk, char * name, int lifetime, int batter
      * The liblwm2m library is now initialized with the functions that will be in
      * charge of communication
      */
-    lwm2mH = lwm2m_init(&data);
-    if (NULL == lwm2mH)
+    lwm2mH_main = lwm2m_init(&data);
+    if (NULL == lwm2mH_main)
     {
         fprintf(stderr, "lwm2m_init() failed\r\n");
         return -1;
     }
 	
 #ifdef WITH_TINYDTLS
-    data.lwm2mH = lwm2mH;
+    data.lwm2mH = lwm2mH_main;
 #endif
 
     /*
      * We configure the liblwm2m library with the name of the client - which shall be unique for each client -
      * the number of objects we will be passing through and the objects array
      */
-    result = lwm2m_configure(lwm2mH, name, NULL, NULL, OBJ_COUNT, objArray);
+    result = lwm2m_configure(lwm2mH_main, name, NULL, NULL, OBJ_COUNT, objArray);
     if (result != 0)
     {
         fprintf(stderr, "lwm2m_configure() failed: 0x%X\r\n", result);
@@ -1052,7 +1033,7 @@ int client_start(char * pskId, char * psk, char * name, int lifetime, int batter
     /**
      * Initialize value changed callback.
      */
-    init_value_change(lwm2mH);
+    init_value_change(lwm2mH_main);
 
     /*
      * As you now have your lwm2m context complete you can pass it as an argument to all the command line functions
@@ -1060,7 +1041,7 @@ int client_start(char * pskId, char * psk, char * name, int lifetime, int batter
      */
     for (i = 0 ; commands[i].name != NULL ; i++)
     {
-        commands[i].userData = (void *)lwm2mH;
+        commands[i].userData = (void *)lwm2mH_main;
     }
     fprintf(stdout, "> "); fflush(stdout);
     /*
@@ -1096,7 +1077,7 @@ int client_start(char * pskId, char * psk, char * name, int lifetime, int batter
         }
         else if (batterylevelchanging) 
         {
-            update_battery_level(lwm2mH);
+            update_battery_level(lwm2mH_main);
             tv.tv_sec = 5;
         }
         else 
@@ -1115,7 +1096,7 @@ int client_start(char * pskId, char * psk, char * name, int lifetime, int batter
          *  - Secondly it adjusts the timeout value (default 60s) depending on the state of the transaction
          *    (eg. retransmission) and the time between the next operation
          */
-        result = lwm2m_step(lwm2mH, &(tv.tv_sec));
+        result = lwm2m_step(lwm2mH_main, &(tv.tv_sec));
         if (result != 0)
         {
             fprintf(stderr, "lwm2m_step() failed: 0x%X\r\n", result);
@@ -1125,8 +1106,8 @@ int client_start(char * pskId, char * psk, char * name, int lifetime, int batter
 #ifdef WITH_LOGS
                 fprintf(stdout, "[BOOTSTRAP] restore security and server objects\r\n");
 #endif
-                prv_restore_objects(lwm2mH);
-                lwm2mH->state = STATE_INITIAL;
+                prv_restore_objects(lwm2mH_main);
+                lwm2mH_main->state = STATE_INITIAL;
             }
             else return -1;
 #else
@@ -1134,7 +1115,7 @@ int client_start(char * pskId, char * psk, char * name, int lifetime, int batter
 #endif
         }
 #ifdef LWM2M_BOOTSTRAP
-        update_bootstrap_info(&previousState, lwm2mH);
+        update_bootstrap_info(&previousState, lwm2mH_main);
 #endif
         /*
          * This part will set up an interruption until an event happen on SDTIN or the socket until "tv" timed out (set
@@ -1215,7 +1196,7 @@ int client_start(char * pskId, char * psk, char * name, int lifetime, int batter
                              printf("error handling message %d\n",result);
                         }
 #else
-                        lwm2m_handle_packet(lwm2mH, buffer, numBytes, connP);
+                        lwm2m_handle_packet(lwm2mH_main, buffer, numBytes, connP);
 #endif
                         conn_s_updateRxStatistic(objArray[7], numBytes, false);
                     }
@@ -1265,7 +1246,7 @@ void client_stop(void)
 #ifdef LWM2M_BOOTSTRAP
 		close_backup_object();
 #endif
-		lwm2m_close(lwm2mH);
+		lwm2m_close(lwm2mH_main);
 	}
 	close(data.sock);
 	connection_free(data.connList);
@@ -1290,6 +1271,11 @@ void client_stop(void)
 #endif
 }
 
+int get_quit(void)
+{
+	return g_quit;
+}
+
 int main(int argc, char *argv[])
 {
 	int ret;
@@ -1298,26 +1284,29 @@ int main(int argc, char *argv[])
     char * server = DEFAULT_SERVER_IPV6;
     char * serverPort = LWM2M_STANDARD_PORT_STR;
     char serverUri[50];
+	bool ipv6 = true;
+	server_info server_data;
 
-    char * bsPskId = NULL;
-    char * psk = NULL;
-	char * client_name = "artik_lwm2mclient"; 
-	int lifetime = 300;
-	int batterylevelchanging =0;
+	server_data.bsPskId = NULL;
+	server_data.psk = NULL;
+	server_data.client_name = "artik_client";
+	server_data.lifetime = 300;
+	server_data.batterylevelchanging =0;
+
 	
-	ret = set_client_port(localPort, server, serverPort);
-	if (ret == -1 ) {
+	ret = set_client_port(localPort, ipv6);
+	if (ret < 0 ) {
 		printf("set_client_port fail %d\n",ret);
 		goto exit;
 	}
 	
 	sprintf (serverUri, "coap://%s:%s", server, serverPort);
 
-    ret = client_start(bsPskId, psk, client_name, lifetime, batterylevelchanging, serverUri);
+    ret = client_start(server_data, serverUri);
 	if (ret == -1 ) {
 		 printf("client start fail %d\n",ret);
 	}
-	if (g_quit >0) {
+	if (get_quit() >0) {
 		printf("cleint stop\n");
 		client_stop();
 	}

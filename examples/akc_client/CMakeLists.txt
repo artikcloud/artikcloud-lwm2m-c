@@ -1,11 +1,11 @@
 cmake_minimum_required (VERSION 3.0)
 
-project (artiklwm2mclient)
+project (ack_client)
 
 include_directories (${OBJECT_SOURCES_DIR})
 
 SET(SOURCES
-    artiklwm2mclient.c
+    akc_client.c
     )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

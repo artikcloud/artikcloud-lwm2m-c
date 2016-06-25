@@ -759,28 +759,7 @@ static void close_backup_object()
 }
 #endif
 
-int set_client_port(char * localport, bool ipv6)
-{
-     memset(&data, 0, sizeof(client_data_t));
-
-	 if (ipv6 == true)
-	 	    data.addressFamily = AF_INET6;
-	 else
-	 	    data.addressFamily = AF_INET;
-
-    /*
-     *This call an internal function that create an IPV6 socket on the port 5683.
-     */
-    fprintf(stderr, "Trying to bind LWM2M Client to port %s\r\n", localport);
-    data.sock = create_socket(localport, data.addressFamily);
-    if (data.sock < 0)
-    {
-        fprintf(stderr, "Failed to open socket: %d %s\r\n", errno, strerror(errno));
-        return data.sock;
-    }
-
-}
-int client_start(object_container  init_val, char * serverUri)
+int akc_start(object_container  init_val, client_data akc_clinet)
 {
 
     int result;
@@ -833,7 +812,23 @@ int client_start(object_container  init_val, char * serverUri)
 
             COMMAND_END_LIST
     };
-    
+     memset(&data, 0, sizeof(client_data_t));
+
+	 if (akc_clinet.ipv6 == true)
+		data.addressFamily = AF_INET6;
+	 else
+		data.addressFamily = AF_INET;
+
+    /*
+     *This call an internal function that create an IPV6 socket on the port 5683.
+     */
+    fprintf(stderr, "Trying to bind LWM2M Client to port %s\r\n", akc_clinet.localPort);
+    data.sock = create_socket(akc_clinet.localPort, data.addressFamily);
+    if (data.sock < 0)
+    {
+        fprintf(stderr, "Failed to open socket: %d %s\r\n", errno, strerror(errno));
+        return data.sock;
+    }
 
     /*
      * Now the main function fill an array with each object, this list will be later passed to liblwm2m.
@@ -870,7 +865,7 @@ int client_start(object_container  init_val, char * serverUri)
         }
     }
 #endif
-
+	char * serverUri = init_val.server.serverUri;
 	printf(" serverUri =  %s\n",serverUri);
 #ifdef LWM2M_BOOTSTRAP
     objArray[0] = get_security_object(serverId, serverUri, pskId, pskBuffer, pskLen, bootstrapRequested);
@@ -1189,7 +1184,7 @@ int client_start(object_container  init_val, char * serverUri)
     }
 }
 
-void client_stop(void)
+void akc_stop(void)
 {
  	/*
 	 * Finally when the loop is left smoothly - asked by user in the command line interface - we unregister our client from it

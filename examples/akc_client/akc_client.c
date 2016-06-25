@@ -70,13 +70,30 @@
 #include <unistd.h>
 #include <stdio.h>
 
-static object_security_server default_server = {
-	NULL,			/*pskId*/
-	NULL,			/*psk*/
-	"artik_client", /*name*/
+static object_security_server akc_server = {
+	"coap://coaps-api.artik.cloud:5686", /*serverUri*/
+	"76e814d7dce641debc1267ea95e82838",	/*pskId : DEVICE ID*/
+	"ba53c07423f842adabbdca76de075a44",	/*psk : DEVICE TOKEN*/
+	"76e814d7dce641debc1267ea95e82838", /*name : DEVICE ID*/
 	300,			/*lifetime*/
 	0,				/*battery*/
 	123 			/*serverId*/
+};
+
+
+static object_security_server default_server = {
+	"coap://127.0.0.1:5683", /*serverUri*/
+	NULL,	/*pskId : DEVICE ID*/
+	NULL,	/*psk : DEVICE TOKEN*/
+	"defualt_server", /*name : DEVICE ID*/
+	300,			/*lifetime*/
+	0,				/*battery*/
+	123 			/*serverId*/
+};
+
+static client_data akc_clinet = {
+	"56830",	/*localPort/*
+	false		/*IPV6 or IPV4*/
 };
 
 static object_device default_device = {
@@ -131,33 +148,22 @@ int main(int argc, char *argv[])
 	int ret;
 
 	char * localPort = "56830";
-    char * server = DEFAULT_SERVER_IPV6;
-    char * serverPort = LWM2M_STANDARD_PORT_STR;
-    char serverUri[50];
-	bool ipv6 = true;
+	bool ipv6 = false;
 
 	object_container init_val_ob;
-	init_val_ob.server= default_server;
+	init_val_ob.server= akc_server;
 	init_val_ob.device = default_device;
 	init_val_ob.firmware = default_firmware;
 	init_val_ob.monitoring = default_monitoring;
 	init_val_ob.location = default_location;
 
-	ret = set_client_port(localPort, ipv6);
-	if (ret < 0 ) {
-		printf("set_client_port fail %d\n",ret);
-		goto exit;
-	}
-	
-	sprintf (serverUri, "coap://%s:%s", server, serverPort);
-
-    ret = client_start(init_val_ob, serverUri);
+    ret = akc_start(init_val_ob, akc_clinet);
 	if (ret == -1 ) {
 		 printf("client start fail %d\n",ret);
 	}
 	if (get_quit() >0) {
 		printf("cleint stop\n");
-		client_stop();
+		akc_stop();
 	}
 	
 exit:	

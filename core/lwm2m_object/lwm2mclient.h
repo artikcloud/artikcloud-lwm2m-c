@@ -38,9 +38,6 @@ extern int g_reboot;
 
 #define MAX_LEN 100
 #define MAX_PACKET_SIZE 1024
-#define DEFAULT_SERVER_IPV6 "[::1]"
-#define DEFAULT_SERVER_IPV4 "127.0.0.1"
-
 #define OBJ_COUNT 9
 lwm2m_object_t * objArray[OBJ_COUNT];
 
@@ -190,12 +187,13 @@ void copy_security_object(lwm2m_object_t * objectDest, lwm2m_object_t * objectSr
  * lwm2mclient.c
  */
  typedef struct {
-	char * bsPskId;
-	char * psk;
-	char * client_name;
-	int lifetime;
-	int  batterylevelchanging;
-	int serverId;
+	char * serverUri; 			/*serverUri*/
+	char * bsPskId; 			/*pskId : DEVICE ID*/
+	char * psk; 				/*psk : DEVICE TOKEN*/
+	char * client_name; 		/*name : DEVICE ID*/
+	int lifetime; 				/*lifetime*/
+	int  batterylevelchanging; 	/*battery*/
+	int serverId; 				/*serverId*/
 } object_security_server;
 
 typedef struct {
@@ -206,12 +204,16 @@ typedef struct {
 	object_conn_monitoring monitoring;
 }object_container;
 
+typedef struct {
+    char * localPort;	/*STATE*/
+    bool ipv6;			/*IPV6 or IPV4*/
+}client_data;
+
 void * lwm2m_connect_server(uint16_t secObjInstID,
                             void * userData);
 void lwm2m_close_connection(void * sessionH,
                             void * userData);
-int set_client_port(char * localport, bool ipv6);
-int client_start(object_container  init_val, char * serverUri);
-void client_stop(void);
+int akc_client_start(object_container  init_val, client_data akc_clinet);
+void akc_client_stop(void);
 int get_quit(void);
 #endif /* LWM2MCLIENT_H_ */

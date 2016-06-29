@@ -59,12 +59,6 @@
 #include "lwm2mclient.h"
 #include "liblwm2m.h"
 
-#ifdef WITH_TINYDTLS
-#include "dtlsconnection.h"
-#else
-#include "connection.h"
-#endif
-
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>

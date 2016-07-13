@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.0)
 
-project (ack_client)
+project (akc_client)
 
 include_directories (${OBJECT_SOURCES_DIR})
 

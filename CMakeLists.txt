@@ -2,12 +2,17 @@ cmake_minimum_required (VERSION 3.0)
 
 project (wakaama)
 
-option(DTLS "Enable DTLS" ON)
+option(DTLS "Enable DTLS" OFF)
+option(COAP_TCP "Enable COAP over TCP" OFF)
 
 set(ARTIK_LWM2M ON)
 
 include(${CMAKE_CURRENT_LIST_DIR}/core/wakaama.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/examples/shared/shared.cmake)
+
+if (COAP_TCP)
+	add_definitions(-DCOAP_TCP)
+endif()
 
 add_definitions(-DLWM2M_CLIENT_MODE -DLWM2M_SUPPORT_JSON)
 add_definitions(${SHARED_DEFINITIONS} ${WAKAAMA_DEFINITIONS})

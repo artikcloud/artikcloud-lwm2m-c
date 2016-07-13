@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include "connection.h"
 
 // from commandline.c
@@ -33,7 +34,11 @@ int create_socket(const char * portStr, int addressFamily)
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = addressFamily;
+#ifdef COAP_TCP
+    hints.ai_socktype = SOCK_STREAM;
+#else
     hints.ai_socktype = SOCK_DGRAM;
+#endif
     hints.ai_flags = AI_PASSIVE;
 
     if (0 != getaddrinfo(NULL, portStr, &hints, &res))
@@ -114,7 +119,12 @@ connection_t * connection_create(connection_t * connList,
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = addressFamily;
+
+#ifdef COAP_TCP
+    hints.ai_socktype = SOCK_STREAM;
+#else
     hints.ai_socktype = SOCK_DGRAM;
+#endif
 
     if (0 != getaddrinfo(host, port, &hints, &servinfo) || servinfo == NULL) return NULL;
 
@@ -136,6 +146,13 @@ connection_t * connection_create(connection_t * connList,
     }
     if (s >= 0)
     {
+#ifdef COAP_TCP
+    if (connect(sock, sa, sl) < 0)
+    {
+        close(sock);
+        return NULL;
+    }
+#endif
         connP = connection_new_incoming(connList, sock, sa, sl);
         close(s);
     }
@@ -193,7 +210,11 @@ int connection_send(connection_t *connP,
     offset = 0;
     while (offset != length)
     {
+#ifdef COAP_TCP
+        nbSent = send(connP->sock, buffer + offset, length - offset, 0);
+#else
         nbSent = sendto(connP->sock, buffer + offset, length - offset, 0, (struct sockaddr *)&(connP->addr), connP->addrLen);
+#endif
         if (nbSent == -1) return -1;
         offset += nbSent;
     }

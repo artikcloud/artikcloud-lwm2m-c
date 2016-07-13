@@ -204,6 +204,12 @@ void * lwm2m_connect_server(uint16_t secObjInstID,
     else if (0==strncmp(uri, "coap://",  strlen("coap://"))) {
         host = uri+strlen("coap://");
     }
+    else if (0==strncmp(uri, "coap+tcp://", strlen("coap+tcp://"))) {
+        host = uri+strlen("coap+tcp://");
+	}
+    else if (0==strncmp(uri, "coaps+tcp://", strlen("coaps+tcp://"))) {
+        host = uri+strlen("coaps+tcp://");
+	}
     else {
         goto exit;
     }
@@ -230,6 +236,10 @@ void * lwm2m_connect_server(uint16_t secObjInstID,
     }
     else {
         dataP->connList = newConnP;
+#ifdef COAP_TCP
+        memcpy(&dataP->server_addr, &newConnP->addr, newConnP->addrLen);
+        dataP->server_addrlen = newConnP->addrLen;
+#endif
     }
 
 exit:
@@ -759,7 +769,7 @@ static void close_backup_object()
 }
 #endif
 
-int akc_start(object_container  init_val, client_data akc_clinet)
+int akc_start(object_container  init_val, client_data akc_client)
 {
 
     int result;
@@ -814,16 +824,14 @@ int akc_start(object_container  init_val, client_data akc_clinet)
     };
      memset(&data, 0, sizeof(client_data_t));
 
-	 if (akc_clinet.ipv6 == true)
+	 if (akc_client.ipv6 == true)
 		data.addressFamily = AF_INET6;
 	 else
 		data.addressFamily = AF_INET;
 
-    /*
-     *This call an internal function that create an IPV6 socket on the port 5683.
-     */
-    fprintf(stderr, "Trying to bind LWM2M Client to port %s\r\n", akc_clinet.localPort);
-    data.sock = create_socket(akc_clinet.localPort, data.addressFamily);
+    fprintf(stderr, "Trying to bind LWM2M Client to port %s\r\n", akc_client.localPort);
+
+    data.sock = create_socket(akc_client.localPort, data.addressFamily);
     if (data.sock < 0)
     {
         fprintf(stderr, "Failed to open socket: %d %s\r\n", errno, strerror(errno));
@@ -834,7 +842,7 @@ int akc_start(object_container  init_val, client_data akc_clinet)
      * Now the main function fill an array with each object, this list will be later passed to liblwm2m.
      * Those functions are located in their respective object file.
      */
-#ifdef WITH_TINYDTLS
+#if (defined WITH_TINYDTLS || defined COAP_TCP)
     if (psk != NULL)
     {
         pskLen = strlen(psk) / 2;
@@ -879,7 +887,11 @@ int akc_start(object_container  init_val, client_data akc_clinet)
     }
     data.securityObjP = objArray[0];
 
+#ifdef COAP_TCP
+    objArray[1] = get_server_object(serverId, "T", lifetime, false);
+#else
     objArray[1] = get_server_object(serverId, "U", lifetime, false);
+#endif
     if (NULL == objArray[1])
     {
         fprintf(stderr, "Failed to create server object\r\n");
@@ -1088,16 +1100,21 @@ int akc_start(object_container  init_val, client_data akc_clinet)
              */
             if (FD_ISSET(data.sock, &readfds))
             {
+                /*
+                 * We retrieve the data received
+                 */
                 struct sockaddr_storage addr;
                 socklen_t addrLen;
 
                 addrLen = sizeof(addr);
 
-                /*
-                 * We retrieve the data received
-                 */
+#ifdef COAP_TCP
+                numBytes = recv(data.sock, buffer, MAX_PACKET_SIZE, 0);
+                memcpy(&addr, &data.server_addr, data.server_addrlen);
+                addrLen = data.server_addrlen;
+#else
                 numBytes = recvfrom(data.sock, buffer, MAX_PACKET_SIZE, 0, (struct sockaddr *)&addr, &addrLen);
-
+#endif
                 if (0 > numBytes)
                 {
                     fprintf(stderr, "Error in recvfrom(): %d %s\r\n", errno, strerror(errno));
@@ -1153,6 +1170,13 @@ int akc_start(object_container  init_val, client_data akc_clinet)
                         fprintf(stderr, "received bytes ignored!\r\n");
                     }
                 }
+#ifdef COAP_TCP
+                else
+                {
+                    fprintf(stderr, "server has closed the connection\r\n");
+                    g_quit = 1;
+                }
+#endif
             }
 
             /*

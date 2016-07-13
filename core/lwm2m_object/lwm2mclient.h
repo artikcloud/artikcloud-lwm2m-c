@@ -56,6 +56,10 @@ typedef struct
 #else
     connection_t * connList;
 #endif
+#ifdef COAP_TCP
+    struct sockaddr_storage server_addr;
+    size_t server_addrlen;
+#endif
     int addressFamily;
 } client_data_t;
 
@@ -216,4 +220,6 @@ void lwm2m_close_connection(void * sessionH,
 int akc_client_start(object_container  init_val, client_data akc_clinet);
 void akc_client_stop(void);
 int get_quit(void);
+void akc_stop(void);
+int akc_start(object_container  init_val, client_data akc_clinet);
 #endif /* LWM2MCLIENT_H_ */

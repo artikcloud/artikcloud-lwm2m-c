@@ -61,10 +61,12 @@
 #define COAP_MAX_RETRANSMIT                  4
 
 #if defined(COAP_TCP)
-#define COAP_HEADER_LEN                      2 /* | version:0x03 type:0x0C tkl:0xF0 | code | */
+#define COAP_SHIM_LEN						 4 /* 32bit Length shim header */
+#define COAP_HEADER_LEN                      4 /* | version:0x03 type:0x0C tkl:0xF0 | code */
 #define COAP_ETAG_LEN                        8 /* The maximum number of bytes for the ETag */
-#define COAP_TOKEN_LEN                       6 /* The maximum number of bytes for the Token */
+#define COAP_TOKEN_LEN                       8 /* The maximum number of bytes for the Token */
 #else
+#define COAP_SHIM_LEN						 0 /* shim header only required for TCP */
 #define COAP_HEADER_LEN                      4 /* | version:0x03 type:0x0C tkl:0xF0 | code | mid:0x00FF | mid:0xFF00 | */
 #define COAP_ETAG_LEN                        8 /* The maximum number of bytes for the ETag */
 #define COAP_TOKEN_LEN                       8 /* The maximum number of bytes for the Token */

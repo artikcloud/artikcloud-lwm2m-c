@@ -507,9 +507,9 @@ lwm2m_object_t * get_security_object(int serverId,
 
         memset(securityObj, 0, sizeof(lwm2m_object_t));
 
-        securityObj->objID = 0;
+        securityObj->objID = LWM2M_SECURITY_OBJECT_ID;
 
-        // Manually create an hardcoded instance
+        // Manually create an hard-coded instance
         targetP = (security_instance_t *)lwm2m_malloc(sizeof(security_instance_t));
         if (NULL == targetP)
         {
@@ -535,7 +535,7 @@ lwm2m_object_t * get_security_object(int serverId,
                 targetP->publicIdentity = strdup(bsPskId);
                 targetP->publicIdLen = strlen(bsPskId);
             }
-            if (pskLen > 0)
+            if (psk && (pskLen > 0))
             {
                 targetP->secretKey = (char*)lwm2m_malloc(pskLen);
                 if (targetP->secretKey == NULL)

@@ -27,6 +27,13 @@
 #include <sys/stat.h>
 #include <liblwm2m.h>
 
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/x509.h>
+#include <openssl/x509_vfy.h>
+
 #define LWM2M_STANDARD_PORT_STR "5683"
 #define LWM2M_STANDARD_PORT      5683
 #define LWM2M_DTLS_PORT_STR     "5684"
@@ -40,13 +47,16 @@ typedef struct _connection_t
     int                     sock;
     struct sockaddr_in6     addr;
     size_t                  addrLen;
+    coap_protocol_t			protocol;
+    SSL_CTX *				ssl_ctx;
+    SSL *					ssl;
 } connection_t;
 
-int create_socket(const char * portStr, int ai_family);
+int create_socket(coap_protocol_t protocol, const char * portStr, int ai_family);
 
 connection_t * connection_find(connection_t * connList, struct sockaddr_storage * addr, size_t addrLen);
-connection_t * connection_new_incoming(connection_t * connList, int sock, struct sockaddr * addr, size_t addrLen);
-connection_t * connection_create(connection_t * connList, int sock, char * host, char * port, int addressFamily);
+connection_t * connection_new_incoming(connection_t * connList, int sock, coap_protocol_t protocol, struct sockaddr * addr, size_t addrLen);
+connection_t * connection_create(connection_t * connList, coap_protocol_t protocol, int sock, char * host, char * port, int addressFamily);
 
 void connection_free(connection_t * connList);
 

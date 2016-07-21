@@ -1000,7 +1000,7 @@ int main(int argc, char *argv[])
                     }
                     if (connP != NULL)
                     {
-                        lwm2m_handle_packet(lwm2mH, buffer, numBytes, connP);
+                        lwm2m_handle_packet(lwm2mH, connP->protocol, buffer, numBytes, connP);
                     }
                 }
             }

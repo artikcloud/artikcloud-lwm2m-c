@@ -51,8 +51,6 @@
 #ifndef _LWM2M_INTERNALS_H_
 #define _LWM2M_INTERNALS_H_
 
-#include "liblwm2m.h"
-
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -61,6 +59,7 @@
 #include <stdbool.h>
 
 #include "er-coap-13/er-coap-13.h"
+#include "liblwm2m.h"
 
 #ifdef LWM2M_WITH_LOGS
 #define LOG(...) lwm2m_printf(__VA_ARGS__)
@@ -215,7 +214,7 @@ coap_status_t object_createInstance(lwm2m_context_t * contextP, lwm2m_uri_t * ur
 coap_status_t object_writeInstance(lwm2m_context_t * contextP, lwm2m_uri_t * uriP, lwm2m_data_t * dataP);
 
 // defined in transaction.c
-lwm2m_transaction_t * transaction_new(coap_message_type_t type, coap_method_t method, char * altPath, lwm2m_uri_t * uriP, uint16_t mID, uint8_t token_len, uint8_t* token, lwm2m_endpoint_type_t peerType, void * peerP);
+lwm2m_transaction_t * transaction_new(coap_message_type_t type, coap_method_t method, coap_protocol_t protocol, char * altPath, lwm2m_uri_t * uriP, uint16_t mID, uint8_t token_len, uint8_t* token, lwm2m_endpoint_type_t peerType, void * peerP);
 int transaction_send(lwm2m_context_t * contextP, lwm2m_transaction_t * transacP);
 void transaction_free(lwm2m_transaction_t * transacP);
 void transaction_remove(lwm2m_context_t * contextP, lwm2m_transaction_t * transacP);

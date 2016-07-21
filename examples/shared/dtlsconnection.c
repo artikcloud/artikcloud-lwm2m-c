@@ -230,7 +230,7 @@ read_from_peer(struct dtls_context_t *ctx,
     dtls_connection_t* cnx = connection_find((dtls_connection_t *) ctx->app, &(session->addr.st),session->size);
     if (cnx != NULL)
     {
-        lwm2m_handle_packet(cnx->lwm2mH, (uint8_t*)data, len, (void*)cnx);
+        lwm2m_handle_packet(cnx->lwm2mH, connP->protocol, (uint8_t*)data, len, (void*)cnx);
         return 0;
     }
     return -1;
@@ -546,7 +546,7 @@ int connection_handle_packet(dtls_connection_t *connP, uint8_t * buffer, size_t 
         return result;
     } else {
         // no security, just give the plaintext buffer to liblwm2m
-        lwm2m_handle_packet(connP->lwm2mH, buffer, numBytes, (void*)connP);
+        lwm2m_handle_packet(connP->lwm2mH, connP->protocol, buffer, numBytes, (void*)connP);
         return 0;
     }
 }

@@ -1294,7 +1294,7 @@ int main(int argc, char *argv[])
                              printf("error handling message %d\n",result);
                         }
 #else
-                        lwm2m_handle_packet(lwm2mH, buffer, numBytes, connP);
+                        lwm2m_handle_packet(lwm2mH, connP->protocol, buffer, numBytes, connP);
 #endif
                         conn_s_updateRxStatistic(objArray[7], numBytes, false);
                     }

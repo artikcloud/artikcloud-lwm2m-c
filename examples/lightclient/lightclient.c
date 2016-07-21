@@ -521,7 +521,7 @@ int main(int argc, char *argv[])
                         /*
                          * Let liblwm2m respond to the query depending on the context
                          */
-                        lwm2m_handle_packet(lwm2mH, buffer, numBytes, connP);
+                        lwm2m_handle_packet(lwm2mH, connP->protocol, buffer, numBytes, connP);
                     }
                     else
                     {

@@ -27,6 +27,7 @@
 #ifndef LWM2MCLIENT_H_
 #define LWM2MCLIENT_H_
 
+#include "er-coap-13/er-coap-13.h"
 #include "liblwm2m.h"
 #ifdef WITH_TINYDTLS
 #include "dtlsconnection.h"
@@ -56,10 +57,9 @@ typedef struct
 #else
     connection_t * connList;
 #endif
-#ifdef COAP_TCP
     struct sockaddr_storage server_addr;
     size_t server_addrlen;
-#endif
+    SSL *ssl;
     int addressFamily;
 } client_data_t;
 
@@ -191,35 +191,29 @@ void copy_security_object(lwm2m_object_t * objectDest, lwm2m_object_t * objectSr
  * lwm2mclient.c
  */
  typedef struct {
-	char * serverUri; 			/*serverUri*/
-	char * bsPskId; 			/*pskId : DEVICE ID*/
-	char * psk; 				/*psk : DEVICE TOKEN*/
-	char * client_name; 		/*name : DEVICE ID*/
+	char serverUri[MAX_LEN]; 	/*serverUri*/
+	char bsPskId[MAX_LEN]; 		/*pskId : DEVICE ID*/
+	char psk[MAX_LEN]; 			/*psk : DEVICE TOKEN*/
+	char client_name[MAX_LEN];	/*name : DEVICE ID*/
 	int lifetime; 				/*lifetime*/
 	int  batterylevelchanging; 	/*battery*/
 	int serverId; 				/*serverId*/
 } object_security_server;
 
 typedef struct {
-	object_security_server server;
-	object_device device;
-	object_firmware firmware;
-	object_location location;
-	object_conn_monitoring monitoring;
+	object_security_server* server;
+	object_device* device;
+	object_firmware* firmware;
+	object_location* location;
+	object_conn_monitoring* monitoring;
 }object_container;
-
-typedef struct {
-    char * localPort;	/*STATE*/
-    bool ipv6;			/*IPV6 or IPV4*/
-}client_data;
 
 void * lwm2m_connect_server(uint16_t secObjInstID,
                             void * userData);
 void lwm2m_close_connection(void * sessionH,
                             void * userData);
-int akc_client_start(object_container  init_val, client_data akc_clinet);
-void akc_client_stop(void);
 int get_quit(void);
 void akc_stop(void);
-int akc_start(object_container  init_val, client_data akc_clinet);
+int akc_start(object_container *init_val);
+
 #endif /* LWM2MCLIENT_H_ */

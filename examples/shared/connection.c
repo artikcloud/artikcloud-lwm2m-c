@@ -11,6 +11,7 @@
  *    http://www.eclipse.org/org/documents/edl-v10.php.
  *
  * Contributors:
+ *    Gregory Lemercier, Samsung Semiconductor - support for TCP/TLS
  *    David Navarro, Intel Corporation - initial API and implementation
  *    Pascal Rieux - Please refer to git log
  *    
@@ -20,12 +21,96 @@
 #include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <sys/socket.h>
+#include <netinet/tcp.h>
+
 #include "connection.h"
+
+/* Needed for Mac OS X */
+#ifndef SOL_TCP
+#define SOL_TCP IPPROTO_TCP
+#endif
 
 // from commandline.c
 void output_buffer(FILE * stream, uint8_t * buffer, int length, int indent);
 
-int create_socket(const char * portStr, int addressFamily)
+static bool ssl_init(connection_t * conn)
+{
+    BIO *certbio = NULL;
+    BIO *outbio = NULL;
+    SSL_CTX *ctx = NULL;
+    SSL *ssl = NULL;
+    int ret = 0;
+    int flags = 0;
+
+    OpenSSL_add_all_algorithms();
+    ERR_load_BIO_strings();
+    ERR_load_crypto_strings();
+    SSL_load_error_strings();
+
+    certbio = BIO_new(BIO_s_file());
+    outbio  = BIO_new_fp(stdout, BIO_NOCLOSE);
+
+    if(SSL_library_init() < 0)
+    {
+        fprintf(stderr, "Failed to initialize OpenSSL\n");
+        goto error;
+    }
+
+    ctx = SSL_CTX_new(TLSv1_2_client_method());
+    if (!ctx)
+    {
+        fprintf(stderr, "Failed to create SSL context\n");
+        goto error;
+    }
+
+    ssl = SSL_new(ctx);
+    if (!ssl)
+    {
+        fprintf(stderr, "Failed to allocate SSL connection\n");
+        goto error;
+    }
+
+    ret = SSL_CTX_set_cipher_list(ctx, "ALL");
+    if (ret != 1)
+    {
+        fprintf(stderr, "Failed to select SSL ciphers (err=%d)\n", SSL_get_error(ssl, ret));
+        fprintf(stderr, "%s\n", ERR_error_string(SSL_get_error(ssl, ret), NULL));
+        goto error;
+    }
+
+    ret = SSL_set_fd(ssl, conn->sock);
+    if (ret != 1)
+    {
+        fprintf(stderr, "Failed to associate SSL with file descriptor (err=%d)\n", SSL_get_error(ssl, ret));
+        fprintf(stderr, "%s\n", ERR_error_string(SSL_get_error(ssl, ret), NULL));
+        goto error;
+    }
+
+    ret = SSL_connect(ssl);
+    if (ret != 1)
+    {
+        fprintf(stderr, "Failed to initiate SSL connection\n");
+        fprintf(stderr, "%s\n", ERR_error_string(SSL_get_error(ssl, ret), NULL));
+        goto error;
+    }
+
+    conn->ssl = ssl;
+    conn->ssl_ctx = ctx;
+
+    return true;
+
+error:
+    if (ssl)
+        SSL_free(ssl);
+    if (ctx)
+        SSL_CTX_free(ctx);
+
+    return false;
+}
+
+int create_socket(coap_protocol_t protocol, const char * portStr, int addressFamily)
 {
     int s = -1;
     struct addrinfo hints;
@@ -34,11 +119,20 @@ int create_socket(const char * portStr, int addressFamily)
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = addressFamily;
-#ifdef COAP_TCP
-    hints.ai_socktype = SOCK_STREAM;
-#else
-    hints.ai_socktype = SOCK_DGRAM;
-#endif
+    switch(protocol)
+    {
+    case COAP_TCP:
+    case COAP_TCP_TLS:
+        hints.ai_socktype = SOCK_STREAM;
+        break;
+    case COAP_UDP:
+    case COAP_UDP_DTLS:
+        hints.ai_socktype = SOCK_DGRAM;
+        break;
+    default:
+        break;
+    }
+
     hints.ai_flags = AI_PASSIVE;
 
     if (0 != getaddrinfo(NULL, portStr, &hints, &res))
@@ -86,6 +180,7 @@ connection_t * connection_find(connection_t * connList,
 
 connection_t * connection_new_incoming(connection_t * connList,
                                        int sock,
+                                       coap_protocol_t protocol,
                                        struct sockaddr * addr,
                                        size_t addrLen)
 {
@@ -95,6 +190,7 @@ connection_t * connection_new_incoming(connection_t * connList,
     if (connP != NULL)
     {
         connP->sock = sock;
+        connP->protocol = protocol;
         memcpy(&(connP->addr), addr, addrLen);
         connP->addrLen = addrLen;
         connP->next = connList;
@@ -104,6 +200,7 @@ connection_t * connection_new_incoming(connection_t * connList,
 }
 
 connection_t * connection_create(connection_t * connList,
+                                 coap_protocol_t protocol,
                                  int sock,
                                  char * host,
                                  char * port,
@@ -120,11 +217,19 @@ connection_t * connection_create(connection_t * connList,
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = addressFamily;
 
-#ifdef COAP_TCP
-    hints.ai_socktype = SOCK_STREAM;
-#else
-    hints.ai_socktype = SOCK_DGRAM;
-#endif
+    switch(protocol)
+    {
+    case COAP_TCP:
+    case COAP_TCP_TLS:
+        hints.ai_socktype = SOCK_STREAM;
+        break;
+    case COAP_UDP:
+    case COAP_UDP_DTLS:
+        hints.ai_socktype = SOCK_DGRAM;
+        break;
+    default:
+        break;
+    }
 
     if (0 != getaddrinfo(host, port, &hints, &servinfo) || servinfo == NULL) return NULL;
 
@@ -146,16 +251,31 @@ connection_t * connection_create(connection_t * connList,
     }
     if (s >= 0)
     {
-#ifdef COAP_TCP
-    if (connect(sock, sa, sl) < 0)
-    {
-        close(sock);
-        return NULL;
-    }
-#endif
-        connP = connection_new_incoming(connList, sock, sa, sl);
+        if ((protocol == COAP_TCP) ||
+            (protocol == COAP_TCP_TLS))
+        {
+            if (connect(sock, sa, sl) < 0)
+            {
+                close(sock);
+                return NULL;
+            }
+        }
+
+        connP = connection_new_incoming(connList, sock, protocol, sa, sl);
+        if (protocol == COAP_TCP_TLS)
+        {
+            if (!ssl_init(connP))
+            {
+                free(connP);
+                connP = NULL;
+                close(s);
+                goto exit;
+            }
+        }
         close(s);
     }
+
+exit:
     if (NULL != servinfo) {
         free(servinfo);
     }
@@ -202,7 +322,7 @@ int connection_send(connection_t *connP,
         port = saddr->sin6_port;
     }
 
-    fprintf(stderr, "Sending %d bytes to [%s]:%hu\r\n", length, s, ntohs(port));
+    fprintf(stderr, "Sending %lu bytes to [%s]:%hu\r\n", length, s, ntohs(port));
 
     output_buffer(stderr, buffer, length, 0);
 #endif
@@ -210,11 +330,22 @@ int connection_send(connection_t *connP,
     offset = 0;
     while (offset != length)
     {
-#ifdef COAP_TCP
-        nbSent = send(connP->sock, buffer + offset, length - offset, 0);
-#else
-        nbSent = sendto(connP->sock, buffer + offset, length - offset, 0, (struct sockaddr *)&(connP->addr), connP->addrLen);
-#endif
+        switch(connP->protocol)
+        {
+        case COAP_TCP_TLS:
+            nbSent = SSL_write(connP->ssl, buffer + offset, length - offset);
+            break;
+        case COAP_TCP:
+            nbSent = send(connP->sock, buffer + offset, length - offset, 0);
+            break;
+        case COAP_UDP:
+        case COAP_UDP_DTLS:
+            nbSent = sendto(connP->sock, buffer + offset, length - offset, 0, (struct sockaddr *)&(connP->addr), connP->addrLen);
+            break;
+        default:
+            break;
+        }
+
         if (nbSent == -1) return -1;
         offset += nbSent;
     }

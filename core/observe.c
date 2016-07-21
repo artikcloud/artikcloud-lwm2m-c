@@ -215,13 +215,6 @@ void observe_cancel(lwm2m_context_t * contextP,
                     uint16_t mid,
                     void * fromSessionH)
 {
-#if defined(COAP_TCP)
-    // NO OP. The request should have failed up stream.
-    //
-    LOG("cancel_observe()\r\n");
-
-#else
-
     lwm2m_observed_t * observedP;
 
     LOG("observe_cancel()\r\n");
@@ -266,7 +259,6 @@ void observe_cancel(lwm2m_context_t * contextP,
             return;
         }
     }
-#endif
 }
 
 coap_status_t observe_setParameters(lwm2m_context_t * contextP,
@@ -620,7 +612,7 @@ void observe_step(lwm2m_context_t * contextP,
                                 break;
                             }
                         }
-                        coap_init_message(message, COAP_TYPE_NON, COAP_205_CONTENT, 0);
+                        coap_init_message(message, watcherP->server->protocol, COAP_TYPE_NON, COAP_205_CONTENT, 0);
                         coap_set_header_content_type(message, format);
                         coap_set_payload(message, buffer, length);
                         LOG("Observe Update[/%d/%d/%d]: %.*s\n", targetP->uri.objectId, targetP->uri.instanceId, targetP->uri.resourceId, length, buffer);

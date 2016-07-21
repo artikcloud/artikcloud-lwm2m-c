@@ -602,6 +602,20 @@ static int prv_getMandatoryInfo(lwm2m_object_t * objectP,
 
     targetP->binding = utils_stringToBinding(dataP[1].value.asBuffer.buffer, dataP[1].value.asBuffer.length);
 
+    /* Figure out protocol based on the binding */
+    switch(targetP->binding)
+    {
+    case BINDING_T:
+        targetP->protocol = COAP_TCP_TLS;
+        break;
+    case BINDING_C:
+        targetP->protocol = COAP_TCP;
+        break;
+    default:
+        targetP->protocol = COAP_UDP;
+        break;
+    }
+
     lwm2m_data_free(size, dataP);
 
     if (targetP->binding == BINDING_UNKNOWN)

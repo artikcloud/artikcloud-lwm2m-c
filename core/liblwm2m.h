@@ -61,6 +61,8 @@ extern "C" {
 #include <stddef.h>
 #include <stdbool.h>
 
+#include "er-coap-13/er-coap-13.h"
+
 #ifdef WIN32
 #include <time.h>
 #else
@@ -421,16 +423,14 @@ typedef enum
 typedef enum
 {
     BINDING_UNKNOWN = 0,
-#ifndef COAP_TCP
     BINDING_U,   // UDP
     BINDING_UQ,  // UDP queue mode
     BINDING_S,   // SMS
     BINDING_SQ,  // SMS queue mode
     BINDING_US,  // UDP plus SMS
     BINDING_UQS, // UDP queue mode plus SMS
-#else
+    BINDING_C,   // TCP
     BINDING_T    // TCP with TLS
-#endif
 } lwm2m_binding_t;
 
 typedef struct _lwm2m_server_
@@ -445,6 +445,7 @@ typedef struct _lwm2m_server_
     lwm2m_status_t    status;
     char *            location;
     bool              dirty;
+    coap_protocol_t	  protocol;
 } lwm2m_server_t;
 
 
@@ -662,7 +663,7 @@ void lwm2m_close(lwm2m_context_t * contextP);
 // perform any required pending operation and adjust timeoutP to the maximal time interval to wait in seconds.
 int lwm2m_step(lwm2m_context_t * contextP, time_t * timeoutP);
 // dispatch received data to liblwm2m
-void lwm2m_handle_packet(lwm2m_context_t * contextP, uint8_t * buffer, int length, void * fromSessionH);
+void lwm2m_handle_packet(lwm2m_context_t * contextP, coap_protocol_t protocol, uint8_t * buffer, int length, void * fromSessionH);
 
 #ifdef LWM2M_CLIENT_MODE
 // configure the client side with the Endpoint Name, binding, MSISDN (can be nil), alternative path

@@ -89,11 +89,12 @@ static int prv_getRegistrationQuery(lwm2m_context_t * contextP,
 
     switch (server->binding)
     {
-#ifdef COAP_TCP
     case BINDING_T:
         res = utils_stringCopy(buffer + index, length - index, "&b=T");
         break;
-#else
+    case BINDING_C:
+        res = utils_stringCopy(buffer + index, length - index, "&b=C");
+        break;
     case BINDING_U:
         res = utils_stringCopy(buffer + index, length - index, "&b=U");
         break;
@@ -112,7 +113,6 @@ static int prv_getRegistrationQuery(lwm2m_context_t * contextP,
     case BINDING_UQS:
         res = utils_stringCopy(buffer + index, length - index, "&b=UQS");
         break;
-#endif
     default:
         res = -1;
     }
@@ -144,11 +144,15 @@ static void prv_handleRegistrationReply(lwm2m_transaction_t * transacP,
             targetP->location = coap_get_multi_option_as_string(packet->location_path);
 
             LOG("    => REGISTERED\r\n");
+            fprintf(stdout, "\r\nRegistered\r\n> ");
+            fflush(stdout);
         }
         else
         {
             targetP->status = STATE_REG_FAILED;
             LOG("    => Registration FAILED\r\n");
+            fprintf(stdout, "\r\nRegistration failed\r\n> ");
+            fflush(stdout);
         }
     }
 }
@@ -172,7 +176,6 @@ static uint8_t prv_register(lwm2m_context_t * contextP,
 
     if (query_length == 0) return COAP_500_INTERNAL_SERVER_ERROR;
 
-#ifndef COAP_TCP
     if (0 != server->lifetime)
     {
         int res;
@@ -184,7 +187,6 @@ static uint8_t prv_register(lwm2m_context_t * contextP,
         if (res < 0) return COAP_500_INTERNAL_SERVER_ERROR;
         query_length += res;
     }
-#endif
 
     if (server->sessionH == NULL)
     {
@@ -193,7 +195,7 @@ static uint8_t prv_register(lwm2m_context_t * contextP,
 
     if (NULL == server->sessionH) return COAP_503_SERVICE_UNAVAILABLE;
 
-    transaction = transaction_new(COAP_TYPE_CON, COAP_POST, NULL, NULL, contextP->nextMID++, 4, NULL, ENDPOINT_SERVER, (void *)server);
+    transaction = transaction_new(COAP_TYPE_CON, COAP_POST, server->protocol, NULL, NULL, contextP->nextMID++, 4, NULL, ENDPOINT_SERVER, (void *)server);
     if (transaction == NULL) return COAP_500_INTERNAL_SERVER_ERROR;
 
     coap_set_header_uri_path(transaction->message, "/"URI_REGISTRATION_SEGMENT);
@@ -246,7 +248,7 @@ static int prv_updateRegistration(lwm2m_context_t * contextP,
     uint8_t payload[512];
     int payload_length;
 
-    transaction = transaction_new(COAP_TYPE_CON, COAP_POST, NULL, NULL, contextP->nextMID++, 4, NULL, ENDPOINT_SERVER, (void *)server);
+    transaction = transaction_new(COAP_TYPE_CON, COAP_POST, server->protocol, NULL, NULL, contextP->nextMID++, 4, NULL, ENDPOINT_SERVER, (void *)server);
     if (transaction == NULL) return COAP_500_INTERNAL_SERVER_ERROR;
 
     coap_set_header_uri_path(transaction->message, server->location);
@@ -411,7 +413,7 @@ void registration_deregister(lwm2m_context_t * contextP,
         }
 
     lwm2m_transaction_t * transaction;
-    transaction = transaction_new(COAP_TYPE_CON, COAP_DELETE, NULL, NULL, contextP->nextMID++, 4, NULL, ENDPOINT_SERVER, (void *)serverP);
+    transaction = transaction_new(COAP_TYPE_CON, COAP_DELETE, serverP->protocol, NULL, NULL, contextP->nextMID++, 4, NULL, ENDPOINT_SERVER, (void *)serverP);
     if (transaction == NULL) return;
 
     coap_set_header_uri_path(transaction->message, serverP->location);

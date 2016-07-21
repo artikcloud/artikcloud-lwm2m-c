@@ -51,6 +51,7 @@ typedef struct _dtls_connection_t
     int securityInstId;
     lwm2m_context_t * lwm2mH;
     dtls_context_t * dtlsContext;
+    coap_protocol_t	protocol;
 } dtls_connection_t;
 
 int create_socket(const char * portStr, int ai_family);

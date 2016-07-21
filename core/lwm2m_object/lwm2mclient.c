@@ -79,12 +79,29 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <signal.h>
+#include <time.h>
+
+#define CLIENT_PORT_RANGE_START		64900
+#define CLIENT_PORT_RANGE_END		64999
+
+typedef struct {
+	coap_protocol_t	proto;
+	char			uri_prefix[16];
+	char			friendly_name[16];
+} coap_uri_protocol;
 
 int g_reboot = 0;
 static int g_quit = 0;
 
 static lwm2m_context_t * lwm2mH_main = NULL;
 static client_data_t data;
+
+static coap_uri_protocol protocols[] = {
+		{ COAP_UDP, "coap://", "UDP" },
+		{ COAP_UDP_DTLS, "coaps://", "UDP/DTLS" },
+		{ COAP_TCP, "coap+tcp://", "TCP" },
+		{ COAP_TCP_TLS, "coaps+tcp://", "TCP/TLS" }
+};
 
 static void prv_quit(char * buffer,
                      void * user_data)
@@ -178,6 +195,8 @@ void * lwm2m_connect_server(uint16_t secObjInstID,
       return NULL;
   }
   
+  newConnP->protocol = COAP_UDP_DTLS;
+
   dataP->connList = newConnP;
   return (void *)newConnP;
 }
@@ -190,6 +209,8 @@ void * lwm2m_connect_server(uint16_t secObjInstID,
     char * host;
     char * port;
     connection_t * newConnP = NULL;
+    int i = 0;
+    coap_protocol_t protocol = -1;
 
     dataP = (client_data_t *)userData;
 
@@ -198,21 +219,16 @@ void * lwm2m_connect_server(uint16_t secObjInstID,
     if (uri == NULL) return NULL;
 
     // parse uri in the form "coaps://[host]:[port]"
-    if (0==strncmp(uri, "coaps://", strlen("coaps://"))) {
-        host = uri+strlen("coaps://");
-    }
-    else if (0==strncmp(uri, "coap://",  strlen("coap://"))) {
-        host = uri+strlen("coap://");
-    }
-    else if (0==strncmp(uri, "coap+tcp://", strlen("coap+tcp://"))) {
-        host = uri+strlen("coap+tcp://");
+	for (i=0; i<sizeof(protocols)/sizeof(coap_uri_protocol); i++)
+	{
+		if (0 == strncmp(uri, protocols[i].uri_prefix, strlen(protocols[i].uri_prefix)))
+		{
+			host = uri + strlen(protocols[i].uri_prefix);
+			protocol = protocols[i].proto;
+			break;
+		}
 	}
-    else if (0==strncmp(uri, "coaps+tcp://", strlen("coaps+tcp://"))) {
-        host = uri+strlen("coaps+tcp://");
-	}
-    else {
-        goto exit;
-    }
+
     port = strrchr(host, ':');
     if (port == NULL) goto exit;
     // remove brackets
@@ -229,17 +245,19 @@ void * lwm2m_connect_server(uint16_t secObjInstID,
     *port = 0;
     port++;
 
-    fprintf(stderr, "Opening connection to server at %s:%s\r\n", host, port);
-    newConnP = connection_create(dataP->connList, dataP->sock, host, port, dataP->addressFamily);
+#ifdef WITH_LOGS
+    fprintf(stdout, "\r\nOpening connection to server at %s:%s\r\n", host, port);
+#endif
+
+	newConnP = connection_create(dataP->connList, protocol, dataP->sock, host, port, dataP->addressFamily);
     if (newConnP == NULL) {
         fprintf(stderr, "Connection creation failed.\r\n");
     }
     else {
         dataP->connList = newConnP;
-#ifdef COAP_TCP
         memcpy(&dataP->server_addr, &newConnP->addr, newConnP->addrLen);
         dataP->server_addrlen = newConnP->addrLen;
-#endif
+        dataP->ssl = newConnP->ssl;
     }
 
 exit:
@@ -403,7 +421,7 @@ static void prv_change(char * buffer,
     return;
 
 syntax_error:
-    fprintf(stdout, "Syntax error !\n");
+    fprintf(stderr, "Syntax error !\n");
 }
 
 static void prv_object_list(char * buffer,
@@ -769,7 +787,7 @@ static void close_backup_object()
 }
 #endif
 
-int akc_start(object_container  init_val, client_data akc_client)
+int akc_start(object_container *init_val)
 {
 
     int result;
@@ -777,6 +795,8 @@ int akc_start(object_container  init_val, client_data akc_client)
     time_t reboot_time = 0;
     int opt;
     bool bootstrapRequested = false;
+    coap_protocol_t protocol = -1;
+    char local_port[16];
 
 #ifdef LWM2M_BOOTSTRAP
     lwm2m_client_state_t previousState = STATE_INITIAL;
@@ -785,12 +805,14 @@ int akc_start(object_container  init_val, client_data akc_client)
     uint16_t pskLen = -1;
     char * pskBuffer = NULL;
 
-	char * pskId = init_val.server.bsPskId;
-	char * psk = init_val.server.psk;
-	char * name = init_val.server.client_name;
-	int lifetime = init_val.server.lifetime;
-	int batterylevelchanging = init_val.server.batterylevelchanging;
-	int serverId = init_val.server.serverId;
+    char * pskId = init_val->server->bsPskId;
+    char * psk = init_val->server->psk;
+    char * name = init_val->server->client_name;
+    char * uri = init_val->server->serverUri;
+    int lifetime = init_val->server->lifetime;
+    int batterylevelchanging = init_val->server->batterylevelchanging;
+    int serverId = init_val->server->serverId;
+
     /*
      * The function start by setting up the command line interface (which may or not be useful depending on your project)
      *
@@ -822,16 +844,46 @@ int akc_start(object_container  init_val, client_data akc_client)
 
             COMMAND_END_LIST
     };
-     memset(&data, 0, sizeof(client_data_t));
 
-	 if (akc_client.ipv6 == true)
-		data.addressFamily = AF_INET6;
-	 else
-		data.addressFamily = AF_INET;
+    memset(&data, 0, sizeof(client_data_t));
 
-    fprintf(stderr, "Trying to bind LWM2M Client to port %s\r\n", akc_client.localPort);
+    /* Figure out protocol from the URI prefix */
+    for (i=0; i<sizeof(protocols)/sizeof(coap_uri_protocol); i++)
+    {
+        if (0 == strncmp(uri, protocols[i].uri_prefix, strlen(protocols[i].uri_prefix)))
+        {
+            fprintf(stdout, "Connecting to server over %s\r\n", protocols[i].friendly_name);
+            protocol = protocols[i].proto;
+            break;
+        }
+    }
 
-    data.sock = create_socket(akc_client.localPort, data.addressFamily);
+    if (protocol == -1)
+    {
+        fprintf(stderr, "Unknown protocol, should be one of: ");
+        for (i=0; i<sizeof(protocols)/sizeof(coap_uri_protocol); i++)
+        {
+            fprintf(stderr, "%s, ", protocols[i].uri_prefix);
+        }
+        fprintf(stderr, "\r\n");
+        return -1;
+    }
+
+    /* Default to IPV4, should add parameter to allow IPV6 */
+    data.addressFamily = AF_INET;
+
+    /*
+     * Randomize local port based on predefined range
+     * Depending on the range it should be enough to avoid reusing
+     * twice the same port across the TIME_WAIT period after
+     * closing the socket
+     */
+    srand(time(NULL));
+    snprintf(local_port, 16, "%d", (rand() % (CLIENT_PORT_RANGE_END - CLIENT_PORT_RANGE_START)) + CLIENT_PORT_RANGE_START);
+
+    fprintf(stdout, "Trying to bind LWM2M Client to port %s\r\n", local_port);
+
+    data.sock = create_socket(protocol, local_port, data.addressFamily);
     if (data.sock < 0)
     {
         fprintf(stderr, "Failed to open socket: %d %s\r\n", errno, strerror(errno));
@@ -842,7 +894,6 @@ int akc_start(object_container  init_val, client_data akc_client)
      * Now the main function fill an array with each object, this list will be later passed to liblwm2m.
      * Those functions are located in their respective object file.
      */
-#if (defined WITH_TINYDTLS || defined COAP_TCP)
     if (psk != NULL)
     {
         pskLen = strlen(psk) / 2;
@@ -872,9 +923,10 @@ int akc_start(object_container  init_val, client_data akc_client)
             *b = ((l - xlate) << 4) + (r - xlate);
         }
     }
-#endif
-	char * serverUri = init_val.server.serverUri;
-	printf(" serverUri =  %s\n",serverUri);
+
+    char * serverUri = init_val->server->serverUri;
+    fprintf(stdout, " Server Uri =  %s\n", serverUri);
+
 #ifdef LWM2M_BOOTSTRAP
     objArray[0] = get_security_object(serverId, serverUri, pskId, pskBuffer, pskLen, bootstrapRequested);
 #else
@@ -887,32 +939,46 @@ int akc_start(object_container  init_val, client_data akc_client)
     }
     data.securityObjP = objArray[0];
 
-#ifdef COAP_TCP
-    objArray[1] = get_server_object(serverId, "T", lifetime, false);
-#else
-    objArray[1] = get_server_object(serverId, "U", lifetime, false);
-#endif
+    switch(protocol)
+    {
+    case COAP_UDP:
+    case COAP_UDP_DTLS:
+		objArray[1] = get_server_object(serverId, "U", lifetime, false);
+		strncpy(init_val->device->binding_mode, "U", MAX_LEN);
+		break;
+    case COAP_TCP:
+		objArray[1] = get_server_object(serverId, "C", lifetime, false);
+		strncpy(init_val->device->binding_mode, "C", MAX_LEN);
+		break;
+    case COAP_TCP_TLS:
+		objArray[1] = get_server_object(serverId, "T", lifetime, false);
+		strncpy(init_val->device->binding_mode, "T", MAX_LEN);
+		break;
+    default:
+		break;
+    }
+
     if (NULL == objArray[1])
     {
         fprintf(stderr, "Failed to create server object\r\n");
         return -1;
     }
 
-    objArray[2] = get_object_device(&(init_val.device));
+    objArray[2] = get_object_device(&(init_val->device));
     if (NULL == objArray[2])
     {
         fprintf(stderr, "Failed to create Device object\r\n");
         return -1;
     }
 
-    objArray[3] = get_object_firmware(&(init_val.firmware));
+    objArray[3] = get_object_firmware(&(init_val->firmware));
     if (NULL == objArray[3])
     {
         fprintf(stderr, "Failed to create Firmware object\r\n");
         return -1;
     }
 
-    objArray[4] = get_object_location(&(init_val.location));
+    objArray[4] = get_object_location(&(init_val->location));
     if (NULL == objArray[4])
     {
         fprintf(stderr, "Failed to create location object\r\n");
@@ -926,7 +992,7 @@ int akc_start(object_container  init_val, client_data akc_client)
         return -1;
     }
 
-    objArray[6] = get_object_conn_m(&(init_val.monitoring));
+    objArray[6] = get_object_conn_m(&(init_val->monitoring));
     if (NULL == objArray[6])
     {
         fprintf(stderr, "Failed to create connectivity monitoring object\r\n");
@@ -1108,13 +1174,25 @@ int akc_start(object_container  init_val, client_data akc_client)
 
                 addrLen = sizeof(addr);
 
-#ifdef COAP_TCP
-                numBytes = recv(data.sock, buffer, MAX_PACKET_SIZE, 0);
+                switch(protocol)
+                {
+                case COAP_UDP:
+                case COAP_UDP_DTLS:
+                    numBytes = recvfrom(data.sock, buffer, MAX_PACKET_SIZE, 0, (struct sockaddr *)&addr, &addrLen);
+                    break;
+                case COAP_TCP:
+                    numBytes = recv(data.sock, buffer, MAX_PACKET_SIZE, 0);
+                    break;
+                case COAP_TCP_TLS:
+                    numBytes = SSL_read(data.ssl, buffer, MAX_PACKET_SIZE);
+                    break;
+                default:
+                    break;
+                }
+
                 memcpy(&addr, &data.server_addr, data.server_addrlen);
                 addrLen = data.server_addrlen;
-#else
-                numBytes = recvfrom(data.sock, buffer, MAX_PACKET_SIZE, 0, (struct sockaddr *)&addr, &addrLen);
-#endif
+
                 if (0 > numBytes)
                 {
                     fprintf(stderr, "Error in recvfrom(): %d %s\r\n", errno, strerror(errno));
@@ -1141,12 +1219,10 @@ int akc_start(object_container  init_val, client_data akc_client)
                         inet_ntop(saddr->sin6_family, &saddr->sin6_addr, s, INET6_ADDRSTRLEN);
                         port = saddr->sin6_port;
                     }
-                    fprintf(stderr, "%d bytes received from [%s]:%hu\r\n", numBytes, s, ntohs(port));
-
-                    /*
-                     * Display it in the STDERR
-                     */
-                    output_buffer(stderr, buffer, numBytes, 0);
+#ifdef WITH_LOGS
+                    fprintf(stdout, "%d bytes received from [%s]:%hu\r\n", numBytes, s, ntohs(port));
+                    output_buffer(stdout, buffer, numBytes, 0);
+#endif
 
                     connP = connection_find(data.connList, &addr, addrLen);
                     if (connP != NULL)
@@ -1161,7 +1237,7 @@ int akc_start(object_container  init_val, client_data akc_client)
                              printf("error handling message %d\n",result);
                         }
 #else
-                        lwm2m_handle_packet(lwm2mH_main, buffer, numBytes, connP);
+                        lwm2m_handle_packet(lwm2mH_main, connP->protocol, buffer, numBytes, connP);
 #endif
                         conn_s_updateRxStatistic(objArray[7], numBytes, false);
                     }
@@ -1170,13 +1246,11 @@ int akc_start(object_container  init_val, client_data akc_client)
                         fprintf(stderr, "received bytes ignored!\r\n");
                     }
                 }
-#ifdef COAP_TCP
                 else
                 {
                     fprintf(stderr, "server has closed the connection\r\n");
                     g_quit = 1;
                 }
-#endif
             }
 
             /*
@@ -1220,6 +1294,7 @@ void akc_stop(void)
 #endif
 		lwm2m_close(lwm2mH_main);
 	}
+
 	close(data.sock);
 	connection_free(data.connList);
 

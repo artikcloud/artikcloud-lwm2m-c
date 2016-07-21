@@ -7,11 +7,13 @@
 #include <unistd.h>
 #include <stdio.h>
 
+#define AKC_UUID_LEN    32
+
 static object_security_server akc_server = {
     "coaps+tcp://coap-dev.artik.cloud:5689", /* serverUri */
-    "76e814d7dce641debc1267ea95e82838",      /* pskId : DEVICE ID */
-    "ba53c07423f842adabbdca76de075a44",      /* psk : DEVICE TOKEN */
-    "76e814d7dce641debc1267ea95e82838",      /* name : DEVICE ID */
+    "24936ceccdb24a54a58a341ee7c5d1a3",      /* pskId : DEVICE ID */
+    "2f1a098e131b4d4c9aaaaf38bb06df87",      /* psk : DEVICE TOKEN */
+    "24936ceccdb24a54a58a341ee7c5d1a3",      /* name : DEVICE ID */
     30,                                      /* lifetime */
     0,                                       /* battery */
     123                                      /* serverId */
@@ -64,6 +66,12 @@ static object_location default_location ={
     "0.01"       /* Uncertainty */
 };
 
+static void usage()
+{
+    fprintf(stdout, "Usage:\r\n");
+    fprintf(stdout, "\takc_client <server URI> <device ID> <device token>\r\n");
+}
+
 int main(int argc, char *argv[])
 {
     int ret = 0;
@@ -71,6 +79,29 @@ int main(int argc, char *argv[])
 
     if (argc > 1)
         strncpy(akc_server.serverUri, argv[1], MAX_LEN);
+    if (argc > 2)
+    {
+        if (strlen(argv[2]) != AKC_UUID_LEN)
+        {
+            fprintf(stderr, "Wrong device ID parameter\r\n");
+            usage();
+            return -1;
+        }
+
+        strncpy(akc_server.bsPskId, argv[2], AKC_UUID_LEN);
+        strncpy(akc_server.client_name, argv[2], AKC_UUID_LEN);
+    }
+    if (argc > 3)
+    {
+        if (strlen(argv[3]) != AKC_UUID_LEN)
+        {
+            fprintf(stderr, "Wrong device token parameter\r\n");
+            usage();
+            return -1;
+        }
+
+        strncpy(akc_server.psk, argv[2], AKC_UUID_LEN);
+    }
 
     init_val_ob.server= &akc_server;
     init_val_ob.device = &default_device;

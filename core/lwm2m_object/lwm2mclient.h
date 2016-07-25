@@ -29,11 +29,7 @@
 
 #include "er-coap-13/er-coap-13.h"
 #include "liblwm2m.h"
-#ifdef WITH_TINYDTLS
-#include "dtlsconnection.h"
-#else
 #include "connection.h"
-#endif
 
 extern int g_reboot;
 
@@ -51,12 +47,8 @@ typedef struct
     lwm2m_object_t * securityObjP;
     lwm2m_object_t * serverObject;
     int sock;
-#ifdef WITH_TINYDTLS
-    dtls_connection_t * connList;
-    lwm2m_context_t * lwm2mH;
-#else
     connection_t * connList;
-#endif
+    lwm2m_context_t * lwm2mH;
     struct sockaddr_storage server_addr;
     size_t server_addrlen;
     SSL *ssl;
@@ -67,21 +59,21 @@ typedef struct
  * object_device.c
  */
 typedef struct {
-	char manufacturer[MAX_LEN];		/*PRV_MANUFACTURER*/
-	char model_number[MAX_LEN]; 	/*PRV_MODEL_NUMBER*/
-	char serial_number[MAX_LEN]; 	/*PRV_SERIAL_NUMBER*/
-	char firmware_version[MAX_LEN]; /*PRV_FIRMWARE_VERSION*/
-	int power_source_1;				/*PRV_POWER_SOURCE_1*/
-	int power_source_2;				/*PRV_POWER_SOURCE_2*/
-	int power_voltage_1; 			/*PRV_POWER_VOLTAGE_1*/
-	int power_voltage_2; 			/*PRV_POWER_VOLTAGE_2*/
-	int power_current_1; 			/*PRV_POWER_CURRENT_1*/
-	int power_current_2; 			/*PRV_POWER_CURRENT_2*/
-	int battery_level; 				/*PRV_BATTERY_LEVEL*/
-	int memory_free; 				/*PRV_MEMORY_FREE*/
-	int error_code; 				/*PRV_ERROR_CODE*/
-	char time_zone[MAX_LEN]; 		/*PRV_TIME_ZONE*/
-	char binding_mode[MAX_LEN];		/*PRV_BINDING_MODE*/
+    char manufacturer[MAX_LEN];     /*PRV_MANUFACTURER*/
+    char model_number[MAX_LEN];     /*PRV_MODEL_NUMBER*/
+    char serial_number[MAX_LEN];    /*PRV_SERIAL_NUMBER*/
+    char firmware_version[MAX_LEN]; /*PRV_FIRMWARE_VERSION*/
+    int power_source_1;             /*PRV_POWER_SOURCE_1*/
+    int power_source_2;             /*PRV_POWER_SOURCE_2*/
+    int power_voltage_1;            /*PRV_POWER_VOLTAGE_1*/
+    int power_voltage_2;            /*PRV_POWER_VOLTAGE_2*/
+    int power_current_1;            /*PRV_POWER_CURRENT_1*/
+    int power_current_2;            /*PRV_POWER_CURRENT_2*/
+    int battery_level;              /*PRV_BATTERY_LEVEL*/
+    int memory_free;                /*PRV_MEMORY_FREE*/
+    int error_code;                 /*PRV_ERROR_CODE*/
+    char time_zone[MAX_LEN];        /*PRV_TIME_ZONE*/
+    char binding_mode[MAX_LEN];     /*PRV_BINDING_MODE*/
 } object_device;
 
 lwm2m_object_t * get_object_device(object_device *default_value);
@@ -105,10 +97,10 @@ void display_firmware_object(lwm2m_object_t * objectP);
  * object_location.c
  */
  typedef struct {
-	char  latitude[MAX_LEN];	/*Latitude */
-	char  longitude[MAX_LEN]; 	/*Longitude*/
-	char  altidude[MAX_LEN]; 	/*Altidude*/
-	char  uncertainty[MAX_LEN]; /*Uncertainty*/
+    char  latitude[MAX_LEN];    /*Latitude */
+    char  longitude[MAX_LEN];   /*Longitude*/
+    char  altidude[MAX_LEN];    /*Altidude*/
+    char  uncertainty[MAX_LEN]; /*Uncertainty*/
 } object_location;
 lwm2m_object_t * get_object_location(object_location *default_value);
 void free_object_location(lwm2m_object_t * object);
@@ -132,19 +124,19 @@ void copy_server_object(lwm2m_object_t * objectDest, lwm2m_object_t * objectSrc)
  * object_connectivity_moni.c
  */
 typedef struct {
-	int  network_bearer;			/*VALUE_NETWORK_BEARER_GSM*/
-	int  avl_network_bearer; 		/*VALUE_AVL_NETWORK_BEARER_1*/
-	int  radio_signal_strength; 	/*VALUE_RADIO_SIGNAL_STRENGTH*/
-	int  link_quality; 				/*VALUE_LINK_QUALITY*/
-	char ip_addr[MAX_LEN];			/*VALUE_IP_ADDRESS_1*/
-	char ip_addr2[MAX_LEN];			/*VALUE_IP_ADDRESS_2*/
-	char router_ip_addr[MAX_LEN];	/*VALUE_ROUTER_IP_ADDRESS_1*/
-	char router_ip_addr2[MAX_LEN];	/*VALUE_ROUTER_IP_ADDRESS_2*/
-	int  link_utilization; 			/*VALUE_LINK_UTILIZATION*/
-	char apn[MAX_LEN]; 				/*VALUE_APN_1*/
-	int  cell_id; 					/*VALUE_CELL_ID*/
-	int  smnc; 						/*VALUE_SMNC*/
-	int  smcc; 						/*VALUE_SMCC*/
+    int  network_bearer;           /*VALUE_NETWORK_BEARER_GSM*/
+    int  avl_network_bearer;       /*VALUE_AVL_NETWORK_BEARER_1*/
+    int  radio_signal_strength;    /*VALUE_RADIO_SIGNAL_STRENGTH*/
+    int  link_quality;             /*VALUE_LINK_QUALITY*/
+    char ip_addr[MAX_LEN];         /*VALUE_IP_ADDRESS_1*/
+    char ip_addr2[MAX_LEN];        /*VALUE_IP_ADDRESS_2*/
+    char router_ip_addr[MAX_LEN];  /*VALUE_ROUTER_IP_ADDRESS_1*/
+    char router_ip_addr2[MAX_LEN]; /*VALUE_ROUTER_IP_ADDRESS_2*/
+    int  link_utilization;         /*VALUE_LINK_UTILIZATION*/
+    char apn[MAX_LEN];             /*VALUE_APN_1*/
+    int  cell_id;                  /*VALUE_CELL_ID*/
+    int  smnc;                     /*VALUE_SMNC*/
+    int  smcc;                     /*VALUE_SMCC*/
 } object_conn_monitoring;
 lwm2m_object_t * get_object_conn_m(object_conn_monitoring *default_value);
 void free_object_conn_m(lwm2m_object_t * objectP);
@@ -186,26 +178,25 @@ char * get_server_uri(lwm2m_object_t * objectP, uint16_t secObjInstID);
 void display_security_object(lwm2m_object_t * objectP);
 void copy_security_object(lwm2m_object_t * objectDest, lwm2m_object_t * objectSrc);
 
-
 /*
  * lwm2mclient.c
  */
  typedef struct {
-	char serverUri[MAX_LEN]; 	/*serverUri*/
-	char bsPskId[MAX_LEN]; 		/*pskId : DEVICE ID*/
-	char psk[MAX_LEN]; 			/*psk : DEVICE TOKEN*/
-	char client_name[MAX_LEN];	/*name : DEVICE ID*/
-	int lifetime; 				/*lifetime*/
-	int  batterylevelchanging; 	/*battery*/
-	int serverId; 				/*serverId*/
+    char serverUri[MAX_LEN];   /*serverUri*/
+    char bsPskId[MAX_LEN];     /*pskId : DEVICE ID*/
+    char psk[MAX_LEN];         /*psk : DEVICE TOKEN*/
+    char client_name[MAX_LEN]; /*name : DEVICE ID*/
+    int lifetime;              /*lifetime*/
+    int  batterylevelchanging; /*battery*/
+    int serverId;              /*serverId*/
 } object_security_server;
 
 typedef struct {
-	object_security_server* server;
-	object_device* device;
-	object_firmware* firmware;
-	object_location* location;
-	object_conn_monitoring* monitoring;
+    object_security_server* server;
+    object_device* device;
+    object_firmware* firmware;
+    object_location* location;
+    object_conn_monitoring* monitoring;
 }object_container;
 
 void * lwm2m_connect_server(uint16_t secObjInstID,

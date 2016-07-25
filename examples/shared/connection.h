@@ -47,16 +47,27 @@ typedef struct _connection_t
     int                     sock;
     struct sockaddr_in6     addr;
     size_t                  addrLen;
-    coap_protocol_t			protocol;
-    SSL_CTX *				ssl_ctx;
-    SSL *					ssl;
+    coap_protocol_t         protocol;
+    SSL_CTX               * ssl_ctx;
+    SSL                   * ssl;
 } connection_t;
+
+#define MAX_DTLS_INFO_LEN    128
+typedef struct _lwm2m_dtls_info_
+{
+    struct _lwm2m_dtls_info_ * next;  // matches lwm2m_list_t::next
+    uint16_t                   id;    // matches lwm2m_list_t::id
+    connection_t             * connection;
+    char                       identity[MAX_DTLS_INFO_LEN];
+    char                       key[MAX_DTLS_INFO_LEN];
+    int                        key_length;
+} lwm2m_dtls_info_t;
 
 int create_socket(coap_protocol_t protocol, const char * portStr, int ai_family);
 
 connection_t * connection_find(connection_t * connList, struct sockaddr_storage * addr, size_t addrLen);
 connection_t * connection_new_incoming(connection_t * connList, int sock, coap_protocol_t protocol, struct sockaddr * addr, size_t addrLen);
-connection_t * connection_create(connection_t * connList, coap_protocol_t protocol, int sock, char * host, char * port, int addressFamily);
+connection_t * connection_create(connection_t * connList, coap_protocol_t protocol, int sock, char * host, char * port, int addressFamily, lwm2m_object_t * obj, int instanceId);
 
 void connection_free(connection_t * connList);
 

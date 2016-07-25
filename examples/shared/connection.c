@@ -32,25 +32,80 @@
 #define SOL_TCP IPPROTO_TCP
 #endif
 
+static lwm2m_dtls_info_t *dtlsinfo_list = NULL;
+
 // from commandline.c
 void output_buffer(FILE * stream, uint8_t * buffer, int length, int indent);
 
+static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity,
+                                  unsigned int max_identity_len,
+                                  unsigned char *psk,
+                                  unsigned int max_psk_len)
+{
+    int len = 0, keyLen = 0;
+    lwm2m_dtls_info_t *dtls = dtlsinfo_list;
+    char *id = NULL, *key = NULL;
+
+    // Look up DTLS info based on SSL pointer
+    while (dtls != NULL)
+    {
+        if (ssl == dtls->connection->ssl)
+        {
+            id = dtls->identity;
+            key = dtls->key;
+            keyLen = dtls->key_length;
+            break;
+        }
+
+        dtls = dtls->next;
+    }
+
+    if(!id || !key)
+    {
+        fprintf(stderr, "Could not find DTLS credentials\n");
+        return 0;
+    }
+
+    if (strlen(id) > max_identity_len)
+    {
+        fprintf(stderr, "PSK identity is too long\n");
+        return 0;
+    }
+
+    len = strncpy(identity, id, max_identity_len);
+
+    if (keyLen > max_psk_len)
+    {
+        fprintf(stderr, "PSK key is too long\n");
+        return 0;
+    }
+
+    memcpy(psk, key, keyLen);
+
+#ifdef WITH_LOGS
+    fprintf(stdout, "id: %s\n", identity);
+    fprintf(stdout, "Key:");
+    for (int i=0; i<keyLen; i++)
+        fprintf(stdout, "%02x", psk[i]);
+    fprintf(stdout, "\n");
+#endif
+
+    return keyLen;
+}
+
 static bool ssl_init(connection_t * conn)
 {
-    BIO *certbio = NULL;
-    BIO *outbio = NULL;
+    BIO *sbio = NULL;
     SSL_CTX *ctx = NULL;
     SSL *ssl = NULL;
     int ret = 0;
     int flags = 0;
 
     OpenSSL_add_all_algorithms();
+    ERR_clear_error();
     ERR_load_BIO_strings();
     ERR_load_crypto_strings();
     SSL_load_error_strings();
-
-    certbio = BIO_new(BIO_s_file());
-    outbio  = BIO_new_fp(stdout, BIO_NOCLOSE);
 
     if(SSL_library_init() < 0)
     {
@@ -58,7 +113,17 @@ static bool ssl_init(connection_t * conn)
         goto error;
     }
 
-    ctx = SSL_CTX_new(TLSv1_2_client_method());
+    if (conn->protocol == COAP_UDP_DTLS)
+    {
+        ctx = SSL_CTX_new(DTLSv1_2_client_method());
+        SSL_CTX_set_psk_client_callback(ctx, psk_client_cb);
+        SSL_CTX_set_cipher_list(ctx, "PSK-AES128-CCM8:PSK-AES128-CBC-SHA");
+    }
+    else
+    {
+        ctx = SSL_CTX_new(TLSv1_2_client_method());
+    }
+
     if (!ctx)
     {
         fprintf(stderr, "Failed to create SSL context\n");
@@ -72,28 +137,51 @@ static bool ssl_init(connection_t * conn)
         goto error;
     }
 
-    ret = SSL_CTX_set_cipher_list(ctx, "ALL");
-    if (ret != 1)
+    if (conn->protocol == COAP_UDP_DTLS)
     {
-        fprintf(stderr, "Failed to select SSL ciphers (err=%d)\n", SSL_get_error(ssl, ret));
-        fprintf(stderr, "%s\n", ERR_error_string(SSL_get_error(ssl, ret), NULL));
-        goto error;
-    }
+        struct sockaddr peer;
+        int peerlen = sizeof (struct sockaddr);
+        struct timeval timeout;
 
-    ret = SSL_set_fd(ssl, conn->sock);
-    if (ret != 1)
-    {
-        fprintf(stderr, "Failed to associate SSL with file descriptor (err=%d)\n", SSL_get_error(ssl, ret));
-        fprintf(stderr, "%s\n", ERR_error_string(SSL_get_error(ssl, ret), NULL));
-        goto error;
-    }
+        sbio = BIO_new_dgram (conn->sock, BIO_NOCLOSE);
+        if (getsockname (conn->sock, &peer, (socklen_t *)&peerlen) < 0)
+        {
+            fprintf(stderr, "getsockname failed (%s)\n", strerror (errno));
+        }
 
-    ret = SSL_connect(ssl);
-    if (ret != 1)
+        BIO_ctrl_set_connected (sbio, &peer);
+        timeout.tv_sec = 10;
+        timeout.tv_usec = 0;
+        BIO_ctrl (sbio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
+        BIO_ctrl(sbio, BIO_CTRL_DGRAM_MTU_DISCOVER, 0, NULL);
+        SSL_set_bio (ssl, sbio, sbio);
+        SSL_set_connect_state (ssl);
+    }
+    else
     {
-        fprintf(stderr, "Failed to initiate SSL connection\n");
-        fprintf(stderr, "%s\n", ERR_error_string(SSL_get_error(ssl, ret), NULL));
-        goto error;
+        ret = SSL_CTX_set_cipher_list(ctx, "ALL");
+        if (ret != 1)
+        {
+            fprintf(stderr, "Failed to select SSL ciphers (err=%d)\n", SSL_get_error(ssl, ret));
+            fprintf(stderr, "%s\n", ERR_error_string(SSL_get_error(ssl, ret), NULL));
+            goto error;
+        }
+
+        ret = SSL_set_fd(ssl, conn->sock);
+        if (ret != 1)
+        {
+            fprintf(stderr, "Failed to associate SSL with file descriptor (err=%d)\n", SSL_get_error(ssl, ret));
+            fprintf(stderr, "%s\n", ERR_error_string(SSL_get_error(ssl, ret), NULL));
+            goto error;
+        }
+
+        ret = SSL_connect(ssl);
+        if (ret != 1)
+        {
+            fprintf(stderr, "Failed to initiate SSL connection\n");
+            fprintf(stderr, "%s\n", ERR_error_string(SSL_get_error(ssl, ret), NULL));
+            goto error;
+        }
     }
 
     conn->ssl = ssl;
@@ -108,6 +196,44 @@ error:
         SSL_CTX_free(ctx);
 
     return false;
+}
+
+static char *security_get_public_id(lwm2m_object_t * obj, int instanceId, int * length)
+{
+    int size = 1;
+    lwm2m_data_t * dataP = lwm2m_data_new(size);
+    dataP->id = 3; // public key or id
+
+    obj->readFunc(instanceId, &size, &dataP, obj);
+    if (dataP != NULL &&
+            dataP->type == LWM2M_TYPE_OPAQUE)
+    {
+        *length = dataP->value.asBuffer.length;
+        return (char*)dataP->value.asBuffer.buffer;
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
+static char *security_get_secret_key(lwm2m_object_t * obj, int instanceId, int * length)
+{
+    int size = 1;
+    lwm2m_data_t * dataP = lwm2m_data_new(size);
+    dataP->id = 5; // secret key
+
+    obj->readFunc(instanceId, &size, &dataP, obj);
+    if (dataP != NULL &&
+            dataP->type == LWM2M_TYPE_OPAQUE)
+    {
+        *length = dataP->value.asBuffer.length;
+        return (char*)dataP->value.asBuffer.buffer;
+    }
+    else
+    {
+        return NULL;
+    }
 }
 
 int create_socket(coap_protocol_t protocol, const char * portStr, int addressFamily)
@@ -204,7 +330,9 @@ connection_t * connection_create(connection_t * connList,
                                  int sock,
                                  char * host,
                                  char * port,
-                                 int addressFamily)
+                                 int addressFamily,
+                                 lwm2m_object_t * sec_obj,
+                                 int sec_inst)
 {
     struct addrinfo hints;
     struct addrinfo *servinfo = NULL;
@@ -251,8 +379,7 @@ connection_t * connection_create(connection_t * connList,
     }
     if (s >= 0)
     {
-        if ((protocol == COAP_TCP) ||
-            (protocol == COAP_TCP_TLS))
+        if (protocol != COAP_UDP)
         {
             if (connect(sock, sa, sl) < 0)
             {
@@ -262,7 +389,67 @@ connection_t * connection_create(connection_t * connList,
         }
 
         connP = connection_new_incoming(connList, sock, protocol, sa, sl);
-        if (protocol == COAP_TCP_TLS)
+
+        if (protocol == COAP_UDP_DTLS)
+        {
+            char *id = NULL, *psk = NULL;
+            int len = 0;
+            lwm2m_dtls_info_t *dtls = NULL;
+
+            // Retrieve ID/PSK from security object for DTLS handshake
+            dtls = malloc(sizeof(lwm2m_dtls_info_t));
+
+            if (!sec_obj)
+            {
+                fprintf(stderr, "No security object provided\n");
+                free(connP);
+                connP = NULL;
+                close(s);
+                goto exit;
+            }
+
+            if (!dtls)
+            {
+                fprintf(stderr, "Failed to allocate memory for DTLS security info\n");
+                free(connP);
+                connP = NULL;
+                close(s);
+                goto exit;
+            }
+
+            memset(dtls, 0, sizeof(lwm2m_dtls_info_t));
+
+            id = security_get_public_id(sec_obj, sec_inst, &len);
+            if (len > MAX_DTLS_INFO_LEN)
+            {
+                fprintf(stderr, "Public ID is too long\n");
+                free(connP);
+                connP = NULL;
+                close(s);
+                goto exit;
+            }
+
+            memcpy(dtls->identity, id, len);
+
+            psk = security_get_secret_key(sec_obj, sec_inst, &len);
+            if (len > MAX_DTLS_INFO_LEN)
+            {
+                fprintf(stderr, "Secret key is too long\n");
+                free(connP);
+                connP = NULL;
+                close(s);
+                goto exit;
+            }
+
+            memcpy(dtls->key, psk, len);
+            dtls->key_length = len;
+            dtls->connection = connP;
+            dtls->id = lwm2m_list_newId((lwm2m_list_t*)dtlsinfo_list);
+            dtlsinfo_list = (lwm2m_dtls_info_t*)LWM2M_LIST_ADD((lwm2m_list_t*)dtlsinfo_list, (lwm2m_list_t*)dtls);
+        }
+
+        if ((protocol == COAP_TCP_TLS) ||
+            (protocol == COAP_UDP_DTLS))
         {
             if (!ssl_init(connP))
             {
@@ -288,6 +475,21 @@ void connection_free(connection_t * connList)
     while (connList != NULL)
     {
         connection_t * nextP;
+        lwm2m_dtls_info_t *dtls = dtlsinfo_list;
+
+        // Free DTLS info if any
+        while (dtls != NULL)
+        {
+            if (connList == dtls->connection)
+            {
+                lwm2m_dtls_info_t *node;
+                dtlsinfo_list = (lwm2m_dtls_info_t *)LWM2M_LIST_RM(dtlsinfo_list, dtls->id, &node);
+                free(node);
+                break;
+            }
+
+            dtls = dtls->next;
+        }
 
         nextP = connList->next;
         free(connList);
@@ -322,7 +524,7 @@ int connection_send(connection_t *connP,
         port = saddr->sin6_port;
     }
 
-    fprintf(stderr, "Sending %lu bytes to [%s]:%hu\r\n", length, s, ntohs(port));
+    fprintf(stdout, "Sending %lu bytes to [%s]:%hu\r\n", length, s, ntohs(port));
 
     output_buffer(stderr, buffer, length, 0);
 #endif
@@ -332,6 +534,7 @@ int connection_send(connection_t *connP,
     {
         switch(connP->protocol)
         {
+        case COAP_UDP_DTLS:
         case COAP_TCP_TLS:
             nbSent = SSL_write(connP->ssl, buffer + offset, length - offset);
             break;
@@ -339,14 +542,17 @@ int connection_send(connection_t *connP,
             nbSent = send(connP->sock, buffer + offset, length - offset, 0);
             break;
         case COAP_UDP:
-        case COAP_UDP_DTLS:
             nbSent = sendto(connP->sock, buffer + offset, length - offset, 0, (struct sockaddr *)&(connP->addr), connP->addrLen);
             break;
         default:
             break;
         }
 
-        if (nbSent == -1) return -1;
+        if (nbSent == -1)
+        {
+            fprintf(stderr, "Error: %s\n", strerror(errno));
+            return -1;
+        }
         offset += nbSent;
     }
     return 0;

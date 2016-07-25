@@ -48,7 +48,25 @@ set(WAKAAMA_SOURCES
     )
 
 if(ARTIK_LWM2M)
-	set(WAKAAMA_SOURCES ${WAKAAMA_SOURCES} ${OBJECT_SOURCES})
+    set(WAKAAMA_SOURCES ${WAKAAMA_SOURCES} ${OBJECT_SOURCES})
+    set (OPENSSL_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/openssl")
+    set (OPENSSL_LIBRARIES ${OPENSSL_SRC_DIR}/libcrypto.a ${OPENSSL_SRC_DIR}/libssl.a)
+    set (OPENSSL_INCLUDE_DIR "${OPENSSL_SRC_DIR}/include")
+    if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        set (OPENSSL_CONFIG_CMD	./Configure darwin64-x86_64-cc)
+    else ()
+        set (OPENSSL_CONFIG_CMD	./config)
+    endif ()
+
+    add_custom_command(OUTPUT openssl
+               COMMAND ${OPENSSL_CONFIG_CMD}
+               COMMAND make
+               WORKING_DIRECTORY ${OPENSSL_SRC_DIR}
+               COMMENT "Building OpenSSL libraries")
+
+    add_custom_target(openssl-libs DEPENDS openssl)
+
+    include_directories(${OPENSSL_INCLUDE_DIR})
 endif()
 
 # This will not work for multi project cmake generators like the Visual Studio Generator

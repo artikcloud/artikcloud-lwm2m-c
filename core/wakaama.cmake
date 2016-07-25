@@ -56,6 +56,7 @@ if(ARTIK_LWM2M)
         set (OPENSSL_CONFIG_CMD	./Configure darwin64-x86_64-cc)
     else ()
         set (OPENSSL_CONFIG_CMD	./config)
+        set (OPENSSL_LIBRARIES ${OPENSSL_LIBRARIES} dl pthread)
     endif ()
 
     add_custom_command(OUTPUT openssl

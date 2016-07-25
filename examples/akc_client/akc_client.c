@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
             return -1;
         }
 
-        strncpy(akc_server.psk, argv[2], AKC_UUID_LEN);
+        strncpy(akc_server.psk, argv[3], AKC_UUID_LEN);
     }
 
     init_val_ob.server= &akc_server;

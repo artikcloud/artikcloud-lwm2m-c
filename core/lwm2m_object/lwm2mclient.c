@@ -765,13 +765,8 @@ int akc_start(object_container *init_val)
 
     uint16_t pskLen = -1;
     char * pskBuffer = NULL;
-
-    char * pskId = init_val->server->bsPskId;
     char * psk = init_val->server->psk;
-    char * name = init_val->server->client_name;
     char * uri = init_val->server->serverUri;
-    int lifetime = init_val->server->lifetime;
-    int batterylevelchanging = init_val->server->batterylevelchanging;
     int serverId = init_val->server->serverId;
 
     /*
@@ -885,13 +880,12 @@ int akc_start(object_container *init_val)
         }
     }
 
-    char * serverUri = init_val->server->serverUri;
-    fprintf(stdout, " Server Uri =  %s\n", serverUri);
+    fprintf(stdout, " Server Uri =  %s\n", uri);
 
 #ifdef LWM2M_BOOTSTRAP
-    objArray[0] = get_security_object(serverId, serverUri, pskId, pskBuffer, pskLen, bootstrapRequested);
+    objArray[0] = get_security_object(serverId, uri, init_val->server->bsPskId, pskBuffer, pskLen, bootstrapRequested);
 #else
-    objArray[0] = get_security_object(serverId, serverUri, pskId, pskBuffer, pskLen, false);
+    objArray[0] = get_security_object(serverId, uri, init_val->server->bsPskId, pskBuffer, pskLen, false);
 #endif
     if (NULL == objArray[0])
     {
@@ -904,15 +898,15 @@ int akc_start(object_container *init_val)
     {
     case COAP_UDP:
     case COAP_UDP_DTLS:
-        objArray[1] = get_server_object(serverId, "U", lifetime, false);
+        objArray[1] = get_server_object(serverId, "U", init_val->server->lifetime, false);
         strncpy(init_val->device->binding_mode, "U", MAX_LEN);
         break;
     case COAP_TCP:
-        objArray[1] = get_server_object(serverId, "C", lifetime, false);
+        objArray[1] = get_server_object(serverId, "C", init_val->server->lifetime, false);
         strncpy(init_val->device->binding_mode, "C", MAX_LEN);
         break;
     case COAP_TCP_TLS:
-        objArray[1] = get_server_object(serverId, "T", lifetime, false);
+        objArray[1] = get_server_object(serverId, "T", init_val->server->lifetime, false);
         strncpy(init_val->device->binding_mode, "T", MAX_LEN);
         break;
     default:
@@ -925,21 +919,21 @@ int akc_start(object_container *init_val)
         return -1;
     }
 
-    objArray[2] = get_object_device(&(init_val->device));
+    objArray[2] = get_object_device(init_val->device);
     if (NULL == objArray[2])
     {
         fprintf(stderr, "Failed to create Device object\r\n");
         return -1;
     }
 
-    objArray[3] = get_object_firmware(&(init_val->firmware));
+    objArray[3] = get_object_firmware(init_val->firmware);
     if (NULL == objArray[3])
     {
         fprintf(stderr, "Failed to create Firmware object\r\n");
         return -1;
     }
 
-    objArray[4] = get_object_location(&(init_val->location));
+    objArray[4] = get_object_location(init_val->location);
     if (NULL == objArray[4])
     {
         fprintf(stderr, "Failed to create location object\r\n");
@@ -953,7 +947,7 @@ int akc_start(object_container *init_val)
         return -1;
     }
 
-    objArray[6] = get_object_conn_m(&(init_val->monitoring));
+    objArray[6] = get_object_conn_m(init_val->monitoring);
     if (NULL == objArray[6])
     {
         fprintf(stderr, "Failed to create connectivity monitoring object\r\n");
@@ -1006,7 +1000,7 @@ int akc_start(object_container *init_val)
      * We configure the liblwm2m library with the name of the client - which shall be unique for each client -
      * the number of objects we will be passing through and the objects array
      */
-    result = lwm2m_configure(lwm2mH_main, name, NULL, NULL, OBJ_COUNT, objArray);
+    result = lwm2m_configure(lwm2mH_main, init_val->server->client_name, NULL, NULL, OBJ_COUNT, objArray);
     if (result != 0)
     {
         fprintf(stderr, "lwm2m_configure() failed: 0x%X\r\n", result);
@@ -1060,7 +1054,7 @@ int akc_start(object_container *init_val)
                 tv.tv_sec = reboot_time - tv_sec;
             }
         }
-        else if (batterylevelchanging) 
+        else if (init_val->server->batterylevelchanging)
         {
             update_battery_level(lwm2mH_main);
             tv.tv_sec = 5;

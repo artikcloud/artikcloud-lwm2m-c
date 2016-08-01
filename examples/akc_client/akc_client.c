@@ -34,7 +34,12 @@ static object_device default_device = {
     15,                       /* PRV_MEMORY_FREE */
     0,                        /* PRV_ERROR_CODE */
     "Europe/Berlin",          /* PRV_TIME_ZONE */
-    "U"                       /* PRV_BINDING_MODE */
+    "U",                      /* PRV_BINDING_MODE */
+    "DeviceType C SDK",       /* PRV_DEVICE_TYPE */
+    "Hardware C SDK",         /* PRV_HARDWARE_VERSION */
+    "Software C SDK",         /* PRV_SOFTWARE_VERSION */
+    60,                       /* PRV_BATTERY_STATUS */
+    128                       /* PRV_MEMORY_TOTAL */
 };
 
 static object_firmware default_firmware ={

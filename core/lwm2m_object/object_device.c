@@ -257,9 +257,29 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
     case RES_O_TIMEZONE:
         lwm2m_data_encode_string(object_value->time_zone, dataP);
         return COAP_205_CONTENT;
-      
+
     case RES_M_BINDING_MODES:
         lwm2m_data_encode_string(object_value->binding_mode, dataP);
+        return COAP_205_CONTENT;
+
+    case RES_O_DEVICE_TYPE:
+        lwm2m_data_encode_string(object_value->device_type, dataP);
+        return COAP_205_CONTENT;
+
+    case RES_O_HARDWARE_VERSION:
+        lwm2m_data_encode_string(object_value->hardware_version, dataP);
+        return COAP_205_CONTENT;
+
+    case RES_O_SOFTWARE_VERSION:
+        lwm2m_data_encode_string(object_value->software_version, dataP);
+        return COAP_205_CONTENT;
+
+    case RES_O_BATTERY_STATUS:
+        lwm2m_data_encode_int(object_value->battery_status, dataP);
+        return COAP_205_CONTENT;
+
+    case RES_O_MEMORY_TOTAL:
+        lwm2m_data_encode_int(object_value->memory_total, dataP);
         return COAP_205_CONTENT;
 
     default:
@@ -301,7 +321,12 @@ static uint8_t prv_device_read(uint16_t instanceId,
                 RES_O_CURRENT_TIME,
                 RES_O_UTC_OFFSET,
                 RES_O_TIMEZONE,
-                RES_M_BINDING_MODES
+                RES_M_BINDING_MODES,
+                RES_O_DEVICE_TYPE,
+                RES_O_HARDWARE_VERSION,
+                RES_O_SOFTWARE_VERSION,
+                RES_O_BATTERY_STATUS,
+                RES_O_MEMORY_TOTAL
         };
         int nbRes = sizeof(resList)/sizeof(uint16_t);
 

@@ -74,6 +74,11 @@ typedef struct {
     int error_code;                 /*PRV_ERROR_CODE*/
     char time_zone[MAX_LEN];        /*PRV_TIME_ZONE*/
     char binding_mode[MAX_LEN];     /*PRV_BINDING_MODE*/
+    char device_type[MAX_LEN];      /*PRV_DEVICE_TYPE*/
+    char hardware_version[MAX_LEN]; /*PRV_HARDWARE_VERSION*/
+    char software_version[MAX_LEN]; /*PRV_SOFTWARE_VERSION*/
+    int battery_status;             /*PRV_BATTERY_STATUS*/
+    int memory_total;               /*PRV_MEMORY_TOTAL*/
 } object_device;
 
 lwm2m_object_t * get_object_device(object_device *default_value);

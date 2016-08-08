@@ -1,152 +1,108 @@
-Wakaama (formerly liblwm2m) is an implementation of the Open Mobile Alliance's LightWeight M2M
-protocol (LWM2M).
+# Artik Cloud LWM2M C SDK
 
-Developers mailing list: https://dev.eclipse.org/mailman/listinfo/wakaama-dev
+This SDK helps developers to create C applications to connect to Artik Cloud LightWeight M2M server.
 
-Source Layout
+It is based on [Wakaama](README-wakaama.md) (formerly liblwm2m), to which Artik Cloud specifics are added to generate a
+shared library ("libwakaama") containing read-to-use APIs to connect any device to the monitoring
+features offered by the Artik Cloud LWM2M server.
+
+Source code
+-----------
+
+The relevant code for the Artik Cloud LWM2M C SDK can be found under the following locations:
+  * core: LWM2M core code for accessing and manipulating objects
+  * core/lwm2m_object: LWM2M client layer offering several APIs to expose well-known LWM2M objects
+  * examples/akc_client: Sample program using the LWM2M client API to connect to the server and expose some objects
+
+Prerequisites
 -------------
-    -+- core                   (the LWM2M engine)
-     |    |
-     |    +- er-coap-13        (Erbium's CoAP engine from
-     |                          http://people.inf.ethz.ch/mkovatsc/erbium.php, modified
-     |                          to run on linux)
-     |
-     +- platforms              (example ports on various platforms)
-     |
-     +- tests                  (test cases)
-     |
-     +- examples
-          |
-          +- bootstrap_server  (a command-line LWM2M bootstrap server)
-          |
-          +- client            (a command-line LWM2M client with several test objects)
-          |
-          +- lightclient       (a very simple command-line LWM2M client with several test objects)
-          |
-          +- misc              (application unit-testing miscellaneous utility functions of the core)
-          |
-          +- server            (a command-line LWM2M server)
-          |
-          +- utils             (utility functions for connection handling and command-
-                                line interface)
+
+The Artik Cloud LWM2M C SDK should compile and run on most UNIX based systems. It has been tested against Mac OS X and
+Ubuntu 16.04. It only depends on the OpenSSL library, which is compiled along and linked as a static library. Therefore
+only the following build tools need to be installed before launching compilation:
+  * cmake
+  * gcc
+  * git
+
+Fetch the sources
+-----------------
+
+~~~shell
+$ cd <workdir>
+$ git clone --recursive https://github.com/artikcloud/artikcloud-lwm2m-c.git
+~~~
+
+Compilation
+-----------
+
+~~~shell
+$ cd <workdir>/artikcloud-lwm2m-c
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+~~~
+
+After the build completes successfully, the following binaries are generated:
+
+  * build/libwakaama.(so|dylib): The shared library containing the Wakaama and Artik Cloud specific code
+  * build/examples/akc_client/akc_client: The Artik Cloud sample program
+
+Run the sample program
+----------------------
+
+The **akc_client** sample program takes the following parameters:
+
+~~~shell
+akc_client <LWM2M server url>  <Artik Cloud device ID> <Artik Cloud device token>
+~~~
+
+The server URL should comply with the following format depending on th protocol to use:
+
+| Protocol | URL format                |
+| -------- | --------------------------|
+| UDP      | coap://hostname:port      |
+| UDP/DTLS | coaps://hostname:port     |
+| TCP      | coap+tcp://hostname:port  |
+| TCP/TLS  | coaps+tcp://hostname:port |
+
+Upon succesful connection to the server, a prompt is showing in the console and takes some
+commands to act on the LWM2M client. Type **help** for more information:
+
+~~~shell
+> help
+help    Type 'help [COMMAND]' for more details on a command.
+list    List known servers.
+change  Change the value of resource.
+update  Trigger a registration update
+ls      List Objects and Instances
+disp    Display current objects/instances/resources
+dump    Dump an Object
+add     Add support of object 1024
+rm      Remove support of object 1024
+quit    Quit the client gracefully.
+^C      Quit the client abruptly (without sending a de-register message).
+~~~
+
+More about ARTIK Cloud
+----------------------
+
+If you are not familiar with ARTIK Cloud, we have extensive documentation at https://developer.artik.cloud/documentation
+
+The full ARTIK Cloud API specification can be found at https://developer.artik.cloud/documentation/api-reference/
+
+Check out advanced sample applications at https://developer.artik.cloud/documentation/samples/
+
+To create and manage your services and devices on ARTIK Cloud, create an account at https://developer.artik.cloud
+
+Also see the ARTIK Cloud blog for tutorials, updates, and more: http://artik.io/blog/cloud
+
+License and Copyright
+---------------------
+
+Licensed under the Eclipse Public License v1.0. See [LICENSE](http://www.eclipse.org/legal/epl-v10.html).
+
+Copyright (c) 2016 Samsung Electronics Co., Ltd.
 
 
-Compiling
----------
-
-Despite its name, liblwm2m is not a library but files to be built with an
-application. liblwm2m uses CMake. Look at examples/server/CMakeLists.txt for an
-example of how to include it.
-Several compilation switches are used:
- - LWM2M_BIG_ENDIAN if your target platform uses big-endian format.
- - LWM2M_LITTLE_ENDIAN if your target platform uses little-endian format.
- - LWM2M_CLIENT_MODE to enable LWM2M Client interfaces.
- - LWM2M_SERVER_MODE to enable LWM2M Server interfaces.
- - LWM2M_BOOTSTRAP_SERVER_MODE to enable LWM2M Bootstrap Server interfaces.
- - LWM2M_BOOTSTRAP to enable LWM2M Bootstrap support in a LWM2M Client.
- - LWM2M_SUPPORT_JSON to enable JSON payload support (implicit when defining LWM2M_SERVER_MODE)
-Depending on your platform, you need to define LWM2M_BIG_ENDIAN or LWM2M_LITTLE_ENDIAN.
-LWM2M_CLIENT_MODE and LWM2M_SERVER_MODE can be defined at the same time.
-
-
-Examples
---------
-There are some example applications provided to test the server, client and bootstrap capabilities of Wakaama.
-The following recipes assume you are on a unix like platform and you have cmake and make installed.
-
-### Server example
- * Create a build directory and change to that.
- * ``cmake [liblwm2m directory]/examples/server``
- * ``make``
- * ``./lwm2mserver [Options]``
-
-The lwm2mserver listens on UDP port 5683. It features a basic command line
-interface. Type 'help' for a list of supported commands.
-
-Options are:
- - -4		Use IPv4 connection. Default: IPv6 connection
-
-
-### Test client example
- * Create a build directory and change to that.
- * ``cmake [liblwm2m directory]/examples/client``
- * ``make``
- * ``./lwm2mclient [Options]``
-
-DTLS feature requires tinydtls submodule. Look at examples/client/README.md for an example of how 
-to include tinydtls.
-
-Build with tinydtls:
- * Create a build directory and change to that.
- * ``cmake -DDTLS=1 [liblwm2m directory]/examples/client``
- * ``make``
- * ``./lwm2mclient_dtls [Options]``
-
-The lwm2mclient features nine LWM2M objects:
- - Security Object (id: 0)
- - Server Object (id: 1)
- - Access Control Object (id: 2) as a skeleton
- - Device Object (id: 3) containing hard-coded values from the Example LWM2M
- Client of Appendix E of the LWM2M Technical Specification.
- - Connectivity Monitoring Object (id: 2) as a skeleton
- - Firmware Update Object (id: 5) as a skeleton.
- - Location Object (id: 6) as a skeleton.
- - Connectivity Statistics Object (id: 7) as a skeleton.
- - a test object (id: 1024) with the following description:
-
-                           Multiple
-          Object |  ID  | Instances | Mandatoty |
-           Test  | 1024 |    Yes    |    No     |
-
-           Ressources:
-                       Supported    Multiple
-           Name | ID | Operations | Instances | Mandatory |  Type   | Range |
-           test |  1 |    R/W     |    No     |    Yes    | Integer | 0-255 |
-           exec |  2 |     E      |    No     |    Yes    |         |       |
-           dec  |  3 |    R/W     |    No     |    Yes    |  Float  |       |
-
-The lwm2mclient opens udp port 56830 and tries to register to a LWM2M Server at
-127.0.0.1:5683. It features a basic command line interface. Type 'help' for a
-list of supported commands.
-
-Options are:
-- -n NAME	Set the endpoint name of the Client. Default: testlwm2mclient
-- -l PORT	Set the local UDP port of the Client. Default: 56830
-- -h HOST	Set the hostname of the LWM2M Server to connect to. Default: localhost
-- -p HOST	Set the port of the LWM2M Server to connect to. Default: 5683
-- -4		Use IPv4 connection. Default: IPv6 connection
-- -t TIME	Set the lifetime of the Client. Default: 300
-- -b		Bootstrap requested.
-- -c		Change battery level over time.
-  
-If DTLS feature enable:
-- -i Set the device management or bootstrap server PSK identity. If not set use none secure mode
-- -s Set the device management or bootstrap server Pre-Shared-Key. If not set use none secure mode
-
-To launch a bootstrap session:
-``./lwm2mclient -b``
-
-
-### Simpler test client example
-
-In the any directory, run the following commands:
- * Create a build directory and change to that.
- * ``cmake [liblwm2m directory]/examples/lightclient``
- * ``make``
- * ``./lightclient [Options]``
-
-The lightclient is much simpler that the lwm2mclient and features only four
-LWM2M objects:
- - Security Object (id: 0)
- - Server Object (id: 1)
- - Device Object (id: 3) containing hard-coded values from the Example LWM2M
- Client of Appendix E of the LWM2M Technical Specification.
- - Test object (id: 1024) from the lwm2mclient as described above.
-
-The lightclient does not feature any command-line interface.
-
-Options are:
- -  -n NAME	Set the endpoint name of the Client. Default: testlightclient
- - -l PORT	Set the local UDP port of the Client. Default: 56830
- - -4		Use IPv4 connection. Default: IPv6 connection
 

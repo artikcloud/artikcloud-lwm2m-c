@@ -42,7 +42,7 @@ static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity,
                                   unsigned char *psk,
                                   unsigned int max_psk_len)
 {
-    int len = 0, keyLen = 0;
+    int keyLen = 0;
     lwm2m_dtls_info_t *dtls = dtlsinfo_list;
     char *id = NULL, *key = NULL;
 
@@ -72,7 +72,7 @@ static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity,
         return 0;
     }
 
-    len = strncpy(identity, id, max_identity_len);
+    strncpy(identity, id, max_identity_len);
 
     if (keyLen > max_psk_len)
     {

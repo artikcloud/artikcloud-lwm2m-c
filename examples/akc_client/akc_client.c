@@ -43,9 +43,11 @@ static object_device default_device = {
 };
 
 static object_firmware default_firmware ={
- 1,     /* STATE */
- false, /* SUPPORTED */
- 0      /* RESULT */
+    1,             /* STATE */
+    false,         /* SUPPORTED */
+    0,             /* RESULT */
+    "PKG Name",    /* PKG_NAME */
+    "PKG Version", /* PKG_VERSION */
 };
 
 static object_conn_monitoring default_monitoring = {

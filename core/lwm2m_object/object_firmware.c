@@ -58,8 +58,9 @@ typedef struct
     uint8_t state;
     bool supported;
     uint8_t result;
+    char pkg_name[MAX_LEN];
+    char pkg_version[MAX_LEN];
 } firmware_data_t;
-
 
 static uint8_t prv_firmware_read(uint16_t instanceId,
                                  int * numDataP,
@@ -79,12 +80,14 @@ static uint8_t prv_firmware_read(uint16_t instanceId,
     // is the server asking for the full object ?
     if (*numDataP == 0)
     {
-        *dataArrayP = lwm2m_data_new(3);
+        *dataArrayP = lwm2m_data_new(5);
         if (*dataArrayP == NULL) return COAP_500_INTERNAL_SERVER_ERROR;
-        *numDataP = 3;
-        (*dataArrayP)[0].id = 3;
-        (*dataArrayP)[1].id = 4;
-        (*dataArrayP)[2].id = 5;
+        *numDataP = 5;
+        (*dataArrayP)[0].id = RES_M_STATE;
+        (*dataArrayP)[1].id = RES_O_UPDATE_SUPPORTED_OBJECTS;
+        (*dataArrayP)[2].id = RES_M_UPDATE_RESULT;
+        (*dataArrayP)[3].id = RES_O_PKG_NAME;
+        (*dataArrayP)[4].id = RES_O_PKG_VERSION;
     }
 
     i = 0;
@@ -111,6 +114,16 @@ static uint8_t prv_firmware_read(uint16_t instanceId,
 
         case RES_M_UPDATE_RESULT:
             lwm2m_data_encode_int(data->result, *dataArrayP + i);
+            result = COAP_205_CONTENT;
+            break;
+
+        case RES_O_PKG_NAME:
+            lwm2m_data_encode_string(data->pkg_name, *dataArrayP + i);
+            result = COAP_205_CONTENT;
+            break;
+
+        case RES_O_PKG_VERSION:
+            lwm2m_data_encode_string(data->pkg_version, *dataArrayP + i);
             result = COAP_205_CONTENT;
             break;
 
@@ -220,8 +233,9 @@ void display_firmware_object(lwm2m_object_t * object)
     fprintf(stdout, "  /%u: Firmware object:\r\n", object->objID);
     if (NULL != data)
     {
-        fprintf(stdout, "    state: %u, supported: %s, result: %u\r\n",
-                data->state, data->supported?"true":"false", data->result);
+        fprintf(stdout, "\tstate: %u, supported: %s, result: %u\r\n\tname: %s\r\n\tversion: %s\r\n",
+                data->state, data->supported?"true":"false", data->result,
+                data->pkg_name, data->pkg_version);
     }
 #endif
 }
@@ -278,6 +292,8 @@ lwm2m_object_t * get_object_firmware(object_firmware * default_value)
             ((firmware_data_t*)firmwareObj->userData)->state = default_value->state;
             ((firmware_data_t*)firmwareObj->userData)->supported = default_value->supported;
             ((firmware_data_t*)firmwareObj->userData)->result = default_value->result;
+            strncpy(((firmware_data_t*)firmwareObj->userData)->pkg_name, default_value->pkg_name, MAX_LEN);
+            strncpy(((firmware_data_t*)firmwareObj->userData)->pkg_version, default_value->pkg_version, MAX_LEN);
         }
         else
         {

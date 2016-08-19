@@ -90,9 +90,11 @@ void display_device_object(lwm2m_object_t * objectP);
  */
 typedef struct
 {
-    uint8_t state;  /*STATE*/
-    bool supported; /*SUPPORTED*/
-    uint8_t result; /*RESULT*/
+    uint8_t state;             /*STATE*/
+    bool supported;            /*SUPPORTED*/
+    uint8_t result;            /*RESULT*/
+    char pkg_name[MAX_LEN];    /*PKG_NAME*/
+    char pkg_version[MAX_LEN]; /*PKG_VERSION*/
 }object_firmware;
 
 lwm2m_object_t * get_object_firmware(object_firmware *default_value);

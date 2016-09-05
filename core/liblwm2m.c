@@ -56,6 +56,7 @@
 
 #include <stdio.h>
 
+static int rand_initialized = false;
 
 lwm2m_context_t * lwm2m_init(void * userData)
 {
@@ -66,7 +67,10 @@ lwm2m_context_t * lwm2m_init(void * userData)
     {
         memset(contextP, 0, sizeof(lwm2m_context_t));
         contextP->userData = userData;
-        srand(time(NULL));
+        if (!rand_initialized) {
+            srand(time(NULL));
+            rand_initialized = true;
+        }
         contextP->nextMID = rand();
     }
 

@@ -36,11 +36,7 @@ extern int g_reboot;
 #define MAX_LEN 100
 #define MAX_PACKET_SIZE 1024
 #define OBJ_COUNT 9
-lwm2m_object_t * objArray[OBJ_COUNT];
-
-// only backup security and server objects
 #define BACKUP_OBJECT_COUNT 2
-lwm2m_object_t * backupObjectArray[BACKUP_OBJECT_COUNT];
 
 typedef struct
 {
@@ -53,6 +49,8 @@ typedef struct
     size_t server_addrlen;
     SSL *ssl;
     int addressFamily;
+    lwm2m_object_t * objArray[OBJ_COUNT];
+    lwm2m_object_t * backupObjectArray[BACKUP_OBJECT_COUNT];
 } client_data_t;
 
 /*
@@ -211,7 +209,7 @@ void * lwm2m_connect_server(uint16_t secObjInstID,
 void lwm2m_close_connection(void * sessionH,
                             void * userData);
 int get_quit(void);
-void akc_stop(void);
-int akc_start(object_container *init_val);
+void akc_stop(client_data_t* data);
+client_data_t* akc_start(object_container *init_val);
 
 #endif /* LWM2MCLIENT_H_ */

@@ -77,8 +77,8 @@
 #include <signal.h>
 #include <time.h>
 
-#define CLIENT_PORT_RANGE_START		64900
-#define CLIENT_PORT_RANGE_END		64999
+#define CLIENT_PORT_RANGE_START    64900
+#define CLIENT_PORT_RANGE_END      64999
 
 typedef struct {
     coap_protocol_t proto;
@@ -88,9 +88,6 @@ typedef struct {
 
 int g_reboot = 0;
 static int g_quit = 0;
-
-static lwm2m_context_t * lwm2mH_main = NULL;
-static client_data_t data;
 
 static coap_uri_protocol protocols[] = {
     { COAP_UDP, "coap://", "UDP" },
@@ -748,7 +745,7 @@ static void close_backup_object()
 }
 #endif
 
-int akc_start(object_container *init_val)
+client_data_t* akc_start(object_container *init_val)
 {
 
     int result;
@@ -758,6 +755,8 @@ int akc_start(object_container *init_val)
     bool bootstrapRequested = false;
     coap_protocol_t protocol = -1;
     char local_port[16];
+    client_data_t* data;
+    lwm2m_context_t *ctx = NULL;
 
 #ifdef LWM2M_BOOTSTRAP
     lwm2m_client_state_t previousState = STATE_INITIAL;
@@ -801,7 +800,13 @@ int akc_start(object_container *init_val)
             COMMAND_END_LIST
     };
 
-    memset(&data, 0, sizeof(client_data_t));
+    data = malloc(sizeof(client_data_t));
+    if (!data) {
+        fprintf(stderr, "Failed to allocate memory for client data\r\n");
+        return NULL;
+    }
+
+    memset(data, 0, sizeof(client_data_t));
 
     /* Figure out protocol from the URI prefix */
     for (i=0; i<sizeof(protocols)/sizeof(coap_uri_protocol); i++)
@@ -822,11 +827,11 @@ int akc_start(object_container *init_val)
             fprintf(stderr, "%s, ", protocols[i].uri_prefix);
         }
         fprintf(stderr, "\r\n");
-        return -1;
+        return NULL;
     }
 
     /* Default to IPV4, should add parameter to allow IPV6 */
-    data.addressFamily = AF_INET;
+    data->addressFamily = AF_INET;
 
     /*
      * Randomize local port based on predefined range
@@ -834,16 +839,15 @@ int akc_start(object_container *init_val)
      * twice the same port across the TIME_WAIT period after
      * closing the socket
      */
-    srand(time(NULL));
     snprintf(local_port, 16, "%d", (rand() % (CLIENT_PORT_RANGE_END - CLIENT_PORT_RANGE_START)) + CLIENT_PORT_RANGE_START);
 
     fprintf(stdout, "Trying to bind LWM2M Client to port %s\r\n", local_port);
 
-    data.sock = create_socket(protocol, local_port, data.addressFamily);
-    if (data.sock < 0)
+    data->sock = create_socket(protocol, local_port, data->addressFamily);
+    if (data->sock < 0)
     {
         fprintf(stderr, "Failed to open socket: %d %s\r\n", errno, strerror(errno));
-        return data.sock;
+        return NULL;
     }
 
     /*
@@ -858,7 +862,7 @@ int akc_start(object_container *init_val)
         if (NULL == pskBuffer)
         {
             fprintf(stderr, "Failed to create PSK binary buffer\r\n");
-            return -1;
+            return NULL;
         }
         // Hex string to binary
         char *h = psk;
@@ -873,7 +877,7 @@ int akc_start(object_container *init_val)
             if (!r || !l)
             {
                 fprintf(stderr, "Failed to parse Pre-Shared-Key HEXSTRING\r\n");
-                return -1;
+                return NULL;
             }
 
             *b = ((l - xlate) << 4) + (r - xlate);
@@ -883,128 +887,129 @@ int akc_start(object_container *init_val)
     fprintf(stdout, " Server Uri =  %s\n", uri);
 
 #ifdef LWM2M_BOOTSTRAP
-    objArray[0] = get_security_object(serverId, uri, init_val->server->bsPskId, pskBuffer, pskLen, bootstrapRequested);
+    data->objArray[0] = get_security_object(serverId, uri, init_val->server->bsPskId, pskBuffer, pskLen, bootstrapRequested);
 #else
-    objArray[0] = get_security_object(serverId, uri, init_val->server->bsPskId, pskBuffer, pskLen, false);
+    data->objArray[0] = get_security_object(serverId, uri, init_val->server->bsPskId, pskBuffer, pskLen, false);
 #endif
-    if (NULL == objArray[0])
+    if (NULL == data->objArray[0])
     {
         fprintf(stderr, "Failed to create security object\r\n");
-        return -1;
+        return NULL;
     }
-    data.securityObjP = objArray[0];
+    data->securityObjP = data->objArray[0];
 
     switch(protocol)
     {
     case COAP_UDP:
     case COAP_UDP_DTLS:
-        objArray[1] = get_server_object(serverId, "U", init_val->server->lifetime, false);
+        data->objArray[1] = get_server_object(serverId, "U", init_val->server->lifetime, false);
         strncpy(init_val->device->binding_mode, "U", MAX_LEN);
         break;
     case COAP_TCP:
-        objArray[1] = get_server_object(serverId, "C", init_val->server->lifetime, false);
+        data->objArray[1] = get_server_object(serverId, "C", init_val->server->lifetime, false);
         strncpy(init_val->device->binding_mode, "C", MAX_LEN);
         break;
     case COAP_TCP_TLS:
-        objArray[1] = get_server_object(serverId, "T", init_val->server->lifetime, false);
+        data->objArray[1] = get_server_object(serverId, "T", init_val->server->lifetime, false);
         strncpy(init_val->device->binding_mode, "T", MAX_LEN);
         break;
     default:
         break;
     }
 
-    if (NULL == objArray[1])
+    if (NULL == data->objArray[1])
     {
         fprintf(stderr, "Failed to create server object\r\n");
-        return -1;
+        return NULL;
     }
 
-    objArray[2] = get_object_device(init_val->device);
-    if (NULL == objArray[2])
+    data->objArray[2] = get_object_device(init_val->device);
+    if (NULL == data->objArray[2])
     {
         fprintf(stderr, "Failed to create Device object\r\n");
-        return -1;
+        return NULL;
     }
 
-    objArray[3] = get_object_firmware(init_val->firmware);
-    if (NULL == objArray[3])
+    data->objArray[3] = get_object_firmware(init_val->firmware);
+    if (NULL == data->objArray[3])
     {
         fprintf(stderr, "Failed to create Firmware object\r\n");
-        return -1;
+        return NULL;
     }
 
-    objArray[4] = get_object_location(init_val->location);
-    if (NULL == objArray[4])
+    data->objArray[4] = get_object_location(init_val->location);
+    if (NULL == data->objArray[4])
     {
         fprintf(stderr, "Failed to create location object\r\n");
-        return -1;
+        return NULL;
     }
 
-    objArray[5] = get_test_object();
-    if (NULL == objArray[5])
+    data->objArray[5] = get_test_object();
+    if (NULL == data->objArray[5])
     {
         fprintf(stderr, "Failed to create test object\r\n");
-        return -1;
+        return NULL;
     }
 
-    objArray[6] = get_object_conn_m(init_val->monitoring);
-    if (NULL == objArray[6])
+    data->objArray[6] = get_object_conn_m(init_val->monitoring);
+    if (NULL == data->objArray[6])
     {
         fprintf(stderr, "Failed to create connectivity monitoring object\r\n");
-        return -1;
+        return NULL;
     }
 
-    objArray[7] = get_object_conn_s();
-    if (NULL == objArray[7])
+    data->objArray[7] = get_object_conn_s();
+    if (NULL == data->objArray[7])
     {
         fprintf(stderr, "Failed to create connectivity statistics object\r\n");
-        return -1;
+        return NULL;
     }
 
     int instId = 0;
-    objArray[8] = acc_ctrl_create_object();
-    if (NULL == objArray[8])
+    data->objArray[8] = acc_ctrl_create_object();
+    if (NULL == data->objArray[8])
     {
         fprintf(stderr, "Failed to create Access Control object\r\n");
-        return -1;
+        return NULL;
     }
-    else if (acc_ctrl_obj_add_inst(objArray[8], instId, 3, 0, serverId)==false)
+    else if (acc_ctrl_obj_add_inst(data->objArray[8], instId, 3, 0, serverId)==false)
     {
         fprintf(stderr, "Failed to create Access Control object instance\r\n");
-        return -1;
+        return NULL;
     }
-    else if (acc_ctrl_oi_add_ac_val(objArray[8], instId, 0, 0b000000000001111)==false)
+    else if (acc_ctrl_oi_add_ac_val(data->objArray[8], instId, 0, 0b000000000001111)==false)
     {
         fprintf(stderr, "Failed to create Access Control ACL default resource\r\n");
-        return -1;
+        return NULL;
     }
-    else if (acc_ctrl_oi_add_ac_val(objArray[8], instId, 999, 0b000000000000001)==false)
+    else if (acc_ctrl_oi_add_ac_val(data->objArray[8], instId, 999, 0b000000000000001)==false)
     {
         fprintf(stderr, "Failed to create Access Control ACL resource for serverId: 999\r\n");
-        return -1;
+        return NULL;
     }
+
     /*
      * The liblwm2m library is now initialized with the functions that will be in
      * charge of communication
      */
-    lwm2mH_main = lwm2m_init(&data);
-    if (NULL == lwm2mH_main)
+    ctx = lwm2m_init(data);
+    if (!ctx)
     {
         fprintf(stderr, "lwm2m_init() failed\r\n");
-        return -1;
+        return NULL;
     }
 
-    data.lwm2mH = lwm2mH_main;
+    data->lwm2mH = ctx;
 
     /*
      * We configure the liblwm2m library with the name of the client - which shall be unique for each client -
      * the number of objects we will be passing through and the objects array
      */
-    result = lwm2m_configure(lwm2mH_main, init_val->server->client_name, NULL, NULL, OBJ_COUNT, objArray);
+    result = lwm2m_configure(data->lwm2mH, init_val->server->client_name, NULL, NULL, OBJ_COUNT, data->objArray);
     if (result != 0)
     {
         fprintf(stderr, "lwm2m_configure() failed: 0x%X\r\n", result);
-        return -1;
+        return NULL;
     }
 
     signal(SIGINT, handle_sigint);
@@ -1012,7 +1017,7 @@ int akc_start(object_container *init_val)
     /**
      * Initialize value changed callback.
      */
-    init_value_change(lwm2mH_main);
+    init_value_change(data->lwm2mH);
 
     /*
      * As you now have your lwm2m context complete you can pass it as an argument to all the command line functions
@@ -1020,7 +1025,7 @@ int akc_start(object_container *init_val)
      */
     for (i = 0 ; commands[i].name != NULL ; i++)
     {
-        commands[i].userData = (void *)lwm2mH_main;
+        commands[i].userData = (void *)data->lwm2mH;
     }
     fprintf(stdout, "> "); fflush(stdout);
     /*
@@ -1056,7 +1061,7 @@ int akc_start(object_container *init_val)
         }
         else if (init_val->server->batterylevelchanging)
         {
-            update_battery_level(lwm2mH_main);
+            update_battery_level(data->lwm2mH);
             tv.tv_sec = 5;
         }
         else 
@@ -1066,7 +1071,7 @@ int akc_start(object_container *init_val)
         tv.tv_usec = 0;
 
         FD_ZERO(&readfds);
-        FD_SET(data.sock, &readfds);
+        FD_SET(data->sock, &readfds);
         FD_SET(STDIN_FILENO, &readfds);
 
         /*
@@ -1075,7 +1080,7 @@ int akc_start(object_container *init_val)
          *  - Secondly it adjusts the timeout value (default 60s) depending on the state of the transaction
          *    (eg. retransmission) and the time between the next operation
          */
-        result = lwm2m_step(lwm2mH_main, &(tv.tv_sec));
+        result = lwm2m_step(data->lwm2mH, &(tv.tv_sec));
         if (result != 0)
         {
             fprintf(stderr, "lwm2m_step() failed: 0x%X\r\n", result);
@@ -1085,16 +1090,17 @@ int akc_start(object_container *init_val)
 #ifdef WITH_LOGS
                 fprintf(stdout, "[BOOTSTRAP] restore security and server objects\r\n");
 #endif
-                prv_restore_objects(lwm2mH_main);
-                lwm2mH_main->state = STATE_INITIAL;
+                prv_restore_objects(data->lwm2mH);
+                data->lwm2mH->state = STATE_INITIAL;
             }
-            else return -1;
+            else
+                return NULL;
 #else
-            return -1;
+            return NULL;
 #endif
         }
 #ifdef LWM2M_BOOTSTRAP
-        update_bootstrap_info(&previousState, lwm2mH_main);
+        update_bootstrap_info(&previousState, data->lwm2mH);
 #endif
         /*
          * This part will set up an interruption until an event happen on SDTIN or the socket until "tv" timed out (set
@@ -1117,7 +1123,7 @@ int akc_start(object_container *init_val)
             /*
              * If an event happens on the socket
              */
-            if (FD_ISSET(data.sock, &readfds))
+            if (FD_ISSET(data->sock, &readfds))
             {
                 /*
                  * We retrieve the data received
@@ -1130,21 +1136,21 @@ int akc_start(object_container *init_val)
                 switch(protocol)
                 {
                 case COAP_UDP:
-                    numBytes = recvfrom(data.sock, buffer, MAX_PACKET_SIZE, 0, (struct sockaddr *)&addr, &addrLen);
+                    numBytes = recvfrom(data->sock, buffer, MAX_PACKET_SIZE, 0, (struct sockaddr *)&addr, &addrLen);
                     break;
                 case COAP_TCP:
-                    numBytes = recv(data.sock, buffer, MAX_PACKET_SIZE, 0);
+                    numBytes = recv(data->sock, buffer, MAX_PACKET_SIZE, 0);
                     break;
                 case COAP_UDP_DTLS:
                 case COAP_TCP_TLS:
-                    numBytes = SSL_read(data.ssl, buffer, MAX_PACKET_SIZE);
+                    numBytes = SSL_read(data->ssl, buffer, MAX_PACKET_SIZE);
                     break;
                 default:
                     break;
                 }
 
-                memcpy(&addr, &data.server_addr, data.server_addrlen);
-                addrLen = data.server_addrlen;
+                memcpy(&addr, &data->server_addr, data->server_addrlen);
+                addrLen = data->server_addrlen;
 
                 if (0 > numBytes)
                 {
@@ -1172,11 +1178,11 @@ int akc_start(object_container *init_val)
                     output_buffer(stdout, buffer, numBytes, 0);
 #endif
 
-                    connection_t *conn = connection_find((connection_t *)data.connList, &addr, addrLen);
+                    connection_t *conn = connection_find((connection_t *)data->connList, &addr, addrLen);
                     if (conn)
                     {
-                        lwm2m_handle_packet(lwm2mH_main, protocol, buffer, numBytes, conn);
-                        conn_s_updateRxStatistic(objArray[7], numBytes, false);
+                        lwm2m_handle_packet(data->lwm2mH, protocol, buffer, numBytes, conn);
+                        conn_s_updateRxStatistic(data->objArray[7], numBytes, false);
                     }
                 }
                 else
@@ -1214,10 +1220,10 @@ int akc_start(object_container *init_val)
         }
     }
 
-    return 0;
+    return data;
 }
 
-void akc_stop(void)
+void akc_stop(client_data_t *data)
 {
     /*
      * Finally when the loop is left smoothly - asked by user in the command line interface - we unregister our client from it
@@ -1227,23 +1233,26 @@ void akc_stop(void)
 #ifdef LWM2M_BOOTSTRAP
         close_backup_object();
 #endif
-        lwm2m_close(lwm2mH_main);
+        if (data && data->lwm2mH)
+            lwm2m_close(data->lwm2mH);
     }
 
-    close(data.sock);
-    connection_free(data.connList);
-
-    clean_security_object(objArray[0]);
-    lwm2m_free(objArray[0]);
-    clean_server_object(objArray[1]);
-    lwm2m_free(objArray[1]);
-    free_object_device(objArray[2]);
-    free_object_firmware(objArray[3]);
-    free_object_location(objArray[4]);
-    free_test_object(objArray[5]);
-    free_object_conn_m(objArray[6]);
-    free_object_conn_s(objArray[7]);
-    acl_ctrl_free_object(objArray[8]);
+    if (data) {
+        close(data->sock);
+        connection_free(data->connList);
+        clean_security_object(data->objArray[0]);
+        lwm2m_free(data->objArray[0]);
+        clean_server_object(data->objArray[1]);
+        lwm2m_free(data->objArray[1]);
+        free_object_device(data->objArray[2]);
+        free_object_firmware(data->objArray[3]);
+        free_object_location(data->objArray[4]);
+        free_test_object(data->objArray[5]);
+        free_object_conn_m(data->objArray[6]);
+        free_object_conn_s(data->objArray[7]);
+        acl_ctrl_free_object(data->objArray[8]);
+        free(data);
+    }
 
 #ifdef MEMORY_TRACE
     if (g_quit == 1)

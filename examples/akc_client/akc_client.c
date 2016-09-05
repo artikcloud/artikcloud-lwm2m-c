@@ -83,6 +83,7 @@ int main(int argc, char *argv[])
 {
     int ret = 0;
     object_container init_val_ob;
+    client_data_t *data = NULL;
 
     if (argc > 1)
         strncpy(akc_server.serverUri, argv[1], MAX_LEN);
@@ -116,13 +117,13 @@ int main(int argc, char *argv[])
     init_val_ob.monitoring = &default_monitoring;
     init_val_ob.location = &default_location;
 
-    ret = akc_start(&init_val_ob);
-    if (ret == -1) {
-        fprintf(stderr, "Failed to start client (err=%d)\n", ret);
+    data = akc_start(&init_val_ob);
+    if (!data) {
+        fprintf(stderr, "Failed to start client\n");
     }
 
     if (get_quit() > 0) {
-        akc_stop();
+        akc_stop(data);
     }
 
 exit:

@@ -100,10 +100,8 @@ typedef struct
     int64_t time;
     uint8_t battery_level;
     char time_offset[PRV_OFFSET_MAXLEN];
+    object_device *obj;
 } device_data_t;
-
-static object_device * object_value;
-
 
 // basic check that the time offset value is at ISO 8601 format
 // bug: +12:30 is considered a valid value by this function
@@ -149,23 +147,25 @@ static int prv_check_time_offset(char * buffer,
 static uint8_t prv_set_value(lwm2m_data_t * dataP,
                              device_data_t * devDataP)
 {
+    object_device* obj = devDataP->obj;
+
     // a simple switch structure is used to respond at the specified resource asked
     switch (dataP->id)
     {
     case RES_O_MANUFACTURER:
-        lwm2m_data_encode_string(object_value->manufacturer, dataP);
+        lwm2m_data_encode_string(obj->manufacturer, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_MODEL_NUMBER:
-        lwm2m_data_encode_string(object_value->model_number, dataP);
+        lwm2m_data_encode_string(obj->model_number, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_SERIAL_NUMBER:
-        lwm2m_data_encode_string(object_value->serial_number, dataP);
+        lwm2m_data_encode_string(obj->serial_number, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_FIRMWARE_VERSION:
-        lwm2m_data_encode_string(object_value->firmware_version, dataP);
+        lwm2m_data_encode_string(obj->firmware_version, dataP);
         return COAP_205_CONTENT;
 
     case RES_M_REBOOT:
@@ -181,9 +181,9 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         subTlvP = lwm2m_data_new(2);
 
         subTlvP[0].id = 0;
-        lwm2m_data_encode_int(object_value->power_source_1, subTlvP);
+        lwm2m_data_encode_int(obj->power_source_1, subTlvP);
         subTlvP[1].id = 1;
-        lwm2m_data_encode_int(object_value->power_source_2, subTlvP + 1);
+        lwm2m_data_encode_int(obj->power_source_2, subTlvP + 1);
 
         lwm2m_data_encode_instances(subTlvP, 2, dataP);
 
@@ -197,9 +197,9 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         subTlvP = lwm2m_data_new(2);
 
         subTlvP[0].id = 0;
-        lwm2m_data_encode_int(object_value->power_voltage_1, subTlvP);
+        lwm2m_data_encode_int(obj->power_voltage_1, subTlvP);
         subTlvP[1].id = 1;
-        lwm2m_data_encode_int(object_value->power_voltage_2, subTlvP + 1);
+        lwm2m_data_encode_int(obj->power_voltage_2, subTlvP + 1);
 
         lwm2m_data_encode_instances(subTlvP, 2, dataP);
 
@@ -213,9 +213,9 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         subTlvP = lwm2m_data_new(2);
 
         subTlvP[0].id = 0;
-        lwm2m_data_encode_int(object_value->power_current_1, &subTlvP[0]);
+        lwm2m_data_encode_int(obj->power_current_1, &subTlvP[0]);
         subTlvP[1].id = 1;
-        lwm2m_data_encode_int(object_value->power_current_2, &subTlvP[1]);
+        lwm2m_data_encode_int(obj->power_current_2, &subTlvP[1]);
  
         lwm2m_data_encode_instances(subTlvP, 2, dataP);
 
@@ -247,7 +247,7 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         return COAP_405_METHOD_NOT_ALLOWED;
 
     case RES_O_CURRENT_TIME:
-        lwm2m_data_encode_int(time(NULL) + devDataP->time, dataP);
+        lwm2m_data_encode_int(devDataP->time, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_UTC_OFFSET:
@@ -255,31 +255,31 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         return COAP_205_CONTENT;
 
     case RES_O_TIMEZONE:
-        lwm2m_data_encode_string(object_value->time_zone, dataP);
+        lwm2m_data_encode_string(obj->time_zone, dataP);
         return COAP_205_CONTENT;
 
     case RES_M_BINDING_MODES:
-        lwm2m_data_encode_string(object_value->binding_mode, dataP);
+        lwm2m_data_encode_string(obj->binding_mode, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_DEVICE_TYPE:
-        lwm2m_data_encode_string(object_value->device_type, dataP);
+        lwm2m_data_encode_string(obj->device_type, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_HARDWARE_VERSION:
-        lwm2m_data_encode_string(object_value->hardware_version, dataP);
+        lwm2m_data_encode_string(obj->hardware_version, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_SOFTWARE_VERSION:
-        lwm2m_data_encode_string(object_value->software_version, dataP);
+        lwm2m_data_encode_string(obj->software_version, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_BATTERY_STATUS:
-        lwm2m_data_encode_int(object_value->battery_status, dataP);
+        lwm2m_data_encode_int(obj->battery_status, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_MEMORY_TOTAL:
-        lwm2m_data_encode_int(object_value->memory_total, dataP);
+        lwm2m_data_encode_int(obj->memory_total, dataP);
         return COAP_205_CONTENT;
 
     default:
@@ -543,7 +543,6 @@ lwm2m_object_t * get_object_device(object_device * default_value)
     lwm2m_object_t * deviceObj;
 
     deviceObj = (lwm2m_object_t *)lwm2m_malloc(sizeof(lwm2m_object_t));
-	object_value = default_value;
 
     if (NULL != deviceObj)
     {
@@ -586,9 +585,10 @@ lwm2m_object_t * get_object_device(object_device * default_value)
          */
         if (NULL != deviceObj->userData)
         {
-            ((device_data_t*)deviceObj->userData)->battery_level = object_value->battery_level;
-            ((device_data_t*)deviceObj->userData)->free_memory   = object_value->memory_free;
-            ((device_data_t*)deviceObj->userData)->error = object_value->error_code;
+            ((device_data_t*)deviceObj->userData)->obj = default_value;
+            ((device_data_t*)deviceObj->userData)->battery_level = default_value->battery_level;
+            ((device_data_t*)deviceObj->userData)->free_memory   = default_value->memory_free;
+            ((device_data_t*)deviceObj->userData)->error = default_value->error_code;
             ((device_data_t*)deviceObj->userData)->time  = 1367491215;
             strcpy(((device_data_t*)deviceObj->userData)->time_offset, "+01:00");
         }

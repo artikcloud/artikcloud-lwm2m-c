@@ -271,15 +271,15 @@ void output_tlv(FILE * stream,
 
             tmp = buffer[length + dataIndex + dataLen];
             buffer[length + dataIndex + dataLen] = 0;
-            if (0 < sscanf(buffer + length + dataIndex, "%"PRId64, &intValue))
+            if (0 < sscanf((char*)buffer + length + dataIndex, "%"PRId64, &intValue))
             {
                 print_indent(stream, indent+2);
                 fprintf(stream, "data as Integer: %" PRId64 "\r\n", intValue);
             }
-            if (0 < sscanf(buffer + length + dataIndex, "%g", &floatValue))
+            if (0 < sscanf((char*)buffer + length + dataIndex, "%lf", &floatValue))
             {
                 print_indent(stream, indent+2);
-                fprintf(stream, "data as Float: %.16g\r\n", floatValue);
+                fprintf(stream, "data as Float: %.16lf\r\n", floatValue);
             }
             buffer[length + dataIndex + dataLen] = tmp;
         }
@@ -383,11 +383,11 @@ void dump_tlv(FILE * stream,
         case LWM2M_TYPE_STRING:
             fprintf(stream, "LWM2M_TYPE_STRING\r\n");
             print_indent(stream, indent + 1);
-            fprintf(stream, "\"%.*s\"\r\n", dataP[i].value.asBuffer.length, dataP[i].value.asBuffer.buffer);
+            fprintf(stream, "\"%.*s\"\r\n", (int)dataP[i].value.asBuffer.length, dataP[i].value.asBuffer.buffer);
             break;
         case LWM2M_TYPE_OPAQUE:
             fprintf(stream, "LWM2M_TYPE_OPAQUE\r\n");
-            output_buffer(stream, dataP[i].value.asBuffer.buffer, dataP[i].value.asBuffer.length, indent + 1);
+            output_buffer(stream, dataP[i].value.asBuffer.buffer, (int)dataP[i].value.asBuffer.length, indent + 1);
             break;
         case LWM2M_TYPE_INTEGER:
             fprintf(stream, "LWM2M_TYPE_INTEGER: ");
@@ -398,7 +398,7 @@ void dump_tlv(FILE * stream,
         case LWM2M_TYPE_FLOAT:
             fprintf(stream, "LWM2M_TYPE_FLOAT: ");
             print_indent(stream, indent + 1);
-            fprintf(stream, "%f", dataP[i].value.asInteger);
+            fprintf(stream, "%f", (double)dataP[i].value.asInteger);
             fprintf(stream, "\r\n");
             break;
         case LWM2M_TYPE_BOOLEAN:

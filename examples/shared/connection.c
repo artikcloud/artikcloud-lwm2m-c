@@ -115,13 +115,13 @@ static bool ssl_init(connection_t * conn)
 
     if (conn->protocol == COAP_UDP_DTLS)
     {
-        ctx = SSL_CTX_new(DTLSv1_2_client_method());
+        ctx = SSL_CTX_new(DTLS_client_method());
         SSL_CTX_set_psk_client_callback(ctx, psk_client_cb);
         SSL_CTX_set_cipher_list(ctx, "PSK-AES128-CCM8:PSK-AES128-CBC-SHA");
     }
     else
     {
-        ctx = SSL_CTX_new(TLSv1_2_client_method());
+        ctx = SSL_CTX_new(TLS_client_method());
     }
 
     if (!ctx)

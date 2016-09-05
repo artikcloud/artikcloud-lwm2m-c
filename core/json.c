@@ -640,7 +640,7 @@ static int prv_convertRecord(lwm2m_uri_t * uriP,
             targetP = rootP + freeIndex;
             freeIndex++;
             targetP->id = recordArray[index].ids[0];
-            targetP->type = rootLevel;
+            targetP->type = (lwm2m_data_type_t)rootLevel;
         }
         if (recordArray[index].ids[1] != LWM2M_MAX_ID)
         {
@@ -657,7 +657,7 @@ static int prv_convertRecord(lwm2m_uri_t * uriP,
                     targetP = prv_extendData(parentP);
                     if (targetP == NULL) goto error;
                     targetP->id = recordArray[index].ids[i];
-                    targetP->type = level;
+                    targetP->type = (lwm2m_data_type_t)level;
                 }
                 level = prv_decreaseLevel(level);
                 parentP = targetP;

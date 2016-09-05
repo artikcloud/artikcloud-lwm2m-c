@@ -218,7 +218,6 @@ coap_status_t dm_handleRequest(lwm2m_context_t * contextP,
                   && message->accept_num == 1
                   && message->accept[0] == APPLICATION_LINK_FORMAT)
             {
-                format = APPLICATION_LINK_FORMAT;
                 result = object_discover(contextP, uriP, &buffer, &length);
             }
             else

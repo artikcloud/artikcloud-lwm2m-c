@@ -22,7 +22,25 @@ Ubuntu 16.04. It only depends on the OpenSSL library, which is compiled along an
 only the following build tools need to be installed before launching compilation:
   * cmake
   * gcc
+  * g++
   * git
+
+See examples below for installation on various operating systems and Linux distributions:
+
+**Mac OS X**
+~~~shell
+$ sudo brew install git cmake
+~~~
+
+**Ubuntu 16.04**
+~~~shell
+$ sudo apt-get install git cmake gcc g++
+~~~
+
+**Fedora 24**
+~~~shell
+$ sudo dnf install git cmake gcc gcc-c++ make
+~~~
 
 Fetch the sources
 -----------------

@@ -130,5 +130,6 @@ client_handle_t lwm2m_client_start(object_container *init_val);
 void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback_type type,
         lwm2m_exe_callback callback, void *param);
 void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callback_type type);
+void lwm2m_change_object(client_handle_t handle, const char *uri, uint8_t *buffer, int length);
 
 #endif /* _LWM2MCLIENT_H_ */

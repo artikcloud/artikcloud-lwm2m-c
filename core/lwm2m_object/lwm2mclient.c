@@ -143,6 +143,7 @@ extern void prv_firmware_unregister_update_callback(lwm2m_object_t * objectP);
 extern void prv_device_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type,
         lwm2m_exe_callback callback, void *param);
 extern void prv_device_unregister_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type);
+extern uint8_t device_change_object(lwm2m_data_t * dataArray, lwm2m_object_t * object);
 
 void * lwm2m_connect_server(uint16_t secObjInstID, void * userData)
 {
@@ -684,4 +685,75 @@ void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callba
         fprintf(stderr, "lwm2m_register_callback: unsupported callback\r\n");
         break;
     }
+}
+
+void lwm2m_change_object(client_handle_t handle, const char *uri, uint8_t *buffer, int length)
+{
+    int ret;
+    client_data_t *client =  (client_data_t *)handle;
+    lwm2m_uri_t uri_t;
+
+    if (!uri)
+    {
+        fprintf(stderr, "lwm2m_change_object: wrong parameters\r\n");
+        return;
+    }
+
+    ret = lwm2m_stringToUri(uri, strlen(uri), &uri_t);
+    if (ret == 0)
+    {
+        fprintf(stderr, "lwm2m_stringToUri() failed: 0x%X", ret);
+        return;
+    }
+
+    if (buffer && length)
+    {
+        /* Change the value */
+        lwm2m_object_t *object = (lwm2m_object_t *)lwm2m_list_find(
+                (lwm2m_list_t *)client->lwm2mH->objectList, uri_t.objectId);
+
+        if (object)
+        {
+            if (object->writeFunc)
+            {
+                lwm2m_data_t data;
+                int result;
+
+                data.id = uri_t.resourceId;
+                lwm2m_data_encode_nstring((const char*)buffer, length, &data);
+                result = object->writeFunc(uri_t.instanceId, 1, &data, object);
+
+                /*
+                 * If property is not writable, we can still try to change it
+                 * locally for objects that support it
+                 */
+                if (result == COAP_405_METHOD_NOT_ALLOWED)
+                {
+                    switch(uri_t.objectId)
+                    {
+                    case LWM2M_DEVICE_OBJECT_ID:
+                        result = device_change_object(&data, object);
+                        break;
+                    default:
+                        break;
+                    }
+                }
+
+                if (result != COAP_204_CHANGED)
+                {
+                    fprintf(stderr, "lwm2m_change_object: failed (%d)\r\n", result);
+                }
+            }
+            else
+            {
+                fprintf(stderr, "lwm2m_change_object: object is not writable\r\n");
+            }
+        }
+        else
+        {
+            fprintf(stderr, "lwm2m_change_object: object not found\r\n");
+        }
+    }
+
+    lwm2m_resource_value_changed(client->lwm2mH, &uri_t);
 }

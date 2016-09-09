@@ -482,7 +482,7 @@ static uint8_t prv_device_write(uint16_t instanceId,
             //ToDo IANA TZ Format
             result = COAP_501_NOT_IMPLEMENTED;
             break;
-            
+
         default:
             result = COAP_405_METHOD_NOT_ALLOWED;
         }
@@ -630,8 +630,7 @@ void free_object_device(lwm2m_object_t * objectP)
     lwm2m_free(objectP);
 }
 
-uint8_t device_change(lwm2m_data_t * dataArray,
-                      lwm2m_object_t * objectP)
+uint8_t device_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
 {
     uint8_t result;
 
@@ -644,7 +643,7 @@ uint8_t device_change(lwm2m_data_t * dataArray,
                 {
                     if ((0 <= value) && (100 >= value))
                     {
-                        ((device_data_t*)(objectP->userData))->battery_level = value;
+                        ((device_data_t*)(object->userData))->battery_level = value;
                         result = COAP_204_CHANGED;
                     }
                     else
@@ -659,7 +658,7 @@ uint8_t device_change(lwm2m_data_t * dataArray,
             }
             break;
         case RES_M_ERROR_CODE:
-            if (1 == lwm2m_data_decode_int(dataArray, &((device_data_t*)(objectP->userData))->error))
+            if (1 == lwm2m_data_decode_int(dataArray, &((device_data_t*)(object->userData))->error))
             {
                 result = COAP_204_CHANGED;
             }
@@ -669,7 +668,7 @@ uint8_t device_change(lwm2m_data_t * dataArray,
             }
             break;
         case RES_O_MEMORY_FREE:
-            if (1 == lwm2m_data_decode_int(dataArray, &((device_data_t*)(objectP->userData))->free_memory))
+            if (1 == lwm2m_data_decode_int(dataArray, &((device_data_t*)(object->userData))->free_memory))
             {
                 result = COAP_204_CHANGED;
             }
@@ -682,7 +681,7 @@ uint8_t device_change(lwm2m_data_t * dataArray,
             result = COAP_405_METHOD_NOT_ALLOWED;
             break;
         }
-    
+
     return result;
 }
 

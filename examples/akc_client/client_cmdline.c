@@ -39,7 +39,7 @@ command_desc_t commands[] = {
 
 void cmdline_init(client_handle_t handle)
 {
-	int i = 0;
+    int i = 0;
 
     for (i = 0; commands[i].name != NULL; i++)
     {
@@ -51,10 +51,10 @@ void cmdline_init(client_handle_t handle)
 
 int cmdline_process(int timeout)
 {
-	int result;
-	int numBytes;
-	uint8_t buffer[MAX_READ_SIZE];
-	fd_set readfd;
+    int result;
+    int numBytes;
+    uint8_t buffer[MAX_READ_SIZE];
+    fd_set readfd;
     struct timeval tv;
 
     FD_ZERO(&readfd);
@@ -65,27 +65,27 @@ int cmdline_process(int timeout)
 
     result = select(FD_SETSIZE, &readfd, NULL, NULL, &tv);
     if (result < 0)
-	{
-		if (errno != EINTR)
-		{
-		  fprintf(stderr, "Error in select(): %d %s\r\n", errno, strerror(errno));
-		  return LWM2M_CLIENT_ERROR;
-		}
-	}
+    {
+        if (errno != EINTR)
+        {
+            fprintf(stderr, "Error in select(): %d %s\r\n", errno, strerror(errno));
+            return LWM2M_CLIENT_ERROR;
+        }
+    }
     else if (result > 0)
     {
-		numBytes = read(STDIN_FILENO, buffer, MAX_READ_SIZE - 1);
+        numBytes = read(STDIN_FILENO, buffer, MAX_READ_SIZE - 1);
 
-		if (numBytes > 1)
-		{
-			buffer[numBytes] = 0;
-			/*
-			 * We call the corresponding callback of the typed command passing it the buffer for further arguments
-			 */
-			handle_command(commands, (char*)buffer);
-		}
+        if (numBytes > 1)
+        {
+            buffer[numBytes] = 0;
+            /*
+             * We call the corresponding callback of the typed command passing it the buffer for further arguments
+             */
+            handle_command(commands, (char*)buffer);
+        }
 
-		fprintf(stdout, "\r\n");
+        fprintf(stdout, "\r\n");
     }
 
     return quit_client ? LWM2M_CLIENT_QUIT : LWM2M_CLIENT_OK;
@@ -175,12 +175,61 @@ void prv_displayHelp(command_desc_t *commandArray, char *buffer)
     }
 }
 
+static char*prv_end_of_space(char* buffer)
+{
+    while (isspace(buffer[0]&0xff))
+    {
+        buffer++;
+    }
+    return buffer;
+}
+
+static char*get_end_of_arg(char* buffer)
+{
+    while (buffer[0] != 0 && !isspace(buffer[0]&0xFF))
+    {
+        buffer++;
+    }
+    return buffer;
+}
+
+static char *get_next_arg(char * buffer, char** end)
+{
+    // skip arg
+    buffer = get_end_of_arg(buffer);
+    // skip space
+    buffer = prv_end_of_space(buffer);
+    if (NULL != end)
+    {
+        *end = get_end_of_arg(buffer);
+    }
+
+    return buffer;
+}
+
 void prv_change_obj(char *buffer, void *user_data)
 {
+    client_handle_t handle = (client_handle_t)user_data;
+    char *end = NULL;
+    char *uri = NULL;
+    char *buf = NULL;
 
+    end = get_end_of_arg(buffer);
+    if (end[0] == 0)
+    {
+        fprintf(stdout, "Syntax error !\n");
+        return;
+    }
+    uri = strndup(buffer, end - buffer);
+
+    buf = get_next_arg(end, &end);
+
+    lwm2m_change_object(handle, uri, (uint8_t*)buf, (int)(end - buf));
+
+    free(uri);
 }
 
 void prv_quit(char *buffer, void *user_data)
 {
-	quit_client = true;
+    quit_client = true;
 }

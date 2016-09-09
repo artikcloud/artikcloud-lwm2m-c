@@ -100,9 +100,11 @@ typedef struct
     uint8_t battery_level;
     char time_offset[PRV_OFFSET_MAXLEN];
     object_device *obj;
+    lwm2m_exe_callback reboot_callback;
+    lwm2m_exe_callback factory_callback;
+    void *reboot_callback_param;
+    void *factory_callback_param;
 } device_data_t;
-
-extern int g_reboot;
 
 // basic check that the time offset value is at ISO 8601 format
 // bug: +12:30 is considered a valid value by this function
@@ -497,6 +499,8 @@ static uint8_t prv_device_execute(uint16_t instanceId,
                                   int length,
                                   lwm2m_object_t * objectP)
 {
+	device_data_t * data = (device_data_t*)objectP->userData;
+
     // this is a single instance object
     if (instanceId != 0)
     {
@@ -509,15 +513,21 @@ static uint8_t prv_device_execute(uint16_t instanceId,
     {
     case RES_M_REBOOT:
         fprintf(stdout, "\n\t REBOOT\r\n\n");
-        g_reboot = 1;
+        if (data->reboot_callback)
+            data->reboot_callback(data->reboot_callback_param);
         return COAP_204_CHANGED;
+
     case RES_O_FACTORY_RESET:
         fprintf(stdout, "\n\t FACTORY RESET\r\n\n");
+        if (data->factory_callback)
+            data->factory_callback(data->factory_callback_param);
         return COAP_204_CHANGED;
+
     case RES_O_RESET_ERROR_CODE:
         fprintf(stdout, "\n\t RESET ERROR CODE\r\n\n");
         ((device_data_t*)(objectP->userData))->error = 0;
         return COAP_204_CHANGED;
+
     default:
         return COAP_405_METHOD_NOT_ALLOWED;
     }
@@ -674,4 +684,43 @@ uint8_t device_change(lwm2m_data_t * dataArray,
         }
     
     return result;
+}
+
+void prv_device_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type,
+        lwm2m_exe_callback callback, void *param)
+{
+    device_data_t * data = (device_data_t*)objectP->userData;
+
+    switch(type)
+    {
+    case LWM2M_EXE_FACTORY_RESET:
+        data->factory_callback = callback;
+        data->factory_callback_param = param;
+        break;
+    case LWM2M_EXE_DEVICE_REBOOT:
+        data->reboot_callback = callback;
+        data->reboot_callback_param = param;
+        break;
+    default:
+        break;
+    }
+}
+
+void prv_device_unregister_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type)
+{
+    device_data_t * data = (device_data_t*)objectP->userData;
+
+    switch(type)
+    {
+    case LWM2M_EXE_FACTORY_RESET:
+        data->factory_callback = NULL;
+        data->factory_callback_param = NULL;
+        break;
+    case LWM2M_EXE_DEVICE_REBOOT:
+        data->reboot_callback = NULL;
+        data->reboot_callback_param = NULL;
+        break;
+    default:
+        break;
+    }
 }

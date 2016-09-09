@@ -60,6 +60,8 @@ typedef struct
     uint8_t result;
     char pkg_name[LWM2M_MAX_STR_LEN];
     char pkg_version[LWM2M_MAX_STR_LEN];
+    lwm2m_exe_callback update_callback;
+    void *update_callback_param;
 } firmware_data_t;
 
 static uint8_t prv_firmware_read(uint16_t instanceId,
@@ -211,8 +213,11 @@ static uint8_t prv_firmware_execute(uint16_t instanceId,
     case RES_M_UPDATE:
         if (data->state == 1)
         {
-            fprintf(stdout, "\n\t FIRMWARE UPDATE\r\n\n");
-            // trigger your firmware download and update logic
+#ifdef WITH_LOGS
+            fprintf(stdout, "\n\t Firmware Update\r\n\n");
+#endif
+            if (data->update_callback)
+                data->update_callback(data->update_callback_param);
             data->state = 2;
             return COAP_204_CHANGED;
         }
@@ -320,3 +325,18 @@ void free_object_firmware(lwm2m_object_t * objectP)
     lwm2m_free(objectP);
 }
 
+void prv_firmware_register_update_callback(lwm2m_object_t * objectP, lwm2m_exe_callback callback, void *param)
+{
+    firmware_data_t * data = (firmware_data_t*)(objectP->userData);
+
+    data->update_callback = callback;
+    data->update_callback_param = param;
+}
+
+void prv_firmware_unregister_update_callback(lwm2m_object_t * objectP)
+{
+    firmware_data_t * data = (firmware_data_t*)(objectP->userData);
+
+    data->update_callback = NULL;
+    data->update_callback_param = NULL;
+}

@@ -111,12 +111,24 @@ enum lwm2m_object_type {
     LWM2M_OBJ_COUNT
 };
 
-#define LWM2M_CLIENT_OK		( 0)
-#define LWM2M_CLIENT_ERROR	(-1)
-#define LWM2M_CLIENT_QUIT	(-2)
+typedef void (*lwm2m_exe_callback)(void*);
+
+enum lwm2m_execute_callback_type {
+    LWM2M_EXE_FACTORY_RESET = 0,
+    LWM2M_EXE_DEVICE_REBOOT,
+    LWM2M_EXE_FIRMWARE_UPDATE,
+    LWM2M_EXE_COUNT
+};
+
+#define LWM2M_CLIENT_OK     ( 0)
+#define LWM2M_CLIENT_ERROR  (-1)
+#define LWM2M_CLIENT_QUIT   (-2)
 
 int lwm2m_client_service(client_handle_t handle);
 void lwm2m_client_stop(client_handle_t handle);
 client_handle_t lwm2m_client_start(object_container *init_val);
+void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback_type type,
+        lwm2m_exe_callback callback, void *param);
+void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callback_type type);
 
 #endif /* _LWM2MCLIENT_H_ */

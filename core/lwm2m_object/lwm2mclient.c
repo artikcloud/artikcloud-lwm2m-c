@@ -109,8 +109,6 @@ typedef struct
     bool rx_thread_exit;
 } client_data_t;
 
-int g_reboot = 0;
-
 static coap_uri_protocol protocols[] = {
     { COAP_UDP, "coap://", "UDP" },
     { COAP_UDP_DTLS, "coaps://", "UDP/DTLS" },
@@ -119,7 +117,8 @@ static coap_uri_protocol protocols[] = {
 };
 
 extern lwm2m_object_t *get_server_object(int serverId, const char *binding, int lifetime, bool storing);
-extern lwm2m_object_t *get_security_object(int serverId, const char *serverUri, char *bsPskId, char *psk, uint16_t pskLen, bool isBootstrap);
+extern lwm2m_object_t *get_security_object(int serverId, const char *serverUri, char *bsPskId, char *psk, uint16_t pskLen,
+        bool isBootstrap);
 extern lwm2m_object_t *get_object_device(object_device *default_value);
 extern lwm2m_object_t *get_object_firmware(object_firmware *default_value);
 extern lwm2m_object_t *get_object_location(object_location *default_value);
@@ -135,10 +134,15 @@ extern void free_object_conn_m(lwm2m_object_t *object);
 extern void acl_ctrl_free_object(lwm2m_object_t *object);
 extern char *get_server_uri(lwm2m_object_t *object, uint16_t secObjInstID);
 extern lwm2m_object_t *acc_ctrl_create_object(void);
-extern bool acc_ctrl_obj_add_inst(lwm2m_object_t *accCtrlObjP, uint16_t instId, uint16_t acObjectId, uint16_t acObjInstId, uint16_t acOwner);
+extern bool acc_ctrl_obj_add_inst(lwm2m_object_t *accCtrlObjP, uint16_t instId, uint16_t acObjectId, uint16_t acObjInstId,
+        uint16_t acOwner);
 extern bool acc_ctrl_oi_add_ac_val(lwm2m_object_t *accCtrlObjP, uint16_t instId, uint16_t aclResId, uint16_t acValue);
-extern void system_reboot(void);
 extern void conn_s_updateRxStatistic(lwm2m_object_t * objectP, uint16_t rxDataByte, bool smsBased);
+extern void prv_firmware_register_update_callback(lwm2m_object_t * objectP, lwm2m_exe_callback callback, void *param);
+extern void prv_firmware_unregister_update_callback(lwm2m_object_t * objectP);
+extern void prv_device_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type,
+        lwm2m_exe_callback callback, void *param);
+extern void prv_device_unregister_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type);
 
 void * lwm2m_connect_server(uint16_t secObjInstID, void * userData)
 {
@@ -626,20 +630,58 @@ int lwm2m_client_service(client_handle_t handle)
         return LWM2M_CLIENT_ERROR;
     }
 
-    if (g_reboot)
-    {
-        time_t tv_sec = lwm2m_gettime();
+    return timeout;
+}
 
-        if (0 == reboot_time)
-        {
-            reboot_time = tv_sec + 5;
-        }
-        if (reboot_time < tv_sec)
-        {
-            fprintf(stderr, "reboot time expired, rebooting ..."); fflush(stderr);
-            system_reboot();
-        }
+void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback_type type,
+        lwm2m_exe_callback callback, void *param)
+{
+    client_data_t *data =  (client_data_t *)handle;
+
+    if (!handle || !callback || (type >= LWM2M_EXE_COUNT))
+    {
+        fprintf(stderr, "lwm2m_register_callback: wrong parameters\r\n");
+        return;
     }
 
-    return timeout;
+    switch(type)
+    {
+    case LWM2M_EXE_FIRMWARE_UPDATE:
+        prv_firmware_register_update_callback(data->objArray[LWM2M_OBJ_FIRMWARE],
+                callback, param);
+        break;
+    case LWM2M_EXE_FACTORY_RESET:
+    case LWM2M_EXE_DEVICE_REBOOT:
+        prv_device_register_callback(data->objArray[LWM2M_OBJ_DEVICE], type,
+                callback, param);
+        break;
+    default:
+        fprintf(stderr, "lwm2m_register_callback: unsupported callback\r\n");
+        break;
+    }
+}
+
+void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callback_type type)
+{
+    client_data_t *data =  (client_data_t *)handle;
+
+    if (!handle || (type >= LWM2M_EXE_COUNT))
+    {
+        fprintf(stderr, "lwm2m_unregister_callback: wrong parameters\r\n");
+        return;
+    }
+
+    switch(type)
+    {
+    case LWM2M_EXE_FIRMWARE_UPDATE:
+        prv_firmware_unregister_update_callback(data->objArray[LWM2M_OBJ_FIRMWARE]);
+        break;
+    case LWM2M_EXE_FACTORY_RESET:
+    case LWM2M_EXE_DEVICE_REBOOT:
+        prv_device_unregister_callback(data->objArray[LWM2M_OBJ_DEVICE], type);
+        break;
+    default:
+        fprintf(stderr, "lwm2m_register_callback: unsupported callback\r\n");
+        break;
+    }
 }

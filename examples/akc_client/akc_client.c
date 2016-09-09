@@ -87,6 +87,21 @@ void handle_sigint(int signum)
     quit = true;
 }
 
+static void on_reboot(void *param)
+{
+    fprintf(stdout, "REBOOT\r\n");
+}
+
+static void on_firmware_update(void *param)
+{
+    fprintf(stdout, "FIRMWARE UPDATE\r\n");
+}
+
+static void on_factory_reset(void *param)
+{
+    fprintf(stdout, "FACTORY RESET\r\n");
+}
+
 int main(int argc, char *argv[])
 {
     object_container init_val_ob;
@@ -135,6 +150,10 @@ int main(int argc, char *argv[])
     }
 
     cmdline_init(client);
+
+    lwm2m_register_callback(client, LWM2M_EXE_FACTORY_RESET, on_factory_reset, NULL);
+    lwm2m_register_callback(client, LWM2M_EXE_DEVICE_REBOOT, on_reboot, NULL);
+    lwm2m_register_callback(client, LWM2M_EXE_FIRMWARE_UPDATE, on_firmware_update, NULL);
 
     while (!quit)
     {

@@ -92,7 +92,6 @@
 #define RES_O_BATTERY_STATUS        20
 #define RES_O_MEMORY_TOTAL          21
 
-
 typedef struct
 {
     int64_t free_memory;
@@ -102,6 +101,8 @@ typedef struct
     char time_offset[PRV_OFFSET_MAXLEN];
     object_device *obj;
 } device_data_t;
+
+extern int g_reboot;
 
 // basic check that the time offset value is at ISO 8601 format
 // bug: +12:30 is considered a valid value by this function

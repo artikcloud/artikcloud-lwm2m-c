@@ -30,34 +30,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#ifdef LWM2M_EMBEDDED_MODE
-
-static void prv_value_change(void* context,
-                             const char* uriPath,
-                             const char * value,
-                             size_t valueLength)
-{
-    lwm2m_uri_t uri;
-    if (lwm2m_stringToUri(uriPath, strlen(uriPath), &uri))
-    {
-        handle_value_changed(context, &uri, value, valueLength);
-    }
-}
-
-void init_value_change(lwm2m_context_t * lwm2m)
-{
-    system_setValueChangedHandler(lwm2m, prv_value_change);
-}
-
-#else
-
-void init_value_change(lwm2m_context_t * lwm2m)
-{
-}
-
 void system_reboot()
 {
     exit(1);
 }
-
-#endif

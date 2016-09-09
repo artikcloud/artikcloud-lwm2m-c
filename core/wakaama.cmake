@@ -24,7 +24,6 @@ set(OBJECT_SOURCES
     ${OBJECT_SOURCES_DIR}/object_connectivity_moni.c
     ${OBJECT_SOURCES_DIR}/object_connectivity_stat.c
     ${OBJECT_SOURCES_DIR}/object_access_control.c
-    ${OBJECT_SOURCES_DIR}/test_object.c
     )
 endif()
 

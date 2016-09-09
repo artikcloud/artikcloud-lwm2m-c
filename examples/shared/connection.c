@@ -104,7 +104,6 @@ static bool ssl_init(connection_t * conn)
     OpenSSL_add_all_algorithms();
     ERR_clear_error();
     ERR_load_BIO_strings();
-    ERR_load_crypto_strings();
     SSL_load_error_strings();
 
     if(SSL_library_init() < 0)
@@ -537,22 +536,29 @@ int connection_send(connection_t *connP,
         case COAP_UDP_DTLS:
         case COAP_TCP_TLS:
             nbSent = SSL_write(connP->ssl, buffer + offset, length - offset);
+            if (nbSent < 1) {
+                fprintf(stderr, "SSL Send error: %s\n", ERR_error_string(SSL_get_error(connP->ssl, nbSent), NULL));
+                return -1;
+            }
             break;
         case COAP_TCP:
             nbSent = send(connP->sock, buffer + offset, length - offset, 0);
+            if (nbSent == -1) {
+                fprintf(stderr, "Send error: %s\n", strerror(errno));
+                return -1;
+            }
             break;
         case COAP_UDP:
             nbSent = sendto(connP->sock, buffer + offset, length - offset, 0, (struct sockaddr *)&(connP->addr), connP->addrLen);
+            if (nbSent == -1) {
+                fprintf(stderr, "Send error: %s\n", strerror(errno));
+                return -1;
+            }
             break;
         default:
             break;
         }
 
-        if (nbSent == -1)
-        {
-            fprintf(stderr, "Error: %s\n", strerror(errno));
-            return -1;
-        }
         offset += nbSent;
     }
     return 0;

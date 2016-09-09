@@ -1,6 +1,4 @@
-
 #include "lwm2mclient.h"
-#include "liblwm2m.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -8,6 +6,9 @@
 #include <stdio.h>
 
 #define AKC_UUID_LEN    32
+
+extern void cmdline_init(client_handle_t handle);
+extern int cmdline_process(int timeout);
 
 static object_security_server akc_server = {
     "coaps+tcp://coap-dev.artik.cloud:5689", /* serverUri */
@@ -73,20 +74,27 @@ static object_location default_location ={
     "0.01"       /* Uncertainty */
 };
 
+static bool quit = false;
+
 static void usage()
 {
     fprintf(stdout, "Usage:\r\n");
     fprintf(stdout, "\takc_client <server URI> <device ID> <device token>\r\n");
 }
 
+void handle_sigint(int signum)
+{
+    quit = true;
+}
+
 int main(int argc, char *argv[])
 {
-    int ret = 0;
     object_container init_val_ob;
-    client_data_t *data = NULL;
+    client_handle_t client = NULL;
 
     if (argc > 1)
-        strncpy(akc_server.serverUri, argv[1], MAX_LEN);
+        strncpy(akc_server.serverUri, argv[1], LWM2M_MAX_STR_LEN);
+
     if (argc > 2)
     {
         if (strlen(argv[2]) != AKC_UUID_LEN)
@@ -99,6 +107,7 @@ int main(int argc, char *argv[])
         strncpy(akc_server.bsPskId, argv[2], AKC_UUID_LEN);
         strncpy(akc_server.client_name, argv[2], AKC_UUID_LEN);
     }
+
     if (argc > 3)
     {
         if (strlen(argv[3]) != AKC_UUID_LEN)
@@ -111,21 +120,34 @@ int main(int argc, char *argv[])
         strncpy(akc_server.psk, argv[3], AKC_UUID_LEN);
     }
 
+    signal(SIGINT, handle_sigint);
+
     init_val_ob.server= &akc_server;
     init_val_ob.device = &default_device;
     init_val_ob.firmware = &default_firmware;
     init_val_ob.monitoring = &default_monitoring;
     init_val_ob.location = &default_location;
 
-    data = akc_start(&init_val_ob);
-    if (!data) {
+    client = lwm2m_client_start(&init_val_ob);
+    if (!client)
+    {
         fprintf(stderr, "Failed to start client\n");
     }
 
-    if (get_quit() > 0) {
-        akc_stop(data);
+    cmdline_init(client);
+
+    while (!quit)
+    {
+        int ret = lwm2m_client_service(client);
+        if ((ret == LWM2M_CLIENT_QUIT) || (ret == LWM2M_CLIENT_ERROR))
+            break;
+
+        ret = cmdline_process(ret);
+        if ((ret == LWM2M_CLIENT_QUIT) || (ret == LWM2M_CLIENT_ERROR))
+            break;
     }
 
-exit:
+    lwm2m_client_stop(client);
+
     return 0;
 }

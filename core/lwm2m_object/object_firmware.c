@@ -58,8 +58,8 @@ typedef struct
     uint8_t state;
     bool supported;
     uint8_t result;
-    char pkg_name[MAX_LEN];
-    char pkg_version[MAX_LEN];
+    char pkg_name[LWM2M_MAX_STR_LEN];
+    char pkg_version[LWM2M_MAX_STR_LEN];
 } firmware_data_t;
 
 static uint8_t prv_firmware_read(uint16_t instanceId,
@@ -292,8 +292,8 @@ lwm2m_object_t * get_object_firmware(object_firmware * default_value)
             ((firmware_data_t*)firmwareObj->userData)->state = default_value->state;
             ((firmware_data_t*)firmwareObj->userData)->supported = default_value->supported;
             ((firmware_data_t*)firmwareObj->userData)->result = default_value->result;
-            strncpy(((firmware_data_t*)firmwareObj->userData)->pkg_name, default_value->pkg_name, MAX_LEN);
-            strncpy(((firmware_data_t*)firmwareObj->userData)->pkg_version, default_value->pkg_version, MAX_LEN);
+            strncpy(((firmware_data_t*)firmwareObj->userData)->pkg_name, default_value->pkg_name, LWM2M_MAX_STR_LEN);
+            strncpy(((firmware_data_t*)firmwareObj->userData)->pkg_version, default_value->pkg_version, LWM2M_MAX_STR_LEN);
         }
         else
         {

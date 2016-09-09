@@ -6,6 +6,7 @@ include_directories (${OBJECT_SOURCES_DIR})
 
 SET(SOURCES
     akc_client.c
+    client_cmdline.c
     )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

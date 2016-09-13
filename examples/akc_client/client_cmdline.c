@@ -28,11 +28,13 @@ static void handle_command(command_desc_t *commandArray, char *buffer);
 static void prv_displayHelp(command_desc_t *commandArray, char *buffer);
 static void prv_quit(char *buffer, void *user_data);
 static void prv_change_obj(char *buffer, void *user_data);
+static void prv_read_obj(char *buffer, void *user_data);
 
 static bool quit_client = false;
 
 command_desc_t commands[] = {
-    { "change", "Change the value of resource.", NULL, prv_change_obj, NULL },
+    { "change", "Change the value of a resource.", NULL, prv_change_obj, NULL },
+    { "read", "Read the value of a resource.", NULL, prv_read_obj, NULL },
     { "q", "Quit the client.", NULL, prv_quit, NULL },
     { NULL, NULL, NULL, NULL, NULL }
 };
@@ -211,8 +213,7 @@ void prv_change_obj(char *buffer, void *user_data)
 {
     client_handle_t handle = (client_handle_t)user_data;
     char *end = NULL;
-    char *uri = NULL;
-    char *buf = NULL;
+    lwm2m_resource_t res;
 
     end = get_end_of_arg(buffer);
     if (end[0] == 0)
@@ -220,13 +221,43 @@ void prv_change_obj(char *buffer, void *user_data)
         fprintf(stdout, "Syntax error !\n");
         return;
     }
-    uri = strndup(buffer, end - buffer);
 
-    buf = get_next_arg(end, &end);
+    strncpy(res.uri, buffer, end - buffer);
+    res.buffer = (uint8_t*)get_next_arg(end, &end);
+    res.length = (int)(end - (char*)res.buffer);
 
-    lwm2m_change_resource(handle, uri, (uint8_t*)buf, (int)(end - buf));
+    lwm2m_write_resource(handle, &res);
+}
 
-    free(uri);
+void prv_read_obj(char *buffer, void *user_data)
+{
+    client_handle_t handle = (client_handle_t)user_data;
+    char *end = NULL;
+    char *val = NULL;
+    lwm2m_resource_t res;
+    int i = 0;
+
+    end = get_end_of_arg(buffer);
+    if (end[0] == 0)
+    {
+        fprintf(stdout, "Syntax error !\n");
+        return;
+    }
+
+    strncpy(res.uri, buffer, end - buffer);
+
+    if (lwm2m_read_resource(handle, &res))
+    {
+        fprintf(stdout, "Read failed !\n");
+        return;
+    }
+
+    val = strndup((char*)res.buffer, res.length);
+
+    fprintf(stdout, "URI: %s - Value: %s\r\n> ", res.uri, val);
+
+    free(res.buffer);
+    free(val);
 }
 
 void prv_quit(char *buffer, void *user_data)

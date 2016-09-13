@@ -209,6 +209,7 @@ client_handle_t lwm2m_client_start(object_container_t *init_val);
 void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback_type type,
         lwm2m_exe_callback callback, void *param);
 void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callback_type type);
-void lwm2m_change_resource(client_handle_t handle, const char *uri, uint8_t *buffer, int length);
+int lwm2m_write_resource(client_handle_t handle, lwm2m_resource_t *res);
+int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res);
 
 #endif /* _LWM2MCLIENT_H_ */

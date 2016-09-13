@@ -123,7 +123,6 @@ static uint8_t prv_firmware_read(uint16_t instanceId,
             break;
 
         case RES_M_STATE:
-            // firmware update state (int)
             lwm2m_data_encode_int(data->state, *dataArrayP + i);
             result = COAP_205_CONTENT;
             break;

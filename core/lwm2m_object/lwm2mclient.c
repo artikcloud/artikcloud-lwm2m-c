@@ -61,6 +61,7 @@
 #include "liblwm2m.h"
 #include "commandline.h"
 #include "connection.h"
+#include "internals.h"
 #include "er-coap-13/er-coap-13.h"
 
 #include <string.h>
@@ -698,26 +699,26 @@ void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callba
     }
 }
 
-void lwm2m_change_resource(client_handle_t handle, const char *uri, uint8_t *buffer, int length)
+int lwm2m_write_resource(client_handle_t handle, lwm2m_resource_t *res)
 {
     int ret;
     client_data_t *client =  (client_data_t *)handle;
     lwm2m_uri_t uri_t;
 
-    if (!uri)
+    if (!res)
     {
-        fprintf(stderr, "lwm2m_change_resource: wrong parameters\r\n");
-        return;
+        fprintf(stderr, "lwm2m_write_resource: wrong parameters\r\n");
+        return LWM2M_CLIENT_ERROR;
     }
 
-    ret = lwm2m_stringToUri(uri, strlen(uri), &uri_t);
+    ret = lwm2m_stringToUri(res->uri, strlen(res->uri), &uri_t);
     if (ret == 0)
     {
         fprintf(stderr, "lwm2m_stringToUri() failed: 0x%X", ret);
-        return;
+        return LWM2M_CLIENT_ERROR;
     }
 
-    if (buffer && length)
+    if (res->buffer && res->length)
     {
         /* Change the value */
         lwm2m_object_t *object = (lwm2m_object_t *)lwm2m_list_find(
@@ -729,7 +730,7 @@ void lwm2m_change_resource(client_handle_t handle, const char *uri, uint8_t *buf
             lwm2m_data_t data;
 
             data.id = uri_t.resourceId;
-            lwm2m_data_encode_nstring((const char*)buffer, length, &data);
+            lwm2m_data_encode_nstring((const char*)res->buffer, res->length, &data);
 
             if (object->writeFunc)
             {
@@ -760,14 +761,117 @@ void lwm2m_change_resource(client_handle_t handle, const char *uri, uint8_t *buf
 
             if (result != COAP_204_CHANGED)
             {
-                fprintf(stderr, "lwm2m_change_resource: failed (%d)\r\n", result);
+                fprintf(stderr, "lwm2m_write_resource: failed (%d)\r\n", result);
+                return LWM2M_CLIENT_ERROR;
             }
         }
         else
         {
-            fprintf(stderr, "lwm2m_change_resource: object not found\r\n");
+            fprintf(stderr, "lwm2m_write_resource: object not found\r\n");
+            return LWM2M_CLIENT_ERROR;
         }
     }
 
     lwm2m_resource_value_changed(client->lwm2mH, &uri_t);
+
+    return LWM2M_CLIENT_OK;
+}
+
+int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res)
+{
+    int ret;
+    client_data_t *client =  (client_data_t *)handle;
+    lwm2m_uri_t uri_t;
+    lwm2m_object_t *object;
+
+    if (!res)
+    {
+        fprintf(stderr, "lwm2m_read_resource: wrong parameters\r\n");
+        return LWM2M_CLIENT_ERROR;
+    }
+
+    ret = lwm2m_stringToUri(res->uri, strlen(res->uri), &uri_t);
+    if (ret == 0)
+    {
+        fprintf(stderr, "lwm2m_stringToUri() failed: 0x%X", ret);
+        return LWM2M_CLIENT_ERROR;
+    }
+
+    object = (lwm2m_object_t *)lwm2m_list_find(
+            (lwm2m_list_t *)client->lwm2mH->objectList, uri_t.objectId);
+
+    if (object)
+    {
+        if (object->readFunc)
+        {
+            int result = COAP_405_METHOD_NOT_ALLOWED;
+            lwm2m_data_t *data;
+            int num = 1;
+
+            data = malloc(num * sizeof(lwm2m_data_t));
+            if (!data)
+            {
+                fprintf(stderr, "lwm2m_read_resource: failed to allocate memory\r\n");
+                return LWM2M_CLIENT_ERROR;
+            }
+            data[0].id = uri_t.resourceId;
+            result = object->readFunc(uri_t.instanceId, &num, &data, object);
+            if (result != COAP_205_CONTENT)
+            {
+                fprintf(stderr, "lwm2m_read_resource: failed (%d)\r\n", result);
+                free(data);
+                return LWM2M_CLIENT_ERROR;
+            }
+            else
+            {
+                switch (data[0].type)
+                {
+                case LWM2M_TYPE_STRING:
+                    res->length = data[0].value.asBuffer.length;
+                    res->buffer = (uint8_t *)lwm2m_malloc(res->length);
+                    if (!res->buffer)
+                    {
+                        fprintf(stderr, "lwm2m_read_resource: failed to allocate memory\r\n");
+                        free(data);
+                        return LWM2M_CLIENT_ERROR;
+                    }
+                    memcpy(res->buffer, data[0].value.asBuffer.buffer, res->length);
+                    break;
+
+                case LWM2M_TYPE_INTEGER:
+                    res->length = utils_int64ToPlainText(data[0].value.asInteger, &res->buffer);
+                    break;
+
+                case LWM2M_TYPE_FLOAT:
+                    res->length = utils_float64ToPlainText(data[0].value.asFloat, &res->buffer);
+                    break;
+
+                case LWM2M_TYPE_BOOLEAN:
+                    res->length = utils_boolToPlainText(data[0].value.asBoolean, &res->buffer);
+                    break;
+
+                case LWM2M_TYPE_OBJECT_LINK:
+                case LWM2M_TYPE_OPAQUE:
+                case LWM2M_TYPE_UNDEFINED:
+                default:
+                    fprintf(stderr, "lwm2m_read_resource: unsupported type (%d)\r\n", data[0].type);
+                    break;
+                }
+
+                free(data);
+            }
+        }
+        else
+        {
+            fprintf(stderr, "lwm2m_read_resource: object not readable\r\n");
+            return LWM2M_CLIENT_ERROR;
+        }
+    }
+    else
+    {
+        fprintf(stderr, "lwm2m_read_resource: object not found\r\n");
+        return LWM2M_CLIENT_ERROR;
+    }
+
+    return LWM2M_CLIENT_OK;
 }

@@ -27,6 +27,7 @@ typedef struct {
     int memory_free;                          /*PRV_MEMORY_FREE*/
     int error_code;                           /*PRV_ERROR_CODE*/
     char time_zone[LWM2M_MAX_STR_LEN];        /*PRV_TIME_ZONE*/
+    char utc_offset[LWM2M_MAX_STR_LEN];       /*PRV_UTC_OFFSET*/
     char binding_mode[LWM2M_MAX_STR_LEN];     /*PRV_BINDING_MODE*/
     char device_type[LWM2M_MAX_STR_LEN];      /*PRV_DEVICE_TYPE*/
     char hardware_version[LWM2M_MAX_STR_LEN]; /*PRV_HARDWARE_VERSION*/

@@ -34,12 +34,13 @@ static object_device default_device = {
     100,                      /* PRV_BATTERY_LEVEL */
     15,                       /* PRV_MEMORY_FREE */
     0,                        /* PRV_ERROR_CODE */
-    "Europe/Berlin",          /* PRV_TIME_ZONE */
+    "Europe/Paris",           /* PRV_TIME_ZONE */
+    "+02:00",                 /* PRV_UTC_OFFSET */
     "U",                      /* PRV_BINDING_MODE */
     "DeviceType C SDK",       /* PRV_DEVICE_TYPE */
     "Hardware C SDK",         /* PRV_HARDWARE_VERSION */
     "Software C SDK",         /* PRV_SOFTWARE_VERSION */
-    60,                       /* PRV_BATTERY_STATUS */
+    6,                        /* PRV_BATTERY_STATUS */
     128                       /* PRV_MEMORY_TOTAL */
 };
 
@@ -52,19 +53,19 @@ static object_firmware default_firmware ={
 };
 
 static object_conn_monitoring default_monitoring = {
-    0,                  /* VALUE_NETWORK_BEARER_GSM */
-    0,                  /* VALUE_AVL_NETWORK_BEARER_1 */
-    80,                 /* VALUE_RADIO_SIGNAL_STRENGTH */
-    98,                 /* VALUE_LINK_QUALITY */
-    "192.168.178.101",  /* VALUE_IP_ADDRESS_1 */
-    "192.168.178.102",  /* VALUE_IP_ADDRESS_2 */
-    "192.168.178.001",  /* VALUE_ROUTER_IP_ADDRESS_1 */
-    "192.168.178.002",  /* VALUE_ROUTER_IP_ADDRESS_2 */
-    666,                /* VALUE_LINK_UTILIZATION */
-    "web.vodafone.de",  /* VALUE_APN_1 */
-    69696969,           /* VALUE_CELL_ID */
-    33,                 /* VALUE_SMNC */
-    44                  /* VALUE_SMCC */
+    0,                            /* VALUE_NETWORK_BEARER_GSM */
+    0,                            /* VALUE_AVL_NETWORK_BEARER_1 */
+    80,                           /* VALUE_RADIO_SIGNAL_STRENGTH */
+    98,                           /* VALUE_LINK_QUALITY */
+    "192.168.178.101",            /* VALUE_IP_ADDRESS_1 */
+    "fe80::aebc:32ff:feb8:db5f",  /* VALUE_IP_ADDRESS_2 */
+    "192.168.178.001",            /* VALUE_ROUTER_IP_ADDRESS_1 */
+    "192.168.178.002",            /* VALUE_ROUTER_IP_ADDRESS_2 */
+    666,                          /* VALUE_LINK_UTILIZATION */
+    "web.vodafone.de",            /* VALUE_APN_1 */
+    69696969,                     /* VALUE_CELL_ID */
+    33,                           /* VALUE_SMNC */
+    44                            /* VALUE_SMCC */
 };
 
 static object_location default_location ={

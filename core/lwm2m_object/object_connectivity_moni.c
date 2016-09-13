@@ -57,10 +57,13 @@
 #define RES_O_SMNC                      9
 #define RES_O_SMCC                      10
 
+#define IPV46_MAX_ADDR_LEN              45
+#define IPV46_ADDR_NUM                  2
+
 typedef struct
 {
-    char ipAddresses[2][16];        // limited to 2!
-    char routerIpAddresses[2][16];  // limited to 2!
+    char ipAddresses[IPV46_ADDR_NUM][IPV46_MAX_ADDR_LEN];
+    char routerIpAddresses[IPV46_ADDR_NUM][IPV46_MAX_ADDR_LEN];
     long cellId;
     int signalStrength;
     int linkQuality;
@@ -80,7 +83,7 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
 
     case RES_M_AVL_NETWORK_BEARER:
     {
-        int riCnt = 1;   // reduced to 1 instance to fit in one block size
+        int riCnt = 1;
         lwm2m_data_t * subTlvP;
         subTlvP = lwm2m_data_new(riCnt);
         subTlvP[0].id    = 0;
@@ -99,7 +102,7 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
 
     case RES_M_IP_ADDRESSES:
     {
-        int ri, riCnt = 1;   // reduced to 1 instance to fit in one block size
+        int ri, riCnt = IPV46_ADDR_NUM;
         lwm2m_data_t* subTlvP = lwm2m_data_new(riCnt);
         for (ri = 0; ri < riCnt; ri++)
         {
@@ -113,7 +116,7 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
 
     case RES_O_ROUTER_IP_ADDRESS:
     {
-        int ri, riCnt = 1;   // reduced to 1 instance to fit in one block size
+        int ri, riCnt = IPV46_ADDR_NUM;
         lwm2m_data_t* subTlvP = lwm2m_data_new(riCnt);
         for (ri=0; ri<riCnt; ri++)
         {

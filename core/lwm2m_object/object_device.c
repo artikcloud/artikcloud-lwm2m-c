@@ -98,6 +98,7 @@ typedef struct
     int64_t error;
     int64_t time;
     uint8_t battery_level;
+    uint8_t battery_status;
     char time_offset[PRV_OFFSET_MAXLEN];
     object_device *obj;
     lwm2m_exe_callback reboot_callback;
@@ -229,6 +230,10 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         lwm2m_data_encode_int(devDataP->battery_level, dataP);
         return COAP_205_CONTENT;
 
+    case RES_O_BATTERY_STATUS:
+        lwm2m_data_encode_int(devDataP->battery_status, dataP);
+        return COAP_205_CONTENT;
+
     case RES_O_MEMORY_FREE:
         lwm2m_data_encode_int(devDataP->free_memory, dataP);
         return COAP_205_CONTENT;
@@ -275,10 +280,6 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
 
     case RES_O_SOFTWARE_VERSION:
         lwm2m_data_encode_string(obj->software_version, dataP);
-        return COAP_205_CONTENT;
-
-    case RES_O_BATTERY_STATUS:
-        lwm2m_data_encode_int(obj->battery_status, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_MEMORY_TOTAL:
@@ -598,10 +599,11 @@ lwm2m_object_t * get_object_device(object_device * default_value)
         {
             ((device_data_t*)deviceObj->userData)->obj = default_value;
             ((device_data_t*)deviceObj->userData)->battery_level = default_value->battery_level;
+            ((device_data_t*)deviceObj->userData)->battery_status = default_value->battery_status;
             ((device_data_t*)deviceObj->userData)->free_memory   = default_value->memory_free;
             ((device_data_t*)deviceObj->userData)->error = default_value->error_code;
             ((device_data_t*)deviceObj->userData)->time  = 1367491215;
-            strcpy(((device_data_t*)deviceObj->userData)->time_offset, "+01:00");
+            strncpy(((device_data_t*)deviceObj->userData)->time_offset, default_value->utc_offset, PRV_OFFSET_MAXLEN);
         }
         else
         {
@@ -636,7 +638,7 @@ uint8_t device_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
 
     switch (dataArray->id)
     {
-    case RES_O_BATTERY_LEVEL:
+        case RES_O_BATTERY_LEVEL:
             {
                 int64_t value;
                 if (1 == lwm2m_data_decode_int(dataArray, &value))
@@ -657,6 +659,26 @@ uint8_t device_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
                 }
             }
             break;
+        case RES_O_BATTERY_STATUS:
+            {
+                int64_t value;
+                if (1 == lwm2m_data_decode_int(dataArray, &value))
+                {
+                    if ((0 <= value) && (6 >= value))
+                    {
+                        ((device_data_t*)(object->userData))->battery_status = value;
+                        result = COAP_204_CHANGED;
+                    }
+                    else
+                    {
+                        result = COAP_400_BAD_REQUEST;
+                    }
+                }
+                else
+                {
+                    result = COAP_400_BAD_REQUEST;
+                }
+            }
         case RES_M_ERROR_CODE:
             if (1 == lwm2m_data_decode_int(dataArray, &((device_data_t*)(object->userData))->error))
             {

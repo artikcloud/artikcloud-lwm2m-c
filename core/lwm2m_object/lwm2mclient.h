@@ -35,7 +35,7 @@ typedef struct {
     char software_version[LWM2M_MAX_STR_LEN]; /*PRV_SOFTWARE_VERSION*/
     int battery_status;                       /*PRV_BATTERY_STATUS*/
     int memory_total;                         /*PRV_MEMORY_TOTAL*/
-} object_device;
+} object_device_t;
 
 /*
  * Firmware update object
@@ -44,7 +44,7 @@ typedef struct {
     bool supported;                      /*SUPPORTED*/
     char pkg_name[LWM2M_MAX_STR_LEN];    /*PKG_NAME*/
     char pkg_version[LWM2M_MAX_STR_LEN]; /*PKG_VERSION*/
-}object_firmware;
+}object_firmware_t;
 
 /*
  * Location object
@@ -54,7 +54,7 @@ typedef struct {
     char  longitude[LWM2M_MAX_STR_LEN];     /*Longitude*/
     char  altidude[LWM2M_MAX_STR_LEN];      /*Altitude*/
     char  uncertainty[LWM2M_MAX_STR_LEN];   /*Uncertainty*/
-} object_location;
+} object_location_t;
 
 /*
  * Connectivity monitoring object
@@ -73,7 +73,7 @@ typedef struct {
     int  cell_id;                            /*VALUE_CELL_ID*/
     int  smnc;                               /*VALUE_SMNC*/
     int  smcc;                               /*VALUE_SMCC*/
-} object_conn_monitoring;
+} object_conn_monitoring_t;
 
 /*
  * LWM2M security object
@@ -86,18 +86,18 @@ typedef struct {
     int lifetime;                        /*lifetime*/
     int  batterylevelchanging;           /*battery*/
     int serverId;                        /*serverId*/
-} object_security_server;
+} object_security_server_t;
 
 /*
  * Object container
  */
 typedef struct {
-    object_security_server* server;
-    object_device* device;
-    object_firmware* firmware;
-    object_location* location;
-    object_conn_monitoring* monitoring;
-}object_container;
+    object_security_server_t* server;
+    object_device_t* device;
+    object_firmware_t* firmware;
+    object_location_t* location;
+    object_conn_monitoring_t* monitoring;
+}object_container_t;
 
 enum lwm2m_object_type {
     LWM2M_OBJ_SECURITY = 0,
@@ -125,7 +125,7 @@ typedef struct {
     char uri[LWM2M_MAX_URI_LEN];
     uint8_t *buffer;
     int length;
-} lwm2m_res_changed_params;
+} lwm2m_resource_t;
 
 #define LWM2M_CLIENT_OK     ( 0)
 #define LWM2M_CLIENT_ERROR  (-1)
@@ -205,10 +205,10 @@ typedef struct {
 
 int lwm2m_client_service(client_handle_t handle);
 void lwm2m_client_stop(client_handle_t handle);
-client_handle_t lwm2m_client_start(object_container *init_val);
+client_handle_t lwm2m_client_start(object_container_t *init_val);
 void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback_type type,
         lwm2m_exe_callback callback, void *param);
 void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callback_type type);
-void lwm2m_change_object(client_handle_t handle, const char *uri, uint8_t *buffer, int length);
+void lwm2m_change_resource(client_handle_t handle, const char *uri, uint8_t *buffer, int length);
 
 #endif /* _LWM2MCLIENT_H_ */

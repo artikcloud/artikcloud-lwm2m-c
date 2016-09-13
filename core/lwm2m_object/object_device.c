@@ -100,7 +100,7 @@ typedef struct
     uint8_t battery_level;
     uint8_t battery_status;
     char time_offset[PRV_OFFSET_MAXLEN];
-    object_device *obj;
+    object_device_t *obj;
     lwm2m_exe_callback reboot_callback;
     lwm2m_exe_callback notify_callback;
     lwm2m_exe_callback factory_callback;
@@ -154,7 +154,7 @@ static void prv_notify_resource_changed(device_data_t *client, char *uri, lwm2m_
 {
     if (client && client->notify_callback)
     {
-        lwm2m_res_changed_params params;
+        lwm2m_resource_t params;
 
         strncpy(params.uri, uri, LWM2M_MAX_URI_LEN);
         params.buffer = data->value.asBuffer.buffer;
@@ -167,7 +167,7 @@ static void prv_notify_resource_changed(device_data_t *client, char *uri, lwm2m_
 static uint8_t prv_set_value(lwm2m_data_t * dataP,
                              device_data_t * devDataP)
 {
-    object_device* obj = devDataP->obj;
+    object_device_t* obj = devDataP->obj;
 
     // a simple switch structure is used to respond at the specified resource asked
     switch (dataP->id)
@@ -566,7 +566,7 @@ void display_device_object(lwm2m_object_t * object)
 #endif
 }
 
-lwm2m_object_t * get_object_device(object_device * default_value)
+lwm2m_object_t * get_object_device(object_device_t *default_value)
 {
     /*
      * The get_object_device function create the object itself and return a pointer to the structure that represent it.

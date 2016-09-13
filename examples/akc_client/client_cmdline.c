@@ -224,7 +224,7 @@ void prv_change_obj(char *buffer, void *user_data)
 
     buf = get_next_arg(end, &end);
 
-    lwm2m_change_object(handle, uri, (uint8_t*)buf, (int)(end - buf));
+    lwm2m_change_resource(handle, uri, (uint8_t*)buf, (int)(end - buf));
 
     free(uri);
 }

@@ -119,10 +119,10 @@ static coap_uri_protocol protocols[] = {
 extern lwm2m_object_t *get_server_object(int serverId, const char *binding, int lifetime, bool storing);
 extern lwm2m_object_t *get_security_object(int serverId, const char *serverUri, char *bsPskId, char *psk, uint16_t pskLen,
         bool isBootstrap);
-extern lwm2m_object_t *get_object_device(object_device *default_value);
-extern lwm2m_object_t *get_object_firmware(object_firmware *default_value);
-extern lwm2m_object_t *get_object_location(object_location *default_value);
-extern lwm2m_object_t *get_object_conn_m(object_conn_monitoring *default_value);
+extern lwm2m_object_t *get_object_device(object_device_t *default_value);
+extern lwm2m_object_t *get_object_firmware(object_firmware_t *default_value);
+extern lwm2m_object_t *get_object_location(object_location_t *default_value);
+extern lwm2m_object_t *get_object_conn_m(object_conn_monitoring_t *default_value);
 extern lwm2m_object_t *get_object_conn_s(void);
 extern void clean_security_object(lwm2m_object_t *object);
 extern void clean_server_object(lwm2m_object_t *object);
@@ -354,7 +354,7 @@ static void *rx_thread_func(void *param)
     return NULL;
 }
 
-client_handle_t lwm2m_client_start(object_container *init_val)
+client_handle_t lwm2m_client_start(object_container_t *init_val)
 {
     int result;
     int i;
@@ -698,7 +698,7 @@ void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callba
     }
 }
 
-void lwm2m_change_object(client_handle_t handle, const char *uri, uint8_t *buffer, int length)
+void lwm2m_change_resource(client_handle_t handle, const char *uri, uint8_t *buffer, int length)
 {
     int ret;
     client_data_t *client =  (client_data_t *)handle;
@@ -706,7 +706,7 @@ void lwm2m_change_object(client_handle_t handle, const char *uri, uint8_t *buffe
 
     if (!uri)
     {
-        fprintf(stderr, "lwm2m_change_object: wrong parameters\r\n");
+        fprintf(stderr, "lwm2m_change_resource: wrong parameters\r\n");
         return;
     }
 
@@ -760,12 +760,12 @@ void lwm2m_change_object(client_handle_t handle, const char *uri, uint8_t *buffe
 
             if (result != COAP_204_CHANGED)
             {
-                fprintf(stderr, "lwm2m_change_object: failed (%d)\r\n", result);
+                fprintf(stderr, "lwm2m_change_resource: failed (%d)\r\n", result);
             }
         }
         else
         {
-            fprintf(stderr, "lwm2m_change_object: object not found\r\n");
+            fprintf(stderr, "lwm2m_change_resource: object not found\r\n");
         }
     }
 

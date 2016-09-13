@@ -73,7 +73,7 @@ static void prv_notify_resource_changed(firmware_data_t *client, char *uri, lwm2
 {
     if (client && client->notify_callback)
     {
-        lwm2m_res_changed_params params;
+        lwm2m_resource_t params;
 
         strncpy(params.uri, uri, LWM2M_MAX_URI_LEN);
         params.buffer = data->value.asBuffer.buffer;
@@ -265,7 +265,7 @@ void display_firmware_object(lwm2m_object_t * object)
 #endif
 }
 
-lwm2m_object_t * get_object_firmware(object_firmware * default_value)
+lwm2m_object_t * get_object_firmware(object_firmware_t *default_value)
 {
     /*
      * The get_object_firmware function create the object itself and return a pointer to the structure that represent it.

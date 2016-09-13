@@ -10,7 +10,7 @@
 extern void cmdline_init(client_handle_t handle);
 extern int cmdline_process(int timeout);
 
-static object_security_server akc_server = {
+static object_security_server_t akc_server = {
     "coaps+tcp://coap-dev.artik.cloud:5689", /* serverUri */
     "24936ceccdb24a54a58a341ee7c5d1a3",      /* pskId : DEVICE ID */
     "2f1a098e131b4d4c9aaaaf38bb06df87",      /* psk : DEVICE TOKEN */
@@ -20,7 +20,7 @@ static object_security_server akc_server = {
     123                                      /* serverId */
 };
 
-static object_device default_device = {
+static object_device_t default_device = {
     "SAMSUNG",                /* PRV_MANUFACTURER */
     "Lightweight M2M Client", /* PRV_MODEL_NUMBER */
     "345000123",              /* PRV_SERIAL_NUMBER */
@@ -44,13 +44,13 @@ static object_device default_device = {
     128                       /* PRV_MEMORY_TOTAL */
 };
 
-static object_firmware default_firmware ={
+static object_firmware_t default_firmware ={
     false,         /* SUPPORTED */
     "PKG Name",    /* PKG_NAME */
     "PKG Version", /* PKG_VERSION */
 };
 
-static object_conn_monitoring default_monitoring = {
+static object_conn_monitoring_t default_monitoring = {
     0,                            /* VALUE_NETWORK_BEARER_GSM */
     0,                            /* VALUE_AVL_NETWORK_BEARER_1 */
     80,                           /* VALUE_RADIO_SIGNAL_STRENGTH */
@@ -66,7 +66,7 @@ static object_conn_monitoring default_monitoring = {
     44                            /* VALUE_SMCC */
 };
 
-static object_location default_location ={
+static object_location_t default_location ={
     "27.986065", /* Latitude */
     "86.922623", /* Longitude */
     "8495.0000", /* Altitude */
@@ -104,7 +104,7 @@ static void on_factory_reset(void *param, void *extra)
 static void on_res_changed_uri(void *param, void *extra)
 {
     client_handle_t client = (client_handle_t)param;
-    lwm2m_res_changed_params *params = (lwm2m_res_changed_params*)extra;
+    lwm2m_resource_t *params = (lwm2m_resource_t*)extra;
 
     fprintf(stdout, "Resource Changed: %s\r\n", params->uri);
 
@@ -114,7 +114,7 @@ static void on_res_changed_uri(void *param, void *extra)
         char *filename;
 
         /* Change state */
-        lwm2m_change_object(client, LWM2M_URI_FIRMWARE_STATE, (uint8_t *)state, strlen(state));
+        lwm2m_change_resource(client, LWM2M_URI_FIRMWARE_STATE, (uint8_t *)state, strlen(state));
 
         /*
          * Download the package and update status at each step
@@ -127,7 +127,7 @@ static void on_res_changed_uri(void *param, void *extra)
 
 int main(int argc, char *argv[])
 {
-    object_container init_val_ob;
+    object_container_t init_val_ob;
     client_handle_t client = NULL;
 
     if (argc > 1)

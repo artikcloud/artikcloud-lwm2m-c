@@ -68,17 +68,18 @@ typedef struct
     int signalStrength;
     int linkQuality;
     int linkUtilization;
+    object_conn_monitoring_t *obj;
 } conn_m_data_t;
-
-static object_conn_monitoring * object_value;
 
 static uint8_t prv_set_value(lwm2m_data_t * dataP,
                              conn_m_data_t * connDataP)
 {
+    object_conn_monitoring_t *obj = connDataP->obj;
+
     switch (dataP->id)
     {
     case RES_M_NETWORK_BEARER:
-        lwm2m_data_encode_int(object_value->network_bearer, dataP);
+        lwm2m_data_encode_int(obj->network_bearer, dataP);
         return COAP_205_CONTENT;
 
     case RES_M_AVL_NETWORK_BEARER:
@@ -87,7 +88,7 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         lwm2m_data_t * subTlvP;
         subTlvP = lwm2m_data_new(riCnt);
         subTlvP[0].id    = 0;
-        lwm2m_data_encode_int(object_value->avl_network_bearer, subTlvP);
+        lwm2m_data_encode_int(obj->avl_network_bearer, subTlvP);
         lwm2m_data_encode_instances(subTlvP, riCnt, dataP);
         return COAP_205_CONTENT ;
     }
@@ -138,7 +139,7 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         lwm2m_data_t * subTlvP;
         subTlvP = lwm2m_data_new(riCnt);
         subTlvP[0].id     = 0;
-        lwm2m_data_encode_string(object_value->apn, subTlvP);
+        lwm2m_data_encode_string(obj->apn, subTlvP);
         lwm2m_data_encode_instances(subTlvP, riCnt, dataP);
         return COAP_205_CONTENT;
     }
@@ -149,11 +150,11 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         return COAP_205_CONTENT ;
 
     case RES_O_SMNC:
-        lwm2m_data_encode_int(object_value->smnc, dataP);
+        lwm2m_data_encode_int(obj->smnc, dataP);
         return COAP_205_CONTENT ;
 
     case RES_O_SMCC:
-        lwm2m_data_encode_int(object_value->smcc, dataP);
+        lwm2m_data_encode_int(obj->smcc, dataP);
         return COAP_205_CONTENT ;
 
     default:
@@ -213,13 +214,12 @@ static uint8_t prv_read(uint16_t instanceId,
     return result;
 }
 
-lwm2m_object_t * get_object_conn_m(object_conn_monitoring *default_value)
+lwm2m_object_t * get_object_conn_m(object_conn_monitoring_t *default_value)
 {
     /*
      * The get_object_conn_m() function create the object itself and return a pointer to the structure that represent it.
      */
     lwm2m_object_t * connObj;
-	object_value = default_value;
 
     connObj = (lwm2m_object_t *) lwm2m_malloc(sizeof(lwm2m_object_t));
 
@@ -261,15 +261,16 @@ lwm2m_object_t * get_object_conn_m(object_conn_monitoring *default_value)
          */
         if (NULL != connObj->userData)
         {
-            conn_m_data_t *myData = (conn_m_data_t*) connObj->userData;
-            myData->cellId          = object_value->cell_id;
-            myData->signalStrength  = object_value->radio_signal_strength;
-            myData->linkQuality     = object_value->link_quality;
-            myData->linkUtilization = object_value->link_utilization;
-            strcpy(myData->ipAddresses[0],       object_value->ip_addr);
-            strcpy(myData->ipAddresses[1],       object_value->ip_addr2);
-            strcpy(myData->routerIpAddresses[0], object_value->router_ip_addr);
-            strcpy(myData->routerIpAddresses[1], object_value->router_ip_addr2);
+            conn_m_data_t *conn_data = (conn_m_data_t*) connObj->userData;
+            conn_data->obj = default_value;
+            conn_data->cellId = default_value->cell_id;
+            conn_data->signalStrength = default_value->radio_signal_strength;
+            conn_data->linkQuality = default_value->link_quality;
+            conn_data->linkUtilization = default_value->link_utilization;
+            strncpy(conn_data->ipAddresses[0], default_value->ip_addr, IPV46_MAX_ADDR_LEN);
+            strncpy(conn_data->ipAddresses[1], default_value->ip_addr2, IPV46_MAX_ADDR_LEN);
+            strncpy(conn_data->routerIpAddresses[0], default_value->router_ip_addr, IPV46_MAX_ADDR_LEN);
+            strncpy(conn_data->routerIpAddresses[1], default_value->router_ip_addr2, IPV46_MAX_ADDR_LEN);
         }
         else
         {
@@ -292,9 +293,7 @@ uint8_t connectivity_moni_change(lwm2m_data_t * dataArray,
 {
     int64_t value;
     uint8_t result;
-    conn_m_data_t * data;
-
-    data = (conn_m_data_t*) (objectP->userData);
+    conn_m_data_t *data = (conn_m_data_t*)objectP->userData;
 
     switch (dataArray->id)
     {

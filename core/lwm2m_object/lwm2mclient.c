@@ -138,12 +138,12 @@ extern bool acc_ctrl_obj_add_inst(lwm2m_object_t *accCtrlObjP, uint16_t instId, 
         uint16_t acOwner);
 extern bool acc_ctrl_oi_add_ac_val(lwm2m_object_t *accCtrlObjP, uint16_t instId, uint16_t aclResId, uint16_t acValue);
 extern void conn_s_updateRxStatistic(lwm2m_object_t * objectP, uint16_t rxDataByte, bool smsBased);
-extern void prv_firmware_register_update_callback(lwm2m_object_t * objectP, lwm2m_exe_callback callback, void *param);
-extern void prv_firmware_unregister_update_callback(lwm2m_object_t * objectP);
+extern void prv_firmware_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type,
+        lwm2m_exe_callback callback, void *param);
 extern void prv_device_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type,
         lwm2m_exe_callback callback, void *param);
-extern void prv_device_unregister_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type);
 extern uint8_t device_change_object(lwm2m_data_t * dataArray, lwm2m_object_t * object);
+extern uint8_t firmware_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object);
 
 void * lwm2m_connect_server(uint16_t secObjInstID, void * userData)
 {
@@ -648,7 +648,8 @@ void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback
     switch(type)
     {
     case LWM2M_EXE_FIRMWARE_UPDATE:
-        prv_firmware_register_update_callback(data->objArray[LWM2M_OBJ_FIRMWARE],
+    case LWM2M_WR_FIRMWARE_PKG_URI:
+        prv_firmware_register_callback(data->objArray[LWM2M_OBJ_FIRMWARE], type,
                 callback, param);
         break;
     case LWM2M_EXE_FACTORY_RESET:
@@ -675,11 +676,11 @@ void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callba
     switch(type)
     {
     case LWM2M_EXE_FIRMWARE_UPDATE:
-        prv_firmware_unregister_update_callback(data->objArray[LWM2M_OBJ_FIRMWARE]);
+        prv_firmware_register_callback(data->objArray[LWM2M_OBJ_FIRMWARE], type, NULL, NULL);
         break;
     case LWM2M_EXE_FACTORY_RESET:
     case LWM2M_EXE_DEVICE_REBOOT:
-        prv_device_unregister_callback(data->objArray[LWM2M_OBJ_DEVICE], type);
+        prv_device_register_callback(data->objArray[LWM2M_OBJ_DEVICE], type, NULL, NULL);
         break;
     default:
         fprintf(stderr, "lwm2m_register_callback: unsupported callback\r\n");
@@ -734,6 +735,9 @@ void lwm2m_change_object(client_handle_t handle, const char *uri, uint8_t *buffe
                     case LWM2M_DEVICE_OBJECT_ID:
                         result = device_change_object(&data, object);
                         break;
+                    case LWM2M_FIRMWARE_UPDATE_OBJECT_ID:
+                    	result = firmware_change_object(&data, object);
+                    	break;
                     default:
                         break;
                     }

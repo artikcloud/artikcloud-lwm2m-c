@@ -40,9 +40,7 @@ typedef struct {
  * Firmware update object
  */
 typedef struct {
-    uint8_t state;                       /*STATE*/
     bool supported;                      /*SUPPORTED*/
-    uint8_t result;                      /*RESULT*/
     char pkg_name[LWM2M_MAX_STR_LEN];    /*PKG_NAME*/
     char pkg_version[LWM2M_MAX_STR_LEN]; /*PKG_VERSION*/
 }object_firmware;
@@ -112,18 +110,80 @@ enum lwm2m_object_type {
     LWM2M_OBJ_COUNT
 };
 
-typedef void (*lwm2m_exe_callback)(void*);
+typedef void (*lwm2m_exe_callback)(void*, void*);
 
 enum lwm2m_execute_callback_type {
     LWM2M_EXE_FACTORY_RESET = 0,
     LWM2M_EXE_DEVICE_REBOOT,
     LWM2M_EXE_FIRMWARE_UPDATE,
+    LWM2M_WR_FIRMWARE_PKG_URI,
     LWM2M_EXE_COUNT
 };
 
 #define LWM2M_CLIENT_OK     ( 0)
 #define LWM2M_CLIENT_ERROR  (-1)
 #define LWM2M_CLIENT_QUIT   (-2)
+
+/*
+ * Object: Device
+ */
+#define LWM2M_URI_DEVICE                 "/3/0"
+#define LWM2M_URI_DEVICE_MANUFACTURER    LWM2M_URI_DEVICE"/0"
+#define LWM2M_URI_DEVICE_MODEL_NUM       LWM2M_URI_DEVICE"/1"
+#define LWM2M_URI_DEVICE_SERIAL_NUM      LWM2M_URI_DEVICE"/2"
+#define LWM2M_URI_DEVICE_FW_VERSION      LWM2M_URI_DEVICE"/3"
+#define LWM2M_URI_DEVICE_REBOOT          LWM2M_URI_DEVICE"/4"
+#define LWM2M_URI_DEVICE_FACTORY_RESET   LWM2M_URI_DEVICE"/5"
+#define LWM2M_URI_DEVICE_POWER_SOURCES   LWM2M_URI_DEVICE"/6"
+#define LWM2M_URI_DEVICE_POWER_VOLTAGE   LWM2M_URI_DEVICE"/7"
+#define LWM2M_URI_DEVICE_POWER_CURRENT   LWM2M_URI_DEVICE"/8"
+#define LWM2M_URI_DEVICE_BATT_LEVEL      LWM2M_URI_DEVICE"/9"
+#define LWM2M_URI_DEVICE_MEMORY_FREE     LWM2M_URI_DEVICE"/10"
+#define LWM2M_URI_DEVICE_ERROR_CODE      LWM2M_URI_DEVICE"/11"
+#define LWM2M_URI_DEVICE_RESET_ERR_CODE  LWM2M_URI_DEVICE"/12"
+#define LWM2M_URI_DEVICE_CURRENT_TIME    LWM2M_URI_DEVICE"/13"
+#define LWM2M_URI_DEVICE_UTC_OFFSET      LWM2M_URI_DEVICE"/14"
+#define LWM2M_URI_DEVICE_TIMEZONE        LWM2M_URI_DEVICE"/15"
+#define LWM2M_URI_DEVICE_SUPP_BIND_MODES LWM2M_URI_DEVICE"/16"
+#define LWM2M_URI_DEVICE_DEVICE_TYPE     LWM2M_URI_DEVICE"/16"
+#define LWM2M_URI_DEVICE_HW_VERSION      LWM2M_URI_DEVICE"/18"
+#define LWM2M_URI_DEVICE_SW_VERSION      LWM2M_URI_DEVICE"/19"
+#define LWM2M_URI_DEVICE_BATT_STATUS     LWM2M_URI_DEVICE"/20"
+#define LWM2M_URI_DEVICE_MEMORY_TOTAL    LWM2M_URI_DEVICE"/21"
+
+/*
+ * Object: Firmware
+ */
+#define LWM2M_URI_FIRMWARE               "/5/0"
+#define LWM2M_URI_FIRMWARE_PACKAGE       LWM2M_URI_FIRMWARE"/0"
+#define LWM2M_URI_FIRMWARE_PACKAGE_URI   LWM2M_URI_FIRMWARE"/1"
+#define LWM2M_URI_FIRMWARE_UPDATE        LWM2M_URI_FIRMWARE"/2"
+#define LWM2M_URI_FIRMWARE_STATE         LWM2M_URI_FIRMWARE"/3"
+#define LWM2M_URI_FIRMWARE_UPD_SUPP_OBJ  LWM2M_URI_FIRMWARE"/4"
+#define LWM2M_URI_FIRMWARE_UPDATE_RES    LWM2M_URI_FIRMWARE"/5"
+#define LWM2M_URI_FIRMWARE_PKG_NAME      LWM2M_URI_FIRMWARE"/6"
+#define LWM2M_URI_FIRMWARE_PKG_URI       LWM2M_URI_FIRMWARE"/7"
+
+/*
+ * Object: Firmware
+ * Resource: State
+ */
+#define LWM2M_FIRMWARE_STATE_IDLE        "1"
+#define LWM2M_FIRMWARE_STATE_DOWNLOADING "2"
+#define LWM2M_FIRMWARE_STATE_DOWNLOADED  "3"
+
+/*
+ * Object: Firmware
+ * Resource: Update Result
+ */
+#define LWM2M_FIRMWARE_UPD_RES_DEFAULT   "0"
+#define LWM2M_FIRMWARE_UPD_RES_SUCCESS   "1"
+#define LWM2M_FIRMWARE_UPD_RES_SPACE_ERR "2"
+#define LWM2M_FIRMWARE_UPD_RES_OOM       "3"
+#define LWM2M_FIRMWARE_UPD_RES_CONNE_ERR "4"
+#define LWM2M_FIRMWARE_UPD_RES_CRC_ERR   "5"
+#define LWM2M_FIRMWARE_UPD_RES_PKG_ERR   "6"
+#define LWM2M_FIRMWARE_UPD_RES_URI_ERR   "7"
 
 int lwm2m_client_service(client_handle_t handle);
 void lwm2m_client_stop(client_handle_t handle);

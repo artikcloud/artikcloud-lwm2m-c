@@ -53,6 +53,8 @@
 #define RES_O_PKG_NAME                  6
 #define RES_O_PKG_VERSION               7
 
+#define LWM2M_FIRMWARE_PKG_URI_LEN      256
+
 typedef struct
 {
     uint8_t state;
@@ -60,8 +62,11 @@ typedef struct
     uint8_t result;
     char pkg_name[LWM2M_MAX_STR_LEN];
     char pkg_version[LWM2M_MAX_STR_LEN];
+    char pkg_uri[LWM2M_FIRMWARE_PKG_URI_LEN];
     lwm2m_exe_callback update_callback;
     void *update_callback_param;
+    lwm2m_exe_callback package_uri_callback;
+    void *package_uri_callback_param;
 } firmware_data_t;
 
 static uint8_t prv_firmware_read(uint16_t instanceId,
@@ -146,7 +151,7 @@ static uint8_t prv_firmware_write(uint16_t instanceId,
 {
     int i;
     uint8_t result;
-    firmware_data_t * data = (firmware_data_t*)(objectP->userData);
+    firmware_data_t *data = (firmware_data_t*)(objectP->userData);
 
     // this is a single instance object
     if (instanceId != 0)
@@ -166,7 +171,9 @@ static uint8_t prv_firmware_write(uint16_t instanceId,
             break;
 
         case RES_M_PACKAGE_URI:
-            // URL for download the firmware
+            strncpy(data->pkg_uri, (char*)dataArray[i].value.asBuffer.buffer, LWM2M_FIRMWARE_PKG_URI_LEN);
+            if (data->package_uri_callback)
+                data->package_uri_callback(data->package_uri_callback_param, data->pkg_uri);
             result = COAP_204_CHANGED;
             break;
 
@@ -211,14 +218,13 @@ static uint8_t prv_firmware_execute(uint16_t instanceId,
     switch (resourceId)
     {
     case RES_M_UPDATE:
-        if (data->state == 1)
+        if (data->state == 3)
         {
 #ifdef WITH_LOGS
             fprintf(stdout, "\n\t Firmware Update\r\n\n");
 #endif
             if (data->update_callback)
-                data->update_callback(data->update_callback_param);
-            data->state = 2;
+                data->update_callback(data->update_callback_param, NULL);
             return COAP_204_CHANGED;
         }
         else
@@ -294,9 +300,9 @@ lwm2m_object_t * get_object_firmware(object_firmware * default_value)
          */
         if (NULL != firmwareObj->userData)
         {
-            ((firmware_data_t*)firmwareObj->userData)->state = default_value->state;
+            ((firmware_data_t*)firmwareObj->userData)->state = 1;
             ((firmware_data_t*)firmwareObj->userData)->supported = default_value->supported;
-            ((firmware_data_t*)firmwareObj->userData)->result = default_value->result;
+            ((firmware_data_t*)firmwareObj->userData)->result = 0;
             strncpy(((firmware_data_t*)firmwareObj->userData)->pkg_name, default_value->pkg_name, LWM2M_MAX_STR_LEN);
             strncpy(((firmware_data_t*)firmwareObj->userData)->pkg_version, default_value->pkg_version, LWM2M_MAX_STR_LEN);
         }
@@ -325,18 +331,81 @@ void free_object_firmware(lwm2m_object_t * objectP)
     lwm2m_free(objectP);
 }
 
-void prv_firmware_register_update_callback(lwm2m_object_t * objectP, lwm2m_exe_callback callback, void *param)
+uint8_t firmware_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
+{
+    uint8_t result;
+
+    switch (dataArray->id)
+    {
+        case RES_M_STATE:
+        {
+            int64_t value;
+            if (1 == lwm2m_data_decode_int(dataArray, &value))
+            {
+                if ((1 <= value) && (3 >= value))
+                {
+                    ((firmware_data_t*)(object->userData))->state = (uint8_t)value;
+                    result = COAP_204_CHANGED;
+                }
+                else
+                {
+                    result = COAP_400_BAD_REQUEST;
+                }
+            }
+            else
+            {
+                result = COAP_400_BAD_REQUEST;
+            }
+        }
+        break;
+
+        case RES_M_UPDATE_RESULT:
+        {
+            int64_t value;
+            if (1 == lwm2m_data_decode_int(dataArray, &value))
+            {
+                if ((0 <= value) && (7 >= value))
+                {
+                    ((firmware_data_t*)(object->userData))->result = (uint8_t)value;
+                    result = COAP_204_CHANGED;
+                }
+                else
+                {
+                    result = COAP_400_BAD_REQUEST;
+                }
+            }
+            else
+            {
+                result = COAP_400_BAD_REQUEST;
+            }
+        }
+        break;
+
+        default:
+            result = COAP_405_METHOD_NOT_ALLOWED;
+            break;
+    }
+
+    return result;
+}
+
+void prv_firmware_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type,
+        lwm2m_exe_callback callback, void *param)
 {
     firmware_data_t * data = (firmware_data_t*)(objectP->userData);
 
-    data->update_callback = callback;
-    data->update_callback_param = param;
+    switch(type)
+    {
+    case LWM2M_EXE_FIRMWARE_UPDATE:
+        data->update_callback = callback;
+        data->update_callback_param = param;
+        break;
+    case LWM2M_WR_FIRMWARE_PKG_URI:
+        data->package_uri_callback = callback;
+        data->package_uri_callback_param = param;
+        break;
+    default:
+        break;
+    }
 }
 
-void prv_firmware_unregister_update_callback(lwm2m_object_t * objectP)
-{
-    firmware_data_t * data = (firmware_data_t*)(objectP->userData);
-
-    data->update_callback = NULL;
-    data->update_callback_param = NULL;
-}

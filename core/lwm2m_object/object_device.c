@@ -515,13 +515,13 @@ static uint8_t prv_device_execute(uint16_t instanceId,
     case RES_M_REBOOT:
         fprintf(stdout, "\n\t REBOOT\r\n\n");
         if (data->reboot_callback)
-            data->reboot_callback(data->reboot_callback_param);
+            data->reboot_callback(data->reboot_callback_param, NULL);
         return COAP_204_CHANGED;
 
     case RES_O_FACTORY_RESET:
         fprintf(stdout, "\n\t FACTORY RESET\r\n\n");
         if (data->factory_callback)
-            data->factory_callback(data->factory_callback_param);
+            data->factory_callback(data->factory_callback_param, NULL);
         return COAP_204_CHANGED;
 
     case RES_O_RESET_ERROR_CODE:
@@ -721,25 +721,6 @@ void prv_device_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute_c
     case LWM2M_EXE_DEVICE_REBOOT:
         data->reboot_callback = callback;
         data->reboot_callback_param = param;
-        break;
-    default:
-        break;
-    }
-}
-
-void prv_device_unregister_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type)
-{
-    device_data_t * data = (device_data_t*)objectP->userData;
-
-    switch(type)
-    {
-    case LWM2M_EXE_FACTORY_RESET:
-        data->factory_callback = NULL;
-        data->factory_callback_param = NULL;
-        break;
-    case LWM2M_EXE_DEVICE_REBOOT:
-        data->reboot_callback = NULL;
-        data->reboot_callback_param = NULL;
         break;
     default:
         break;

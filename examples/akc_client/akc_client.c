@@ -45,9 +45,7 @@ static object_device default_device = {
 };
 
 static object_firmware default_firmware ={
-    1,             /* STATE */
     false,         /* SUPPORTED */
-    0,             /* RESULT */
     "PKG Name",    /* PKG_NAME */
     "PKG Version", /* PKG_VERSION */
 };
@@ -88,19 +86,34 @@ void handle_sigint(int signum)
     quit = true;
 }
 
-static void on_reboot(void *param)
+static void on_reboot(void *param, void *extra)
 {
     fprintf(stdout, "REBOOT\r\n");
 }
 
-static void on_firmware_update(void *param)
+static void on_firmware_update(void *param, void *extra)
 {
     fprintf(stdout, "FIRMWARE UPDATE\r\n");
 }
 
-static void on_factory_reset(void *param)
+static void on_factory_reset(void *param, void *extra)
 {
     fprintf(stdout, "FACTORY RESET\r\n");
+}
+
+static void on_package_uri(void *param, void *extra)
+{
+    client_handle_t client = (client_handle_t)param;
+    char state[] = LWM2M_FIRMWARE_STATE_DOWNLOADING;
+
+    fprintf(stdout, "PACKAGE URI: %s\r\n", (char*)extra);
+
+    /* Change state */
+    lwm2m_change_object(client, LWM2M_URI_FIRMWARE_STATE, (uint8_t *)state, strlen(state));
+
+    /*
+     * Download the package and update status at each step
+     */
 }
 
 int main(int argc, char *argv[])
@@ -152,9 +165,10 @@ int main(int argc, char *argv[])
 
     cmdline_init(client);
 
-    lwm2m_register_callback(client, LWM2M_EXE_FACTORY_RESET, on_factory_reset, NULL);
-    lwm2m_register_callback(client, LWM2M_EXE_DEVICE_REBOOT, on_reboot, NULL);
-    lwm2m_register_callback(client, LWM2M_EXE_FIRMWARE_UPDATE, on_firmware_update, NULL);
+    lwm2m_register_callback(client, LWM2M_EXE_FACTORY_RESET, on_factory_reset, (void*)client);
+    lwm2m_register_callback(client, LWM2M_EXE_DEVICE_REBOOT, on_reboot, (void*)client);
+    lwm2m_register_callback(client, LWM2M_EXE_FIRMWARE_UPDATE, on_firmware_update, (void*)client);
+    lwm2m_register_callback(client, LWM2M_WR_FIRMWARE_PKG_URI, on_package_uri, (void*)client);
 
     while (!quit)
     {

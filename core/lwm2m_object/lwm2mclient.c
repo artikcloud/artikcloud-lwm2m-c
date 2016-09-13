@@ -144,6 +144,7 @@ extern void prv_device_register_callback(lwm2m_object_t * objectP, enum lwm2m_ex
         lwm2m_exe_callback callback, void *param);
 extern uint8_t device_change_object(lwm2m_data_t * dataArray, lwm2m_object_t * object);
 extern uint8_t firmware_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object);
+extern uint8_t location_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object);
 
 void * lwm2m_connect_server(uint16_t secObjInstID, void * userData)
 {
@@ -715,42 +716,42 @@ void lwm2m_change_object(client_handle_t handle, const char *uri, uint8_t *buffe
 
         if (object)
         {
+            int result = COAP_405_METHOD_NOT_ALLOWED;
+            lwm2m_data_t data;
+
+            data.id = uri_t.resourceId;
+            lwm2m_data_encode_nstring((const char*)buffer, length, &data);
+
             if (object->writeFunc)
             {
-                lwm2m_data_t data;
-                int result;
-
-                data.id = uri_t.resourceId;
-                lwm2m_data_encode_nstring((const char*)buffer, length, &data);
                 result = object->writeFunc(uri_t.instanceId, 1, &data, object);
+            }
 
-                /*
-                 * If property is not writable, we can still try to change it
-                 * locally for objects that support it
-                 */
-                if (result == COAP_405_METHOD_NOT_ALLOWED)
+            /*
+             * If property is not writable, we can still try to change it
+             * locally for objects that support it
+             */
+            if (result == COAP_405_METHOD_NOT_ALLOWED)
+            {
+                switch(uri_t.objectId)
                 {
-                    switch(uri_t.objectId)
-                    {
-                    case LWM2M_DEVICE_OBJECT_ID:
-                        result = device_change_object(&data, object);
-                        break;
-                    case LWM2M_FIRMWARE_UPDATE_OBJECT_ID:
-                    	result = firmware_change_object(&data, object);
-                    	break;
-                    default:
-                        break;
-                    }
-                }
-
-                if (result != COAP_204_CHANGED)
-                {
-                    fprintf(stderr, "lwm2m_change_object: failed (%d)\r\n", result);
+                case LWM2M_DEVICE_OBJECT_ID:
+                    result = device_change_object(&data, object);
+                    break;
+                case LWM2M_FIRMWARE_UPDATE_OBJECT_ID:
+                    result = firmware_change_object(&data, object);
+                    break;
+                case LWM2M_LOCATION_OBJECT_ID:
+                    result = location_change_object(&data, object);
+                    break;
+                default:
+                    break;
                 }
             }
-            else
+
+            if (result != COAP_204_CHANGED)
             {
-                fprintf(stderr, "lwm2m_change_object: object is not writable\r\n");
+                fprintf(stderr, "lwm2m_change_object: failed (%d)\r\n", result);
             }
         }
         else

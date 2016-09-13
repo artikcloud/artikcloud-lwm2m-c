@@ -49,9 +49,6 @@
 #include <string.h>
 #include <time.h>
 
-#ifdef LWM2M_CLIENT_MODE
-
-
 // ---- private "object location" specific defines ----
 // Resource Id's:
 #define RES_M_LATITUDE     0
@@ -66,16 +63,17 @@
 #define HORIZONTAL_VELOCITY_VERTICAL         1  // set vertical direction bit!
 #define HORIZONTAL_VELOCITY_WITH_UNCERTAINTY 2
 
-#define VELOCITY_OCTETS                      5  // for HORITZOL_VELOCITY_WITH_UNCERTAINTY 
+#define VELOCITY_BYTES                       5  // for HORITZOL_VELOCITY_WITH_UNCERTAINTY
 #define DEG_DECIMAL_PLACES                   6  // configuration: degree decimals implementation
+#define LOCATION_STR_MAX_LEN                 (5 + DEG_DECIMAL_PLACES)
 
 typedef struct
 {
-    char     latitude   [5 + DEG_DECIMAL_PLACES]; //"359.12345" frag=5, 9+1=10! degrees +\0
-    char     longitude  [5 + DEG_DECIMAL_PLACES];
-    char     altitude   [5 + DEG_DECIMAL_PLACES];
-    char     uncertainty[5 + DEG_DECIMAL_PLACES];
-    uint8_t  velocity   [VELOCITY_OCTETS];        //3GPP notation 1st step: HORITZOL_VELOCITY_WITH_UNCERTAINTY
+    char     latitude   [LOCATION_STR_MAX_LEN];
+    char     longitude  [LOCATION_STR_MAX_LEN];
+    char     altitude   [LOCATION_STR_MAX_LEN];
+    char     uncertainty[LOCATION_STR_MAX_LEN];
+    uint8_t  velocity   [VELOCITY_BYTES];        //3GPP notation 1st step: HORITZOL_VELOCITY_WITH_UNCERTAINTY
     unsigned long timestamp;
 } location_data_t;
 
@@ -305,4 +303,77 @@ void free_object_location(lwm2m_object_t * object)
     lwm2m_free(object);
 }
 
-#endif  //LWM2M_CLIENT_MODE
+uint8_t location_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
+{
+    uint8_t result;
+    location_data_t* data = (location_data_t*)object->userData;
+
+    switch (dataArray->id)
+    {
+        case RES_M_LATITUDE:
+        {
+            strncpy(data->latitude, (char*)dataArray->value.asBuffer.buffer,
+                    LOCATION_STR_MAX_LEN);
+            result = COAP_204_CHANGED;
+        }
+        break;
+
+        case RES_M_LONGITUDE:
+        {
+            strncpy(data->longitude, (char*)dataArray->value.asBuffer.buffer,
+                    LOCATION_STR_MAX_LEN);
+            result = COAP_204_CHANGED;
+        }
+        break;
+
+        case RES_O_ALTITUDE:
+        {
+            strncpy(data->altitude, (char*)dataArray->value.asBuffer.buffer,
+                    LOCATION_STR_MAX_LEN);
+            result = COAP_204_CHANGED;
+        }
+        break;
+
+        case RES_O_UNCERTAINTY:
+        {
+            strncpy(data->uncertainty, (char*)dataArray->value.asBuffer.buffer,
+                    LOCATION_STR_MAX_LEN);
+            result = COAP_204_CHANGED;
+        }
+        break;
+
+        case RES_O_VELOCITY:
+        {
+            if (dataArray->value.asBuffer.length != VELOCITY_BYTES)
+            {
+                result = COAP_400_BAD_REQUEST;
+                break;
+            }
+
+            memcpy(data->velocity, dataArray->value.asBuffer.buffer, VELOCITY_BYTES);
+            result = COAP_204_CHANGED;
+        }
+        break;
+
+        case RES_M_TIMESTAMP:
+        {
+            int64_t value;
+            if (1 == lwm2m_data_decode_int(dataArray, &value))
+            {
+                data->timestamp = (unsigned long)value;
+                result = COAP_204_CHANGED;
+            }
+            else
+            {
+                result = COAP_400_BAD_REQUEST;
+            }
+        }
+        break;
+
+        default:
+            result = COAP_405_METHOD_NOT_ALLOWED;
+            break;
+    }
+
+    return result;
+}

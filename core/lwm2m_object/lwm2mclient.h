@@ -185,6 +185,17 @@ enum lwm2m_execute_callback_type {
 #define LWM2M_FIRMWARE_UPD_RES_PKG_ERR   "6"
 #define LWM2M_FIRMWARE_UPD_RES_URI_ERR   "7"
 
+/*
+ * Object: Location
+ */
+#define LWM2M_URI_LOCATION               "/6/0"
+#define LWM2M_URI_LOCATION_LATITUDE      LWM2M_URI_LOCATION"/0"
+#define LWM2M_URI_LOCATION_LONGITUDE     LWM2M_URI_LOCATION"/1"
+#define LWM2M_URI_LOCATION_ALTITUDE      LWM2M_URI_LOCATION"/2"
+#define LWM2M_URI_LOCATION_UNCERTAINTY   LWM2M_URI_LOCATION"/3"
+#define LWM2M_URI_LOCATION_VELOCITY      LWM2M_URI_LOCATION"/4"
+#define LWM2M_URI_LOCATION_TIMESTAMP     LWM2M_URI_LOCATION"/5"
+
 int lwm2m_client_service(client_handle_t handle);
 void lwm2m_client_stop(client_handle_t handle);
 client_handle_t lwm2m_client_start(object_container *init_val);

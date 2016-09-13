@@ -102,9 +102,11 @@ typedef struct
     char time_offset[PRV_OFFSET_MAXLEN];
     object_device *obj;
     lwm2m_exe_callback reboot_callback;
+    lwm2m_exe_callback notify_callback;
     lwm2m_exe_callback factory_callback;
     void *reboot_callback_param;
     void *factory_callback_param;
+    void *notify_callback_param;
 } device_data_t;
 
 // basic check that the time offset value is at ISO 8601 format
@@ -146,6 +148,20 @@ static int prv_check_time_offset(char * buffer,
     if (buffer[min_index+1] < '0' || buffer[min_index+1] > '9') return 0;
 
     return 1;
+}
+
+static void prv_notify_resource_changed(device_data_t *client, char *uri, lwm2m_data_t *data)
+{
+    if (client && client->notify_callback)
+    {
+        lwm2m_res_changed_params params;
+
+        strncpy(params.uri, uri, LWM2M_MAX_URI_LEN);
+        params.buffer = data->value.asBuffer.buffer;
+        params.length = data->value.asBuffer.length;
+
+        client->notify_callback(client->notify_callback_param, (void*)&params);
+    }
 }
 
 static uint8_t prv_set_value(lwm2m_data_t * dataP,
@@ -441,6 +457,7 @@ static uint8_t prv_device_write(uint16_t instanceId,
 {
     int i;
     uint8_t result;
+    device_data_t *data = (device_data_t*)objectP->userData;
 
     // this is a single instance object
     if (instanceId != 0)
@@ -455,10 +472,11 @@ static uint8_t prv_device_write(uint16_t instanceId,
         switch (dataArray[i].id)
         {
         case RES_O_CURRENT_TIME:
-            if (1 == lwm2m_data_decode_int(dataArray + i, &((device_data_t*)(objectP->userData))->time))
+            if (1 == lwm2m_data_decode_int(dataArray + i, &(data->time)))
             {
-                ((device_data_t*)(objectP->userData))->time -= time(NULL);
+                data->time -= time(NULL);
                 result = COAP_204_CHANGED;
+                prv_notify_resource_changed(data, LWM2M_URI_DEVICE_CURRENT_TIME, &dataArray[i]);
             }
             else
             {
@@ -469,9 +487,10 @@ static uint8_t prv_device_write(uint16_t instanceId,
         case RES_O_UTC_OFFSET:
             if (1 == prv_check_time_offset((char*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length))
             {
-                strncpy(((device_data_t*)(objectP->userData))->time_offset, (char*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length);
-                ((device_data_t*)(objectP->userData))->time_offset[dataArray[i].value.asBuffer.length] = 0;
+                strncpy(data->time_offset, (char*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length);
+                data->time_offset[dataArray[i].value.asBuffer.length] = 0;
                 result = COAP_204_CHANGED;
+                prv_notify_resource_changed(data, LWM2M_URI_DEVICE_UTC_OFFSET, &dataArray[i]);
             }
             else
             {
@@ -722,7 +741,12 @@ void prv_device_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute_c
         data->reboot_callback = callback;
         data->reboot_callback_param = param;
         break;
+    case LWM2M_NOTIFY_RESOURCE_CHANGED:
+        data->notify_callback = callback;
+        data->notify_callback_param = param;
+        break;
     default:
+        fprintf(stderr, "prv_device_register_callback: unsupported callback\r\n");
         break;
     }
 }

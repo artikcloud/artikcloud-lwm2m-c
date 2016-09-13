@@ -65,9 +65,23 @@ typedef struct
     char pkg_uri[LWM2M_FIRMWARE_PKG_URI_LEN];
     lwm2m_exe_callback update_callback;
     void *update_callback_param;
-    lwm2m_exe_callback package_uri_callback;
-    void *package_uri_callback_param;
+    lwm2m_exe_callback notify_callback;
+    void *notify_callback_param;
 } firmware_data_t;
+
+static void prv_notify_resource_changed(firmware_data_t *client, char *uri, lwm2m_data_t *data)
+{
+    if (client && client->notify_callback)
+    {
+        lwm2m_res_changed_params params;
+
+        strncpy(params.uri, uri, LWM2M_MAX_URI_LEN);
+        params.buffer = data->value.asBuffer.buffer;
+        params.length = data->value.asBuffer.length;
+
+        client->notify_callback(client->notify_callback_param, (void*)&params);
+    }
+}
 
 static uint8_t prv_firmware_read(uint16_t instanceId,
                                  int * numDataP,
@@ -168,12 +182,12 @@ static uint8_t prv_firmware_write(uint16_t instanceId,
         case RES_M_PACKAGE:
             // inline firmware binary
             result = COAP_204_CHANGED;
+            prv_notify_resource_changed(data, LWM2M_URI_FIRMWARE_PACKAGE, &dataArray[i]);
             break;
 
         case RES_M_PACKAGE_URI:
             strncpy(data->pkg_uri, (char*)dataArray[i].value.asBuffer.buffer, LWM2M_FIRMWARE_PKG_URI_LEN);
-            if (data->package_uri_callback)
-                data->package_uri_callback(data->package_uri_callback_param, data->pkg_uri);
+            prv_notify_resource_changed(data, LWM2M_URI_FIRMWARE_PACKAGE_URI, &dataArray[i]);
             result = COAP_204_CHANGED;
             break;
 
@@ -400,11 +414,12 @@ void prv_firmware_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute
         data->update_callback = callback;
         data->update_callback_param = param;
         break;
-    case LWM2M_WR_FIRMWARE_PKG_URI:
-        data->package_uri_callback = callback;
-        data->package_uri_callback_param = param;
+    case LWM2M_NOTIFY_RESOURCE_CHANGED:
+        data->notify_callback = callback;
+        data->notify_callback_param = param;
         break;
     default:
+        fprintf(stderr, "prv_firmware_register_callback: unsupported callback\r\n");
         break;
     }
 }

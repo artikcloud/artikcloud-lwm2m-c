@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define LWM2M_MAX_URI_LEN 16
 #define LWM2M_MAX_STR_LEN 100
 
 typedef void* client_handle_t;
@@ -116,9 +117,15 @@ enum lwm2m_execute_callback_type {
     LWM2M_EXE_FACTORY_RESET = 0,
     LWM2M_EXE_DEVICE_REBOOT,
     LWM2M_EXE_FIRMWARE_UPDATE,
-    LWM2M_WR_FIRMWARE_PKG_URI,
+    LWM2M_NOTIFY_RESOURCE_CHANGED,
     LWM2M_EXE_COUNT
 };
+
+typedef struct {
+    char uri[LWM2M_MAX_URI_LEN];
+    uint8_t *buffer;
+    int length;
+} lwm2m_res_changed_params;
 
 #define LWM2M_CLIENT_OK     ( 0)
 #define LWM2M_CLIENT_ERROR  (-1)

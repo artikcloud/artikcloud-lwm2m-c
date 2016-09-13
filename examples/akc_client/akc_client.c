@@ -101,19 +101,28 @@ static void on_factory_reset(void *param, void *extra)
     fprintf(stdout, "FACTORY RESET\r\n");
 }
 
-static void on_package_uri(void *param, void *extra)
+static void on_res_changed_uri(void *param, void *extra)
 {
     client_handle_t client = (client_handle_t)param;
-    char state[] = LWM2M_FIRMWARE_STATE_DOWNLOADING;
+    lwm2m_res_changed_params *params = (lwm2m_res_changed_params*)extra;
 
-    fprintf(stdout, "PACKAGE URI: %s\r\n", (char*)extra);
+    fprintf(stdout, "Resource Changed: %s\r\n", params->uri);
 
-    /* Change state */
-    lwm2m_change_object(client, LWM2M_URI_FIRMWARE_STATE, (uint8_t *)state, strlen(state));
+    if (!strncmp(params->uri, LWM2M_URI_FIRMWARE_PACKAGE_URI, LWM2M_MAX_URI_LEN))
+    {
+        char state[] = LWM2M_FIRMWARE_STATE_DOWNLOADING;
+        char *filename;
 
-    /*
-     * Download the package and update status at each step
-     */
+        /* Change state */
+        lwm2m_change_object(client, LWM2M_URI_FIRMWARE_STATE, (uint8_t *)state, strlen(state));
+
+        /*
+         * Download the package and update status at each step
+         */
+        filename = strndup((char*)params->buffer, params->length);
+        fprintf(stdout, "Downloading: %s\r\n", filename);
+        free(filename);
+    }
 }
 
 int main(int argc, char *argv[])
@@ -168,7 +177,7 @@ int main(int argc, char *argv[])
     lwm2m_register_callback(client, LWM2M_EXE_FACTORY_RESET, on_factory_reset, (void*)client);
     lwm2m_register_callback(client, LWM2M_EXE_DEVICE_REBOOT, on_reboot, (void*)client);
     lwm2m_register_callback(client, LWM2M_EXE_FIRMWARE_UPDATE, on_firmware_update, (void*)client);
-    lwm2m_register_callback(client, LWM2M_WR_FIRMWARE_PKG_URI, on_package_uri, (void*)client);
+    lwm2m_register_callback(client, LWM2M_NOTIFY_RESOURCE_CHANGED, on_res_changed_uri, (void*)client);
 
     while (!quit)
     {

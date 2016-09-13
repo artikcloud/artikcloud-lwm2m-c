@@ -649,13 +649,18 @@ void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback
     switch(type)
     {
     case LWM2M_EXE_FIRMWARE_UPDATE:
-    case LWM2M_WR_FIRMWARE_PKG_URI:
         prv_firmware_register_callback(data->objArray[LWM2M_OBJ_FIRMWARE], type,
                 callback, param);
         break;
     case LWM2M_EXE_FACTORY_RESET:
     case LWM2M_EXE_DEVICE_REBOOT:
         prv_device_register_callback(data->objArray[LWM2M_OBJ_DEVICE], type,
+                callback, param);
+        break;
+    case LWM2M_NOTIFY_RESOURCE_CHANGED:
+        prv_device_register_callback(data->objArray[LWM2M_OBJ_DEVICE], type,
+                callback, param);
+        prv_firmware_register_callback(data->objArray[LWM2M_OBJ_FIRMWARE], type,
                 callback, param);
         break;
     default:
@@ -682,6 +687,10 @@ void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callba
     case LWM2M_EXE_FACTORY_RESET:
     case LWM2M_EXE_DEVICE_REBOOT:
         prv_device_register_callback(data->objArray[LWM2M_OBJ_DEVICE], type, NULL, NULL);
+        break;
+    case LWM2M_NOTIFY_RESOURCE_CHANGED:
+        prv_device_register_callback(data->objArray[LWM2M_OBJ_DEVICE], type, NULL, NULL);
+        prv_firmware_register_callback(data->objArray[LWM2M_OBJ_FIRMWARE], type, NULL, NULL);
         break;
     default:
         fprintf(stderr, "lwm2m_register_callback: unsupported callback\r\n");

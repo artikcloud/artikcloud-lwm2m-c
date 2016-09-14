@@ -159,6 +159,22 @@ typedef struct {
 #define LWM2M_URI_DEVICE_MEMORY_TOTAL    LWM2M_URI_DEVICE"/21"
 
 /*
+ * Object: Connectivity Monitoring
+ */
+#define LWM2M_URI_CONNMON                "/4/0"
+#define LWM2M_URI_CONNMON_BEARER         LWM2M_URI_CONNMON"/0"
+#define LWM2M_URI_CONNMON_AVAIL_BEARERS  LWM2M_URI_CONNMON"/1"
+#define LWM2M_URI_CONNMON_SIGNAL         LWM2M_URI_CONNMON"/2"
+#define LWM2M_URI_CONNMON_LINK_QUALITY   LWM2M_URI_CONNMON"/3"
+#define LWM2M_URI_CONNMON_IP_ADDR        LWM2M_URI_CONNMON"/4"
+#define LWM2M_URI_CONNMON_ROUTER_IP_ADDR LWM2M_URI_CONNMON"/5"
+#define LWM2M_URI_CONNMON_LINK_UTIL      LWM2M_URI_CONNMON"/6"
+#define LWM2M_URI_CONNMON_APN            LWM2M_URI_CONNMON"/7"
+#define LWM2M_URI_CONNMON_CELL_ID        LWM2M_URI_CONNMON"/8"
+#define LWM2M_URI_CONNMON_SMNC           LWM2M_URI_CONNMON"/9"
+#define LWM2M_URI_CONNMON_SMCC           LWM2M_URI_CONNMON"/10"
+
+/*
  * Object: Firmware
  */
 #define LWM2M_URI_FIRMWARE               "/5/0"
@@ -211,5 +227,6 @@ void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback
 void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callback_type type);
 int lwm2m_write_resource(client_handle_t handle, lwm2m_resource_t *res);
 int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res);
+int lwm2m_serialize_tlv_string(int num, char **strs, lwm2m_resource_t* res);
 
 #endif /* _LWM2MCLIENT_H_ */

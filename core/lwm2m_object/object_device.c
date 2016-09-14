@@ -654,52 +654,49 @@ void free_object_device(lwm2m_object_t * objectP)
 uint8_t device_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
 {
     uint8_t result;
+    int64_t value;
+    device_data_t *data = (device_data_t *)object->userData;
 
     switch (dataArray->id)
     {
         case RES_O_BATTERY_LEVEL:
+            if (1 == lwm2m_data_decode_int(dataArray, &value))
             {
-                int64_t value;
-                if (1 == lwm2m_data_decode_int(dataArray, &value))
+                if ((0 <= value) && (100 >= value))
                 {
-                    if ((0 <= value) && (100 >= value))
-                    {
-                        ((device_data_t*)(object->userData))->battery_level = value;
-                        result = COAP_204_CHANGED;
-                    }
-                    else
-                    {
-                        result = COAP_400_BAD_REQUEST;
-                    }
+                    data->battery_level = value;
+                    result = COAP_204_CHANGED;
                 }
                 else
                 {
                     result = COAP_400_BAD_REQUEST;
                 }
+            }
+            else
+            {
+                result = COAP_400_BAD_REQUEST;
             }
             break;
         case RES_O_BATTERY_STATUS:
+            if (1 == lwm2m_data_decode_int(dataArray, &value))
             {
-                int64_t value;
-                if (1 == lwm2m_data_decode_int(dataArray, &value))
+                if ((0 <= value) && (6 >= value))
                 {
-                    if ((0 <= value) && (6 >= value))
-                    {
-                        ((device_data_t*)(object->userData))->battery_status = value;
-                        result = COAP_204_CHANGED;
-                    }
-                    else
-                    {
-                        result = COAP_400_BAD_REQUEST;
-                    }
+                    data->battery_status = value;
+                    result = COAP_204_CHANGED;
                 }
                 else
                 {
                     result = COAP_400_BAD_REQUEST;
                 }
             }
+            else
+            {
+                result = COAP_400_BAD_REQUEST;
+            }
+            break;
         case RES_M_ERROR_CODE:
-            if (1 == lwm2m_data_decode_int(dataArray, &((device_data_t*)(object->userData))->error))
+            if (1 == lwm2m_data_decode_int(dataArray, &data->error))
             {
                 result = COAP_204_CHANGED;
             }
@@ -709,7 +706,7 @@ uint8_t device_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
             }
             break;
         case RES_O_MEMORY_FREE:
-            if (1 == lwm2m_data_decode_int(dataArray, &((device_data_t*)(object->userData))->free_memory))
+            if (1 == lwm2m_data_decode_int(dataArray, &data->free_memory))
             {
                 result = COAP_204_CHANGED;
             }

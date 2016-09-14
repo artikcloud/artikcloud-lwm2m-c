@@ -38,6 +38,7 @@
 
 #include "liblwm2m.h"
 #include "lwm2mclient.h"
+#include "internals.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,12 +59,14 @@
 #define RES_O_SMCC                      10
 
 #define IPV46_MAX_ADDR_LEN              45
-#define IPV46_ADDR_NUM                  2
+#define TLV_IP_ADDRS_NUM                2
+#define TLV_BEARERS_NUM                 1
+#define TLV_APNS_NUM                    1
 
 typedef struct
 {
-    char ipAddresses[IPV46_ADDR_NUM][IPV46_MAX_ADDR_LEN];
-    char routerIpAddresses[IPV46_ADDR_NUM][IPV46_MAX_ADDR_LEN];
+    char ipAddresses[TLV_IP_ADDRS_NUM][IPV46_MAX_ADDR_LEN];
+    char routerIpAddresses[TLV_IP_ADDRS_NUM][IPV46_MAX_ADDR_LEN];
     long cellId;
     int signalStrength;
     int linkQuality;
@@ -74,92 +77,102 @@ typedef struct
 static uint8_t prv_set_value(lwm2m_data_t * dataP,
                              conn_m_data_t * connDataP)
 {
+    uint8_t result = COAP_400_BAD_REQUEST;
     object_conn_monitoring_t *obj = connDataP->obj;
 
     switch (dataP->id)
     {
     case RES_M_NETWORK_BEARER:
         lwm2m_data_encode_int(obj->network_bearer, dataP);
-        return COAP_205_CONTENT;
+        result =  COAP_205_CONTENT;
+        break;
 
     case RES_M_AVL_NETWORK_BEARER:
     {
-        int riCnt = 1;
         lwm2m_data_t * subTlvP;
-        subTlvP = lwm2m_data_new(riCnt);
-        subTlvP[0].id    = 0;
+        subTlvP = lwm2m_data_new(TLV_BEARERS_NUM);
+        subTlvP[0].id = 0;
         lwm2m_data_encode_int(obj->avl_network_bearer, subTlvP);
-        lwm2m_data_encode_instances(subTlvP, riCnt, dataP);
-        return COAP_205_CONTENT ;
+        lwm2m_data_encode_instances(subTlvP, TLV_BEARERS_NUM, dataP);
+        result = COAP_205_CONTENT;
+        break;
     }
 
-    case RES_M_RADIO_SIGNAL_STRENGTH: //s-int
+    case RES_M_RADIO_SIGNAL_STRENGTH:
         lwm2m_data_encode_int(connDataP->signalStrength, dataP);
-        return COAP_205_CONTENT;
+        result = COAP_205_CONTENT;
+        break;
 
-    case RES_O_LINK_QUALITY: //s-int
+    case RES_O_LINK_QUALITY:
         lwm2m_data_encode_int(connDataP->linkQuality, dataP);
-        return COAP_205_CONTENT ;
+        result = COAP_205_CONTENT;
+        break;
 
     case RES_M_IP_ADDRESSES:
     {
-        int ri, riCnt = IPV46_ADDR_NUM;
-        lwm2m_data_t* subTlvP = lwm2m_data_new(riCnt);
-        for (ri = 0; ri < riCnt; ri++)
+        int ri;
+        lwm2m_data_t* subTlvP = lwm2m_data_new(TLV_IP_ADDRS_NUM);
+        for (ri = 0; ri<TLV_IP_ADDRS_NUM; ri++)
         {
             subTlvP[ri].id = ri;
             lwm2m_data_encode_string(connDataP->ipAddresses[ri], subTlvP + ri);
         }
-        lwm2m_data_encode_instances(subTlvP, riCnt, dataP);
-        return COAP_205_CONTENT ;
-    }
+        lwm2m_data_encode_instances(subTlvP, TLV_IP_ADDRS_NUM, dataP);
+        result = COAP_205_CONTENT;
         break;
+    }
 
     case RES_O_ROUTER_IP_ADDRESS:
     {
-        int ri, riCnt = IPV46_ADDR_NUM;
-        lwm2m_data_t* subTlvP = lwm2m_data_new(riCnt);
-        for (ri=0; ri<riCnt; ri++)
+        int ri;
+        lwm2m_data_t* subTlvP = lwm2m_data_new(TLV_IP_ADDRS_NUM);
+        for (ri=0; ri<TLV_IP_ADDRS_NUM; ri++)
         {
             subTlvP[ri].id = ri;
             lwm2m_data_encode_string(connDataP->routerIpAddresses[ri], subTlvP + ri);
         }
-        lwm2m_data_encode_instances(subTlvP, riCnt, dataP);
-        return COAP_205_CONTENT ;
-    }
+        lwm2m_data_encode_instances(subTlvP, TLV_IP_ADDRS_NUM, dataP);
+        result = COAP_205_CONTENT;
         break;
+    }
 
     case RES_O_LINK_UTILIZATION:
         lwm2m_data_encode_int(connDataP->linkUtilization, dataP);
-        return COAP_205_CONTENT;
+        result = COAP_205_CONTENT;
+        break;
 
     case RES_O_APN:
     {
-        int riCnt = 1;   // reduced to 1 instance to fit in one block size
         lwm2m_data_t * subTlvP;
-        subTlvP = lwm2m_data_new(riCnt);
-        subTlvP[0].id     = 0;
+        subTlvP = lwm2m_data_new(TLV_APNS_NUM);
+        subTlvP[0].id = 0;
         lwm2m_data_encode_string(obj->apn, subTlvP);
-        lwm2m_data_encode_instances(subTlvP, riCnt, dataP);
-        return COAP_205_CONTENT;
-    }
+        lwm2m_data_encode_instances(subTlvP, TLV_APNS_NUM, dataP);
+        result = COAP_205_CONTENT;
         break;
+    }
 
     case RES_O_CELL_ID:
         lwm2m_data_encode_int(connDataP->cellId, dataP);
-        return COAP_205_CONTENT ;
+        result = COAP_205_CONTENT;
+        break;
 
     case RES_O_SMNC:
         lwm2m_data_encode_int(obj->smnc, dataP);
-        return COAP_205_CONTENT ;
+        result = COAP_205_CONTENT;
+        break;
 
     case RES_O_SMCC:
         lwm2m_data_encode_int(obj->smcc, dataP);
-        return COAP_205_CONTENT ;
+        result = COAP_205_CONTENT;
+        break;
 
     default:
-        return COAP_404_NOT_FOUND ;
+        result = COAP_404_NOT_FOUND;
+        break;
     }
+
+    return result;
 }
 
 static uint8_t prv_read(uint16_t instanceId,
@@ -288,76 +301,187 @@ void free_object_conn_m(lwm2m_object_t * objectP)
     lwm2m_free(objectP);
 }
 
-uint8_t connectivity_moni_change(lwm2m_data_t * dataArray,
-                                 lwm2m_object_t * objectP)
+uint8_t connectivity_moni_change(lwm2m_data_t *dataArray, lwm2m_object_t *object)
 {
     int64_t value;
-    uint8_t result;
-    conn_m_data_t *data = (conn_m_data_t*)objectP->userData;
+    uint8_t result = COAP_400_BAD_REQUEST;
+    conn_m_data_t *data = (conn_m_data_t*)object->userData;
+    object_conn_monitoring_t *obj = data->obj;
 
     switch (dataArray->id)
     {
+    case RES_M_NETWORK_BEARER:
+        if (1 == lwm2m_data_decode_int(dataArray, &value))
+        {
+            if ((0 <= value) && (50 >= value))
+            {
+                obj->network_bearer = (int)value;
+                result = COAP_204_CHANGED;
+            }
+        }
+        break;
+
+    case RES_M_AVL_NETWORK_BEARER:
+    {
+        int num = 0, i = 0;
+        lwm2m_data_t *parsed = NULL;
+
+        num = tlv_parse(dataArray->value.asBuffer.buffer, dataArray->value.asBuffer.length, &parsed);
+        if ((num > TLV_BEARERS_NUM) || (num == 0))
+        {
+            break;
+        }
+
+        for (i=0; i<num; i++)
+        {
+            if (1 == lwm2m_data_decode_int(parsed, &value))
+            {
+                data->obj->avl_network_bearer = (int)value;
+                result = COAP_204_CHANGED;
+            }
+        }
+        lwm2m_free(parsed);
+        break;
+    }
     case RES_M_RADIO_SIGNAL_STRENGTH:
         if (1 == lwm2m_data_decode_int(dataArray, &value))
         {
-            data->signalStrength = value;
+            data->signalStrength = (int)value;
             result = COAP_204_CHANGED;
-        }
-        else
-        {
-            result = COAP_400_BAD_REQUEST;
         }
         break;
 
     case RES_O_LINK_QUALITY:
         if (1 == lwm2m_data_decode_int(dataArray, &value))
         {
-            data->linkQuality = value;
+            data->linkQuality = (int)value;
             result = COAP_204_CHANGED;
-        }
-        else
-        {
-            result = COAP_400_BAD_REQUEST;
         }
         break;
 
     case RES_M_IP_ADDRESSES:
-        if (sizeof(data->ipAddresses[0]) <= dataArray->value.asBuffer.length)
+    {
+        int num = 0, i = 0;
+        lwm2m_data_t *parsed = NULL;
+
+        num = tlv_parse(dataArray->value.asBuffer.buffer, dataArray->value.asBuffer.length, &parsed);
+        if ((num > TLV_IP_ADDRS_NUM) || (num == 0))
         {
-            result = COAP_400_BAD_REQUEST;
+            break;
         }
-        else
+
+        for (i=0; i<num; i++)
         {
-            memset(data->ipAddresses[0], 0, sizeof(data->ipAddresses[0]));
-            memcpy(data->ipAddresses[0], dataArray->value.asBuffer.buffer, dataArray->value.asBuffer.length);
-            data->ipAddresses[0][dataArray->value.asBuffer.length] = 0;
+            if (parsed[i].value.asBuffer.length > IPV46_MAX_ADDR_LEN)
+            {
+#ifdef WITH_LOGS
+                fprintf(stderr, "connectivity_moni_change: passed string is too big to be an IP address\r\n");
+#endif
+                continue;
+            }
+
+            memset(data->ipAddresses[i], 0, IPV46_MAX_ADDR_LEN);
+            memcpy(data->ipAddresses[i], parsed[i].value.asBuffer.buffer, parsed[i].value.asBuffer.length);
+            lwm2m_free(parsed[i].value.asBuffer.buffer);
             result = COAP_204_CHANGED;
+        }
+        lwm2m_free(parsed);
+        break;
+    }
+
+    case RES_O_ROUTER_IP_ADDRESS:
+    {
+        int num = 0, i = 0;
+        lwm2m_data_t *parsed = NULL;
+
+        num = tlv_parse(dataArray->value.asBuffer.buffer, dataArray->value.asBuffer.length, &parsed);
+        if ((num > TLV_IP_ADDRS_NUM) || (num == 0))
+        {
+            break;
+        }
+
+        for (i=0; i<num; i++)
+        {
+            if (parsed[i].value.asBuffer.length > IPV46_MAX_ADDR_LEN)
+            {
+#ifdef WITH_LOGS
+                fprintf(stderr, "connectivity_moni_change: passed string is too big to be an IP address\r\n");
+#endif
+                continue;
+            }
+
+            memset(data->routerIpAddresses[i], 0, IPV46_MAX_ADDR_LEN);
+            memcpy(data->routerIpAddresses[i], parsed[i].value.asBuffer.buffer, parsed[i].value.asBuffer.length);
+            lwm2m_free(parsed[i].value.asBuffer.buffer);
+            result = COAP_204_CHANGED;
+        }
+        lwm2m_free(parsed);
+        break;
+    }
+
+    case RES_O_LINK_UTILIZATION:
+        if (1 == lwm2m_data_decode_int(dataArray, &value))
+        {
+            if ((0 <= value) && (100 >= value))
+            {
+                data->linkUtilization = (int)value;
+                result = COAP_204_CHANGED;
+            }
         }
         break;
 
-    case RES_O_ROUTER_IP_ADDRESS:
-        if (sizeof(data->routerIpAddresses[0]) <= dataArray->value.asBuffer.length)
+    case RES_O_APN:
+    {
+        int num = 0, i = 0;
+        lwm2m_data_t *parsed = NULL;
+
+        num = tlv_parse(dataArray->value.asBuffer.buffer, dataArray->value.asBuffer.length, &parsed);
+        if ((num > TLV_APNS_NUM) || (num == 0))
         {
-            result = COAP_400_BAD_REQUEST;
+            break;
         }
-        else
+
+        for (i=0; i<num; i++)
         {
-            memset(data->routerIpAddresses[0], 0, sizeof(data->routerIpAddresses[0]));
-            memcpy(data->routerIpAddresses[0], dataArray->value.asBuffer.buffer, dataArray->value.asBuffer.length);
-            data->routerIpAddresses[0][dataArray->value.asBuffer.length] = 0;
+            if (parsed[i].value.asBuffer.length > LWM2M_MAX_STR_LEN)
+            {
+#ifdef WITH_LOGS
+                fprintf(stderr, "connectivity_moni_change: passed string is too big to be an IP address\r\n");
+#endif
+                continue;
+            }
+
+            memset(data->obj->apn, 0, LWM2M_MAX_STR_LEN);
+            memcpy(data->obj->apn, parsed[i].value.asBuffer.buffer, parsed[i].value.asBuffer.length);
+            data->obj->apn[parsed[i].value.asBuffer.length] = '\0';
+            lwm2m_free(parsed[i].value.asBuffer.buffer);
             result = COAP_204_CHANGED;
         }
+        lwm2m_free(parsed);
         break;
+    }
 
     case RES_O_CELL_ID:
         if (1 == lwm2m_data_decode_int(dataArray, &value))
         {
-            data->cellId = value;
+            data->cellId = (long)value;
             result = COAP_204_CHANGED;
         }
-        else
+        break;
+
+    case RES_O_SMNC:
+        if (1 == lwm2m_data_decode_int(dataArray, &value))
         {
-            result = COAP_400_BAD_REQUEST;
+            obj->smnc = (int)value;
+            result = COAP_204_CHANGED;
+        }
+        break;
+
+    case RES_O_SMCC:
+        if (1 == lwm2m_data_decode_int(dataArray, &value))
+        {
+            obj->smcc = (int)value;
+            result = COAP_204_CHANGED;
         }
         break;
 

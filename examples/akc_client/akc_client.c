@@ -1,5 +1,8 @@
 #include "lwm2mclient.h"
 
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <ifaddrs.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -12,9 +15,9 @@ extern int cmdline_process(int timeout);
 
 static object_security_server_t akc_server = {
     "coaps+tcp://coap-dev.artik.cloud:5689", /* serverUri */
-    "24936ceccdb24a54a58a341ee7c5d1a3",      /* pskId : DEVICE ID */
-    "2f1a098e131b4d4c9aaaaf38bb06df87",      /* psk : DEVICE TOKEN */
-    "24936ceccdb24a54a58a341ee7c5d1a3",      /* name : DEVICE ID */
+    "<Artik Cloud device ID>",               /* pskId : DEVICE ID */
+    "<Artik Cloud device token>",            /* psk : DEVICE TOKEN */
+    "<Artik Cloud device ID>",               /* name : DEVICE ID */
     30,                                      /* lifetime */
     0,                                       /* battery */
     123                                      /* serverId */
@@ -57,8 +60,8 @@ static object_conn_monitoring_t default_monitoring = {
     98,                           /* VALUE_LINK_QUALITY */
     "192.168.178.101",            /* VALUE_IP_ADDRESS_1 */
     "fe80::aebc:32ff:feb8:db5f",  /* VALUE_IP_ADDRESS_2 */
-    "192.168.178.001",            /* VALUE_ROUTER_IP_ADDRESS_1 */
-    "192.168.178.002",            /* VALUE_ROUTER_IP_ADDRESS_2 */
+    "192.168.178.1",              /* VALUE_ROUTER_IP_ADDRESS_1 */
+    "192.168.178.2",              /* VALUE_ROUTER_IP_ADDRESS_2 */
     666,                          /* VALUE_LINK_UTILIZATION */
     "web.vodafone.de",            /* VALUE_APN_1 */
     69696969,                     /* VALUE_CELL_ID */
@@ -130,6 +133,52 @@ static void on_resource_changed(void *param, void *extra)
     }
 }
 
+static void set_ip_addresses(client_handle_t client)
+{
+    struct ifaddrs *ifap, *ifa;
+    int num = 0, i = 0;
+    char *addresses[2];
+    lwm2m_resource_t tlv_addr;
+
+    memset(&tlv_addr, 0, sizeof(tlv_addr));
+    strncpy(tlv_addr.uri, LWM2M_URI_CONNMON_IP_ADDR, strlen(LWM2M_URI_CONNMON_IP_ADDR));
+
+    getifaddrs (&ifap);
+
+    /* Only get the first 2 non-loopback addresses */
+    for (ifa = ifap; ifa; ifa = ifa->ifa_next)
+    {
+        if ((ifa->ifa_addr->sa_family == AF_INET) &&
+            strncmp(ifa->ifa_name, "lo", strlen("lo")) &&
+            strncmp(ifa->ifa_name, "lo0", strlen("lo0")))
+        {
+            struct sockaddr_in *sa = (struct sockaddr_in *) ifa->ifa_addr;
+            char *addr = inet_ntoa(sa->sin_addr);
+            addresses[num] = strndup(addr, strlen(addr));
+
+            if (++num >= 2)
+                break;
+        }
+    }
+
+    if (lwm2m_serialize_tlv_string(num, addresses, &tlv_addr) != LWM2M_CLIENT_OK)
+    {
+        fprintf(stderr, "Failed to serialize TLV for IP addresses\r\n");
+        return;
+    }
+
+    if (lwm2m_write_resource(client, &tlv_addr) != LWM2M_CLIENT_OK)
+    {
+        fprintf(stderr, "Failed to write IP addresses resource\r\n");
+    }
+
+    if (tlv_addr.buffer)
+        free(tlv_addr.buffer);
+
+    for (i=0; i<num; i++)
+        free(addresses[i]);
+}
+
 int main(int argc, char *argv[])
 {
     object_container_t init_val_ob;
@@ -183,6 +232,8 @@ int main(int argc, char *argv[])
     lwm2m_register_callback(client, LWM2M_EXE_DEVICE_REBOOT, on_reboot, (void*)client);
     lwm2m_register_callback(client, LWM2M_EXE_FIRMWARE_UPDATE, on_firmware_update, (void*)client);
     lwm2m_register_callback(client, LWM2M_NOTIFY_RESOURCE_CHANGED, on_resource_changed, (void*)client);
+
+    set_ip_addresses(client);
 
     while (!quit)
     {

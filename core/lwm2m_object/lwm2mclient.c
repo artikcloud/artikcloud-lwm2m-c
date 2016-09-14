@@ -143,9 +143,10 @@ extern void prv_firmware_register_callback(lwm2m_object_t * objectP, enum lwm2m_
         lwm2m_exe_callback callback, void *param);
 extern void prv_device_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type,
         lwm2m_exe_callback callback, void *param);
-extern uint8_t device_change_object(lwm2m_data_t * dataArray, lwm2m_object_t * object);
+extern uint8_t device_change_object(lwm2m_data_t * dataArray, lwm2m_object_t *object);
 extern uint8_t firmware_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object);
 extern uint8_t location_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object);
+extern uint8_t connectivity_moni_change(lwm2m_data_t *dataArray, lwm2m_object_t *object);
 
 void * lwm2m_connect_server(uint16_t secObjInstID, void * userData)
 {
@@ -748,6 +749,9 @@ int lwm2m_write_resource(client_handle_t handle, lwm2m_resource_t *res)
                 case LWM2M_DEVICE_OBJECT_ID:
                     result = device_change_object(&data, object);
                     break;
+                case LWM2M_CONN_MONITOR_OBJECT_ID:
+                    result = connectivity_moni_change(&data, object);
+                    break;
                 case LWM2M_FIRMWARE_UPDATE_OBJECT_ID:
                     result = firmware_change_object(&data, object);
                     break;
@@ -775,6 +779,47 @@ int lwm2m_write_resource(client_handle_t handle, lwm2m_resource_t *res)
     lwm2m_resource_value_changed(client->lwm2mH, &uri_t);
 
     return LWM2M_CLIENT_OK;
+}
+
+static int encode_data(lwm2m_data_t *data, uint8_t **buffer)
+{
+    int size = 0;
+
+    switch (data->type)
+    {
+    case LWM2M_TYPE_STRING:
+        size = data[0].value.asBuffer.length;
+        *buffer = (uint8_t *)lwm2m_malloc(size);
+        if (!buffer)
+        {
+            fprintf(stderr, "encode_data: failed to allocate memory\r\n");
+            return LWM2M_CLIENT_ERROR;
+        }
+        memcpy(*buffer, data[0].value.asBuffer.buffer, size);
+        break;
+
+    case LWM2M_TYPE_INTEGER:
+        size = utils_int64ToPlainText(data[0].value.asInteger, buffer);
+        break;
+
+    case LWM2M_TYPE_FLOAT:
+        size = utils_float64ToPlainText(data[0].value.asFloat, buffer);
+        break;
+
+    case LWM2M_TYPE_BOOLEAN:
+        size = utils_boolToPlainText(data[0].value.asBoolean, buffer);
+        break;
+
+    case LWM2M_TYPE_OBJECT_LINK:
+    case LWM2M_TYPE_OPAQUE:
+    case LWM2M_TYPE_UNDEFINED:
+    default:
+        fprintf(stderr, "encode_data: unsupported type (%d)\r\n", data[0].type);
+        size = LWM2M_CLIENT_ERROR;
+        break;
+    }
+
+    return size;
 }
 
 int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res)
@@ -824,40 +869,65 @@ int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res)
             }
             else
             {
-                switch (data[0].type)
+                if (data[0].type == LWM2M_TYPE_MULTIPLE_RESOURCE)
                 {
-                case LWM2M_TYPE_STRING:
-                    res->length = data[0].value.asBuffer.length;
-                    res->buffer = (uint8_t *)lwm2m_malloc(res->length);
-                    if (!res->buffer)
+                    int i = 0, idx = 0;
+                    int num = data[0].value.asChildren.count;
+                    lwm2m_data_t *array = data[0].value.asChildren.array;
+                    lwm2m_resource_t *resarray = NULL;
+
+                    resarray = lwm2m_malloc(num * sizeof(*resarray));
+                    if (!resarray)
                     {
                         fprintf(stderr, "lwm2m_read_resource: failed to allocate memory\r\n");
-                        free(data);
                         return LWM2M_CLIENT_ERROR;
                     }
-                    memcpy(res->buffer, data[0].value.asBuffer.buffer, res->length);
-                    break;
 
-                case LWM2M_TYPE_INTEGER:
-                    res->length = utils_int64ToPlainText(data[0].value.asInteger, &res->buffer);
-                    break;
+                    /* Retrieve the buffers from all children and compute total size */
+                    res->length = 0;
+                    for (i=0; i<num; i++)
+                    {
+                        resarray[i].length = encode_data(&array[i], &resarray[i].buffer);
+                        res->length += resarray[i].length + 3;
+                    }
 
-                case LWM2M_TYPE_FLOAT:
-                    res->length = utils_float64ToPlainText(data[0].value.asFloat, &res->buffer);
-                    break;
+                    /* Generate a single buffer out of the parsed ones */
+                    res->buffer = lwm2m_malloc(res->length);
+                    if (!res->length)
+                    {
+                        fprintf(stderr, "lwm2m_read_resource: failed to allocate memory\r\n");
+                        return LWM2M_CLIENT_ERROR;
+                    }
 
-                case LWM2M_TYPE_BOOLEAN:
-                    res->length = utils_boolToPlainText(data[0].value.asBoolean, &res->buffer);
-                    break;
+                    memset(res->buffer, 0, res->length);
+                    for (i=0; i<num; i++)
+                    {
+                        char prefix[5];
+                        char suffix[] = ",";
+                        snprintf(prefix, 5, "%d=", i);
+                        memcpy(res->buffer + idx, prefix, strlen(prefix));
+                        idx += strlen(prefix);
+                        memcpy(res->buffer + idx, resarray[i].buffer, resarray[i].length);
+                        idx += resarray[i].length;
+                        if (i < (num-1))
+                        {
+                            memcpy(res->buffer + idx, (uint8_t*)suffix, 1);
+                            idx++;
+                        }
+                    }
 
-                case LWM2M_TYPE_OBJECT_LINK:
-                case LWM2M_TYPE_OPAQUE:
-                case LWM2M_TYPE_UNDEFINED:
-                default:
-                    fprintf(stderr, "lwm2m_read_resource: unsupported type (%d)\r\n", data[0].type);
-                    break;
+                    lwm2m_free(resarray);
                 }
-
+                else
+                {
+                    res->length = encode_data(&data[0], &res->buffer);
+                    if (res->length < 0)
+                    {
+                        fprintf(stderr, "lwm2m_read_resource: failed to encode data\r\n");
+                        return LWM2M_CLIENT_ERROR;
+                        free(data);
+                    }
+                }
                 free(data);
             }
         }
@@ -870,6 +940,35 @@ int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res)
     else
     {
         fprintf(stderr, "lwm2m_read_resource: object not found\r\n");
+        return LWM2M_CLIENT_ERROR;
+    }
+
+    return LWM2M_CLIENT_OK;
+}
+
+int lwm2m_serialize_tlv_string(int num, char **strs, lwm2m_resource_t* res)
+{
+    lwm2m_data_t *array = NULL;
+    int i = 0;
+
+    array = lwm2m_malloc(num * sizeof(*array));
+    if (!array)
+    {
+        fprintf(stderr, "lwm2m_tlv_string: failed to allocate memory\r\n");
+        return LWM2M_CLIENT_ERROR;
+    }
+
+    for (i=0; i<num; i++)
+    {
+        array[i].type = LWM2M_TYPE_STRING;
+        array[i].value.asBuffer.length = strlen(strs[i]);
+        array[i].value.asBuffer.buffer = (uint8_t*)strs[i];
+    }
+
+    res->length = tlv_serialize(true, num, array, &res->buffer);
+    if (!res->length)
+    {
+        fprintf(stderr, "lwm2m_tlv_string: failed to serialize TLV\r\n");
         return LWM2M_CLIENT_ERROR;
     }
 

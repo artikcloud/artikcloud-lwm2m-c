@@ -63,7 +63,7 @@ $ make
 
 After the build completes successfully, the following binaries are generated:
 
-  * build/libwakaama.(so|dylib): The shared library containing the Wakaama and Artik Cloud specific code
+  * build/libwakaama-client.(so|dylib): The shared library containing the Wakaama and Artik Cloud specific code
   * build/examples/akc_client/akc_client: The Artik Cloud sample program
 
 Run the sample program
@@ -89,18 +89,20 @@ commands to act on the LWM2M client. Type **help** for more information:
 
 ~~~shell
 > help
-help    Type 'help [COMMAND]' for more details on a command.
-list    List known servers.
-change  Change the value of resource.
-update  Trigger a registration update
-ls      List Objects and Instances
-disp    Display current objects/instances/resources
-dump    Dump an Object
-add     Add support of object 1024
-rm      Remove support of object 1024
-quit    Quit the client gracefully.
-^C      Quit the client abruptly (without sending a de-register message).
+help    Type 'help [COMMAND]' for more details.
+change  Change the value of a resource.
+read    Read the value of a resource.
+q       Quit the client.
 ~~~
+
+LWM2M library client API
+------------------------
+
+The client library can be linked by any application that wants to take advantage of
+the LWM2M client features implemented in wakaama. The application just has to link to
+libwakaama-client.(so|dylib) and include "lwm2mclient.h".
+
+The API exposed by the library is detailed here: [Client API](README-client-api.md)
 
 More about ARTIK Cloud
 ----------------------

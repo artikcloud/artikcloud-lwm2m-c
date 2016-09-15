@@ -106,7 +106,7 @@ typedef struct
     int addressFamily;
     lwm2m_object_t * objArray[LWM2M_OBJ_COUNT];
     coap_protocol_t proto;
-    pthread_t *rx_thread;
+    pthread_t rx_thread;
     bool rx_thread_exit;
 } client_data_t;
 

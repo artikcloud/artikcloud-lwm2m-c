@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <signal.h>
 
 #define AKC_UUID_LEN    32
 
@@ -148,6 +149,9 @@ static void set_ip_addresses(client_handle_t client)
     /* Only get the first 2 non-loopback addresses */
     for (ifa = ifap; ifa; ifa = ifa->ifa_next)
     {
+        if (!ifa->ifa_addr)
+            continue;
+
         if ((ifa->ifa_addr->sa_family == AF_INET) &&
             strncmp(ifa->ifa_name, "lo", strlen("lo")) &&
             strncmp(ifa->ifa_name, "lo0", strlen("lo0")))

@@ -2,6 +2,10 @@
 #ifndef _LWM2MCLIENT_H_
 #define _LWM2MCLIENT_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -228,5 +232,9 @@ void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callba
 int lwm2m_write_resource(client_handle_t handle, lwm2m_resource_t *res);
 int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res);
 int lwm2m_serialize_tlv_string(int num, char **strs, lwm2m_resource_t* res);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _LWM2MCLIENT_H_ */

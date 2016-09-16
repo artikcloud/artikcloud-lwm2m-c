@@ -223,14 +223,172 @@ typedef struct {
 #define LWM2M_URI_LOCATION_VELOCITY      LWM2M_URI_LOCATION"/4"
 #define LWM2M_URI_LOCATION_TIMESTAMP     LWM2M_URI_LOCATION"/5"
 
-int lwm2m_client_service(client_handle_t handle);
-void lwm2m_client_stop(client_handle_t handle);
+/*!
+ *  \brief Start the LWM2M connection to the server
+ *
+ *  This function initializes the LWM2M client with default
+ *  values passed as parameter, then initiates the connection
+ *  to the server. It returns a connection-specific handle
+ *  that can be used by other functions in subsequent calls.
+ *
+ *  \param[in] container object defining the default values
+ *  to set to the LWM2M standard resources. These values can
+ *  be later changed dynamically by calling "lwm2m_write_resource"
+ *
+ *  \return handle to the client connection, or NULL if an error
+ *  occured
+ */
 client_handle_t lwm2m_client_start(object_container_t *init_val);
+
+/*!
+ *  \brief Process current tasks
+ *
+ *  This function has to be called periodically from the application
+ *  code. It performs necessary updates needed throughout the
+ *  lifetime of the LWM2M client connection.
+ *
+ *  \param[in] handle returned by "lwm2m_client_start"
+ *
+ *  \return the number of milliseconds after which the function
+ *  must be called again. If an error happens, it returns a negative
+ *  value:
+ *   - LWM2M_CLIENT_ERROR in case an error happened
+ *   - LWM2M_CLIENT_QUIT in case the connection was terminated
+ */
+int lwm2m_client_service(client_handle_t handle);
+
+/*!
+ *  \brief Stops the LWM2M connection to the server
+ *
+ *  This function terminates the connection and release
+ *  all the resources previously created during the call
+ *  to "lwm2m_client_start"
+ *
+ *  \param[in] handle returned by "lwm2m_client_start"
+ *
+ */
+void lwm2m_client_stop(client_handle_t handle);
+
+/*!
+ *  \brief Register a callback for the application to
+ *  be notified of specific events.
+ *
+ *  This function registers a callback function linked
+ *  to events specified by "lwm2m_execute_callback_type".
+ *  When the event occurs, the library calls the callback
+ *  that was previously registered by the application.
+ *  The application can then take action on this specific
+ *  event.
+ *
+ *  \param[in] handle returned by "lwm2m_client_start"
+ *  \param[in] type event to link to the callback, among:
+ *   - LWM2M_EXE_FACTORY_RESET: called when the server executes
+ *   a factory reset request on the client device
+ *   - LWM2M_EXE_DEVICE_REBOOT: called when the server executes
+ *   a reboot request on the client device
+ *   - LWM2M_EXE_FIRMWARE_UPDATE: called when the server executes
+ *   a firmware update request on the client device
+ *   - LWM2M_NOTIFY_RESOURCE_CHANGED: called when server writes a
+ *   resource to any object on the client device
+ *   \param[in] callback function pointer to call when the associated
+ *   event occurs.
+ *   \param[in] param pointer to any user data allocated by the calling
+ *   application. This pointer will be passed back as a parameter to the
+ *   callback function when calling it on an event.
+ *
+ *   The prototype of the callback function must be:
+ *
+ *   void lwm2m_exe_callback(void *param, void *extra)
+ *   {
+ *    ...
+ *   }
+ *
+ *   The "param" parameter contains the pointer passed as a parameter
+ *   to the "lwm2m_register_callback" function. The "extra" parameter
+ *   contains some event-specific data passed by the library.
+ *
+ *    - LWM2M_EXE_FACTORY_RESET, LWM2M_EXE_DEVICE_REBOOT, LWM2M_EXE_FIRMWARE_UPDATE:
+ *    "extra" is set to NULL.
+ *    - LWM2M_NOTIFY_RESOURCE_CHANGED: contains a pointer to a "lwm2m_resource_t"
+ *    object containing the URI and data of the resource that has been written
+ *    by the LWM2M server.
+ *
+ */
 void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback_type type,
         lwm2m_exe_callback callback, void *param);
+
+/*!
+ *  \brief Unregisters a callback to an event
+ *
+ *  This function unregisters a callback that has been
+ *  previously registered to match an event. After this
+ *  call the callback function will no longer be called by
+ *  the library upon occurrence of the previously associated
+ *  event.
+ *
+ *  \param[in] handle returned by "lwm2m_client_start"
+ *  \param[in] type event that was previously associated
+ *  to the callback
+ *
+ */
 void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callback_type type);
+
+/*!
+ *  \brief Change the value of a resource
+ *
+ *  This function changes the value of a resource locally.
+ *  All resources (even those that are not writable according
+ *  to the LWM2M standard, therefore from the server point of
+ *  view) can be modified by the application.
+ *
+ *  \param[in] handle returned by "lwm2m_client_start"
+ *  \param[in] resource pointer to a "lwm2m_resource_t" object containing
+ *  the URI and data of the resource to modify. The "buffer" field of the
+ *  "lwm2m_resource_t" must be allocated and freed by the calling
+ *  application.
+ *
+ */
 int lwm2m_write_resource(client_handle_t handle, lwm2m_resource_t *res);
+
+/*!
+ *  \brief Read the value of a resource
+ *
+ *  This function reads the value of a resource locally.
+ *  All resources (even those that are not readable according
+ *  to the LWM2M standard, therefore from the server point of
+ *  view) can be read by the application.
+ *
+ *  \param[in] handle returned by "lwm2m_client_start"
+ *  \param[in] resource pointer to a "lwm2m_resource_t" object containing
+ *  the URI of the resource to read. After successful return of the
+ *  function, this object contains the data read from the resource.
+ *  The "buffer" field of the "lwm2m_resource_t" is allocated and filled
+ *  by the library, and must be freed by the calling application.
+ *
+ *  \return LWM2M_CLIENT_OK if no error occurred, LWM2M_CLIENT_ERROR otherwise
+ *
+ */
 int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res);
+
+/*!
+ *  \brief Serialize multiple strings into a TLV object
+ *
+ *  This function fills up a "lwm2m_resource_t" with multiple
+ *  strings pas as parameters. The generated object follows the
+ *  binary TLV format. This function is used as an helper routine
+ *  to format resource objects before writing multiple objects
+ *  formatted resources.
+ *
+ *  \param[in] number of strings to process
+ *  \param[in] pointer to the array of strings to process
+ *  \param[in] resource pointer to a "lwm2m_resource_t" object whose "buffer"
+ *  field will be allocated and filled by the library with the content of the
+ *  TLV. After usage, the calling application must free the memory allocated
+ *  for the "buffer" field.
+ *
+ *  \return LWM2M_CLIENT_OK if no error occurred, LWM2M_CLIENT_ERROR otherwise
+ *
+ */
 int lwm2m_serialize_tlv_string(int num, char **strs, lwm2m_resource_t* res);
 
 #ifdef __cplusplus

@@ -228,6 +228,7 @@ int main(int argc, char *argv[])
     if (!client)
     {
         fprintf(stderr, "Failed to start client\n");
+        return -1;
     }
 
     cmdline_init(client);

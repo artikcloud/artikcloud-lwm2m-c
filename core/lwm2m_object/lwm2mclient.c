@@ -656,6 +656,11 @@ int lwm2m_client_service(client_handle_t handle)
         return LWM2M_CLIENT_ERROR;
     }
 
+    if (registration_getStatus(data->lwm2mH) == STATE_REG_FAILED)
+    {
+        return LWM2M_CLIENT_QUIT;
+    }
+
     return timeout;
 }
 

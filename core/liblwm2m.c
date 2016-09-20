@@ -248,9 +248,12 @@ int lwm2m_configure(lwm2m_context_t * contextP,
     found = 0;
     for (i = 0 ; i < numObject ; i++)
     {
-        if (objectList[i]->objID == LWM2M_SECURITY_OBJECT_ID) found |= 0x01;
-        if (objectList[i]->objID == LWM2M_SERVER_OBJECT_ID) found |= 0x02;
-        if (objectList[i]->objID == LWM2M_DEVICE_OBJECT_ID) found |= 0x04;
+        if (objectList[i])
+        {
+            if (objectList[i]->objID == LWM2M_SECURITY_OBJECT_ID) found |= 0x01;
+            if (objectList[i]->objID == LWM2M_SERVER_OBJECT_ID) found |= 0x02;
+            if (objectList[i]->objID == LWM2M_DEVICE_OBJECT_ID) found |= 0x04;
+        }
     }
     if (found != 0x07) return COAP_400_BAD_REQUEST;
     if (altPath != NULL)
@@ -290,8 +293,11 @@ int lwm2m_configure(lwm2m_context_t * contextP,
 
     for (i = 0; i < numObject; i++)
     {
-        objectList[i]->next = NULL;
-        contextP->objectList = (lwm2m_object_t *)LWM2M_LIST_ADD(contextP->objectList, objectList[i]);
+        if (objectList[i])
+        {
+            objectList[i]->next = NULL;
+            contextP->objectList = (lwm2m_object_t *)LWM2M_LIST_ADD(contextP->objectList, objectList[i]);
+        }
     }
 
     return COAP_NO_ERROR;

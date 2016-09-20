@@ -493,32 +493,44 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
         return NULL;
     }
 
-    data->objArray[LWM2M_OBJ_DEVICE] = get_object_device(init_val->device);
-    if (NULL == data->objArray[LWM2M_OBJ_DEVICE])
+    if (init_val->device)
     {
-        fprintf(stderr, "Failed to create Device object\r\n");
-        return NULL;
+        data->objArray[LWM2M_OBJ_DEVICE] = get_object_device(init_val->device);
+        if (NULL == data->objArray[LWM2M_OBJ_DEVICE])
+        {
+            fprintf(stderr, "Failed to create Device object\r\n");
+            return NULL;
+        }
     }
 
-    data->objArray[LWM2M_OBJ_FIRMWARE] = get_object_firmware(init_val->firmware);
-    if (NULL == data->objArray[LWM2M_OBJ_FIRMWARE])
+    if (init_val->firmware)
     {
-        fprintf(stderr, "Failed to create Firmware object\r\n");
-        return NULL;
+        data->objArray[LWM2M_OBJ_FIRMWARE] = get_object_firmware(init_val->firmware);
+        if (NULL == data->objArray[LWM2M_OBJ_FIRMWARE])
+        {
+            fprintf(stderr, "Failed to create Firmware object\r\n");
+            return NULL;
+        }
     }
 
-    data->objArray[LWM2M_OBJ_LOCATION] = get_object_location(init_val->location);
-    if (NULL == data->objArray[LWM2M_OBJ_LOCATION])
+    if (init_val->location)
     {
-        fprintf(stderr, "Failed to create location object\r\n");
-        return NULL;
+        data->objArray[LWM2M_OBJ_LOCATION] = get_object_location(init_val->location);
+        if (NULL == data->objArray[LWM2M_OBJ_LOCATION])
+        {
+            fprintf(stderr, "Failed to create location object\r\n");
+            return NULL;
+        }
     }
 
-    data->objArray[LWM2M_OBJ_CONN_MON] = get_object_conn_m(init_val->monitoring);
-    if (NULL == data->objArray[LWM2M_OBJ_CONN_MON])
+    if (init_val->monitoring)
     {
-        fprintf(stderr, "Failed to create connectivity monitoring object\r\n");
-        return NULL;
+        data->objArray[LWM2M_OBJ_CONN_MON] = get_object_conn_m(init_val->monitoring);
+        if (NULL == data->objArray[LWM2M_OBJ_CONN_MON])
+        {
+            fprintf(stderr, "Failed to create connectivity monitoring object\r\n");
+            return NULL;
+        }
     }
 
     data->objArray[LWM2M_OBJ_CONN_STAT] = get_object_conn_s();
@@ -602,16 +614,26 @@ void lwm2m_client_stop(client_handle_t handle)
             lwm2m_close(data->lwm2mH);
         close(data->sock);
         connection_free(data->connList);
-        clean_security_object(data->objArray[LWM2M_OBJ_SECURITY]);
-        lwm2m_free(data->objArray[LWM2M_OBJ_SECURITY]);
-        clean_server_object(data->objArray[LWM2M_OBJ_SERVER]);
-        lwm2m_free(data->objArray[LWM2M_OBJ_SERVER]);
-        free_object_device(data->objArray[LWM2M_OBJ_DEVICE]);
-        free_object_firmware(data->objArray[LWM2M_OBJ_FIRMWARE]);
-        free_object_location(data->objArray[LWM2M_OBJ_LOCATION]);
-        free_object_conn_m(data->objArray[LWM2M_OBJ_CONN_MON]);
-        free_object_conn_s(data->objArray[LWM2M_OBJ_CONN_STAT]);
-        acl_ctrl_free_object(data->objArray[LWM2M_OBJ_ACL]);
+        if (data->objArray[LWM2M_OBJ_SECURITY])
+            clean_security_object(data->objArray[LWM2M_OBJ_SECURITY]);
+        if (data->objArray[LWM2M_OBJ_SECURITY])
+            lwm2m_free(data->objArray[LWM2M_OBJ_SECURITY]);
+        if (data->objArray[LWM2M_OBJ_SERVER]) {
+            clean_server_object(data->objArray[LWM2M_OBJ_SERVER]);
+            lwm2m_free(data->objArray[LWM2M_OBJ_SERVER]);
+        }
+        if (data->objArray[LWM2M_OBJ_DEVICE])
+            free_object_device(data->objArray[LWM2M_OBJ_DEVICE]);
+        if (data->objArray[LWM2M_OBJ_FIRMWARE])
+            free_object_firmware(data->objArray[LWM2M_OBJ_FIRMWARE]);
+        if (data->objArray[LWM2M_OBJ_LOCATION])
+            free_object_location(data->objArray[LWM2M_OBJ_LOCATION]);
+        if (data->objArray[LWM2M_OBJ_CONN_MON])
+            free_object_conn_m(data->objArray[LWM2M_OBJ_CONN_MON]);
+        if (data->objArray[LWM2M_OBJ_CONN_STAT])
+            free_object_conn_s(data->objArray[LWM2M_OBJ_CONN_STAT]);
+        if (data->objArray[LWM2M_OBJ_ACL])
+            acl_ctrl_free_object(data->objArray[LWM2M_OBJ_ACL]);
         free(data);
     }
 }

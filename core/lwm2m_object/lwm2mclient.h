@@ -249,7 +249,7 @@ client_handle_t lwm2m_client_start(object_container_t *init_val);
  *
  *  \param[in] handle returned by "lwm2m_client_start"
  *
- *  \return the number of milliseconds after which the function
+ *  \return the number of seconds after which the function
  *  must be called again. If an error happens, it returns a negative
  *  value:
  *   - LWM2M_CLIENT_ERROR in case an error happened
@@ -346,6 +346,8 @@ void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callba
  *  the URI and data of the resource to modify. The "buffer" field of the
  *  "lwm2m_resource_t" must be allocated and freed by the calling
  *  application.
+ *
+ *  \return LWM2M_CLIENT_OK if no error occurred, LWM2M_CLIENT_ERROR otherwise
  *
  */
 int lwm2m_write_resource(client_handle_t handle, lwm2m_resource_t *res);

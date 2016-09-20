@@ -39,7 +39,7 @@ This function has to be called periodically from the application code. It perfor
 
 **Return value**
 
-*integer*:  The number of milliseconds after which the function must be called again. If an error happens, it returns a negative value:
+*integer*:  The number of seconds after which the function must be called again. If an error happens, it returns a negative value:
 
  - *LWM2M_CLIENT_ERROR* in case an error happened
  - *LWM2M_CLIENT_QUIT* in case the connection was terminated

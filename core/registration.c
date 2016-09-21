@@ -144,15 +144,11 @@ static void prv_handleRegistrationReply(lwm2m_transaction_t * transacP,
             targetP->location = coap_get_multi_option_as_string(packet->location_path);
 
             LOG("    => REGISTERED\r\n");
-            fprintf(stdout, "\r\nRegistered\r\n> ");
-            fflush(stdout);
         }
         else
         {
             targetP->status = STATE_REG_FAILED;
             LOG("    => Registration FAILED\r\n");
-            fprintf(stdout, "\r\nRegistration failed\r\n> ");
-            fflush(stdout);
         }
     }
 }

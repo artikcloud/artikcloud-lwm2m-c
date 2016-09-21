@@ -385,7 +385,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     {
         if (0 == strncmp(uri, protocols[i].uri_prefix, strlen(protocols[i].uri_prefix)))
         {
+#ifdef WITH_LOGS
             fprintf(stdout, "Connecting to server over %s\r\n", protocols[i].friendly_name);
+#endif
             protocol = protocols[i].proto;
             break;
         }
@@ -415,7 +417,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
      */
     snprintf(local_port, 16, "%d", (rand() % (CLIENT_PORT_RANGE_END - CLIENT_PORT_RANGE_START)) + CLIENT_PORT_RANGE_START);
 
+#ifdef WITH_LOGS
     fprintf(stdout, "Trying to bind LWM2M Client to port %s\r\n", local_port);
+#endif
 
     data->sock = create_socket(data->proto, local_port, data->addressFamily);
     if (data->sock < 0)
@@ -458,7 +462,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
         }
     }
 
+#ifdef WITH_LOGS
     fprintf(stdout, " Server Uri =  %s\n", uri);
+#endif
 
     if (init_val->server)
     {

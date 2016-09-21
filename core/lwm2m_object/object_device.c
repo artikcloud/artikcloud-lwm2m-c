@@ -726,7 +726,12 @@ uint8_t device_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
 void prv_device_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type,
         lwm2m_exe_callback callback, void *param)
 {
-    device_data_t * data = (device_data_t*)objectP->userData;
+    device_data_t *data = NULL;
+
+    if (!objectP)
+        return;
+
+    data = (device_data_t*)objectP->userData;
 
     switch(type)
     {

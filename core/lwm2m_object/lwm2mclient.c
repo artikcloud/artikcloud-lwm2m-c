@@ -460,37 +460,43 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
 
     fprintf(stdout, " Server Uri =  %s\n", uri);
 
-    data->objArray[LWM2M_OBJ_SECURITY] = get_security_object(serverId, uri, init_val->server->bsPskId, pskBuffer, pskLen, false);
-    if (NULL == data->objArray[LWM2M_OBJ_SECURITY])
+    if (init_val->server)
     {
-        fprintf(stderr, "Failed to create security object\r\n");
-        return NULL;
-    }
-    data->securityObjP = data->objArray[LWM2M_OBJ_SECURITY];
+        if (init_val->server->bsPskId && pskBuffer)
+        {
+            data->objArray[LWM2M_OBJ_SECURITY] = get_security_object(serverId, uri, init_val->server->bsPskId, pskBuffer, pskLen, false);
+            if (NULL == data->objArray[LWM2M_OBJ_SECURITY])
+            {
+                fprintf(stderr, "Failed to create security object\r\n");
+                return NULL;
+            }
+            data->securityObjP = data->objArray[LWM2M_OBJ_SECURITY];
+        }
 
-    switch(data->proto)
-    {
-    case COAP_UDP:
-    case COAP_UDP_DTLS:
-        data->objArray[LWM2M_OBJ_SERVER] = get_server_object(serverId, "U", init_val->server->lifetime, false);
-        strncpy(init_val->device->binding_mode, "U", LWM2M_MAX_STR_LEN);
-        break;
-    case COAP_TCP:
-        data->objArray[LWM2M_OBJ_SERVER] = get_server_object(serverId, "C", init_val->server->lifetime, false);
-        strncpy(init_val->device->binding_mode, "C", LWM2M_MAX_STR_LEN);
-        break;
-    case COAP_TCP_TLS:
-        data->objArray[LWM2M_OBJ_SERVER] = get_server_object(serverId, "T", init_val->server->lifetime, false);
-        strncpy(init_val->device->binding_mode, "T", LWM2M_MAX_STR_LEN);
-        break;
-    default:
-        break;
-    }
+        switch(data->proto)
+        {
+        case COAP_UDP:
+        case COAP_UDP_DTLS:
+            data->objArray[LWM2M_OBJ_SERVER] = get_server_object(serverId, "U", init_val->server->lifetime, false);
+            strncpy(init_val->device->binding_mode, "U", LWM2M_MAX_STR_LEN);
+            break;
+        case COAP_TCP:
+            data->objArray[LWM2M_OBJ_SERVER] = get_server_object(serverId, "C", init_val->server->lifetime, false);
+            strncpy(init_val->device->binding_mode, "C", LWM2M_MAX_STR_LEN);
+            break;
+        case COAP_TCP_TLS:
+            data->objArray[LWM2M_OBJ_SERVER] = get_server_object(serverId, "T", init_val->server->lifetime, false);
+            strncpy(init_val->device->binding_mode, "T", LWM2M_MAX_STR_LEN);
+            break;
+        default:
+            break;
+        }
 
-    if (NULL == data->objArray[LWM2M_OBJ_SERVER])
-    {
-        fprintf(stderr, "Failed to create server object\r\n");
-        return NULL;
+        if (NULL == data->objArray[LWM2M_OBJ_SERVER])
+        {
+            fprintf(stderr, "Failed to create server object\r\n");
+            return NULL;
+        }
     }
 
     if (init_val->device)

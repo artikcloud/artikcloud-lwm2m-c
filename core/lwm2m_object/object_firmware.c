@@ -193,6 +193,7 @@ static uint8_t prv_firmware_write(uint16_t instanceId,
         case RES_O_UPDATE_SUPPORTED_OBJECTS:
             if (lwm2m_data_decode_bool(&dataArray[i], &data->supported) == 1)
             {
+                prv_notify_resource_changed(data, LWM2M_URI_FIRMWARE_UPD_SUPP_OBJ, &dataArray[i]);
                 result = COAP_204_CHANGED;
             }
             else
@@ -405,7 +406,12 @@ uint8_t firmware_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
 void prv_firmware_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute_callback_type type,
         lwm2m_exe_callback callback, void *param)
 {
-    firmware_data_t * data = (firmware_data_t*)(objectP->userData);
+    firmware_data_t * data = NULL;
+
+    if (!objectP)
+        return;
+
+    data = (firmware_data_t*)(objectP->userData);
 
     switch(type)
     {

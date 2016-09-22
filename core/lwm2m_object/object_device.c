@@ -57,6 +57,7 @@
 
 #include "liblwm2m.h"
 #include "lwm2mclient.h"
+#include "internals.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,15 +93,30 @@
 #define RES_O_BATTERY_STATUS        20
 #define RES_O_MEMORY_TOTAL          21
 
+#define LWM2M_DEVICE_MAX_POWER_SOURCES  2
+#define LWM2M_DEVICE_MAX_ERROR_CODES    16
+
 typedef struct
 {
+    char manufacturer[LWM2M_MAX_STR_LEN];
+    char model_number[LWM2M_MAX_STR_LEN];
+    char serial_number[LWM2M_MAX_STR_LEN];
+    char firmware_version[LWM2M_MAX_STR_LEN];
+    char binding_mode[LWM2M_MAX_STR_LEN];
+    char device_type[LWM2M_MAX_STR_LEN];
+    char hardware_version[LWM2M_MAX_STR_LEN];
+    char software_version[LWM2M_MAX_STR_LEN];
+    int64_t power_source[LWM2M_DEVICE_MAX_POWER_SOURCES];
+    int64_t power_voltage[LWM2M_DEVICE_MAX_POWER_SOURCES];
+    int64_t power_current[LWM2M_DEVICE_MAX_POWER_SOURCES];
+    int64_t memory_total;
     int64_t free_memory;
-    int64_t error;
+    int64_t error_code[LWM2M_DEVICE_MAX_ERROR_CODES];
     int64_t time;
     uint8_t battery_level;
     uint8_t battery_status;
     char time_offset[PRV_OFFSET_MAXLEN];
-    object_device_t *obj;
+    char time_zone[LWM2M_MAX_STR_LEN];
     lwm2m_exe_callback reboot_callback;
     lwm2m_exe_callback notify_callback;
     lwm2m_exe_callback factory_callback;
@@ -167,25 +183,23 @@ static void prv_notify_resource_changed(device_data_t *client, char *uri, lwm2m_
 static uint8_t prv_set_value(lwm2m_data_t * dataP,
                              device_data_t * devDataP)
 {
-    object_device_t* obj = devDataP->obj;
-
     // a simple switch structure is used to respond at the specified resource asked
     switch (dataP->id)
     {
     case RES_O_MANUFACTURER:
-        lwm2m_data_encode_string(obj->manufacturer, dataP);
+        lwm2m_data_encode_string(devDataP->manufacturer, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_MODEL_NUMBER:
-        lwm2m_data_encode_string(obj->model_number, dataP);
+        lwm2m_data_encode_string(devDataP->model_number, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_SERIAL_NUMBER:
-        lwm2m_data_encode_string(obj->serial_number, dataP);
+        lwm2m_data_encode_string(devDataP->serial_number, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_FIRMWARE_VERSION:
-        lwm2m_data_encode_string(obj->firmware_version, dataP);
+        lwm2m_data_encode_string(devDataP->firmware_version, dataP);
         return COAP_205_CONTENT;
 
     case RES_M_REBOOT:
@@ -196,48 +210,48 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
 
     case RES_O_AVL_POWER_SOURCES: 
     {
-        lwm2m_data_t * subTlvP;
+        int i;
+        lwm2m_data_t *subTlvP = lwm2m_data_new(LWM2M_DEVICE_MAX_POWER_SOURCES);
 
-        subTlvP = lwm2m_data_new(2);
+        for (i=0; i<LWM2M_DEVICE_MAX_POWER_SOURCES; i++)
+        {
+            subTlvP[i].id = i;
+            lwm2m_data_encode_int(devDataP->power_source[i], subTlvP);
+        }
 
-        subTlvP[0].id = 0;
-        lwm2m_data_encode_int(obj->power_source_1, subTlvP);
-        subTlvP[1].id = 1;
-        lwm2m_data_encode_int(obj->power_source_2, subTlvP + 1);
-
-        lwm2m_data_encode_instances(subTlvP, 2, dataP);
+        lwm2m_data_encode_instances(subTlvP, LWM2M_DEVICE_MAX_POWER_SOURCES, dataP);
 
         return COAP_205_CONTENT;
     }
 
     case RES_O_POWER_SOURCE_VOLTAGE:
     {
-        lwm2m_data_t * subTlvP;
+        int i;
+        lwm2m_data_t *subTlvP = lwm2m_data_new(LWM2M_DEVICE_MAX_POWER_SOURCES);
 
-        subTlvP = lwm2m_data_new(2);
+        for (i=0; i<LWM2M_DEVICE_MAX_POWER_SOURCES; i++)
+        {
+            subTlvP[i].id = i;
+            lwm2m_data_encode_int(devDataP->power_voltage[i], subTlvP);
+        }
 
-        subTlvP[0].id = 0;
-        lwm2m_data_encode_int(obj->power_voltage_1, subTlvP);
-        subTlvP[1].id = 1;
-        lwm2m_data_encode_int(obj->power_voltage_2, subTlvP + 1);
-
-        lwm2m_data_encode_instances(subTlvP, 2, dataP);
+        lwm2m_data_encode_instances(subTlvP, LWM2M_DEVICE_MAX_POWER_SOURCES, dataP);
 
         return COAP_205_CONTENT;
     }
 
     case RES_O_POWER_SOURCE_CURRENT:
     {
-        lwm2m_data_t * subTlvP;
+        int i;
+        lwm2m_data_t *subTlvP = lwm2m_data_new(LWM2M_DEVICE_MAX_POWER_SOURCES);
 
-        subTlvP = lwm2m_data_new(2);
+        for (i=0; i<LWM2M_DEVICE_MAX_POWER_SOURCES; i++)
+        {
+            subTlvP[i].id = i;
+            lwm2m_data_encode_int(devDataP->power_current[i], subTlvP);
+        }
 
-        subTlvP[0].id = 0;
-        lwm2m_data_encode_int(obj->power_current_1, &subTlvP[0]);
-        subTlvP[1].id = 1;
-        lwm2m_data_encode_int(obj->power_current_2, &subTlvP[1]);
- 
-        lwm2m_data_encode_instances(subTlvP, 2, dataP);
+        lwm2m_data_encode_instances(subTlvP, LWM2M_DEVICE_MAX_POWER_SOURCES, dataP);
 
         return COAP_205_CONTENT;
     }
@@ -256,14 +270,16 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
 
     case RES_M_ERROR_CODE:
     {
-        lwm2m_data_t * subTlvP;
+        int i;
+        lwm2m_data_t *subTlvP = lwm2m_data_new(LWM2M_DEVICE_MAX_POWER_SOURCES);
 
-        subTlvP = lwm2m_data_new(1);
+        for (i=0; i<LWM2M_DEVICE_MAX_POWER_SOURCES; i++)
+        {
+            subTlvP[i].id = i;
+            lwm2m_data_encode_int(devDataP->error_code[i], subTlvP);
+        }
 
-        subTlvP[0].id = 0;
-        lwm2m_data_encode_int(devDataP->error, subTlvP);
-
-        lwm2m_data_encode_instances(subTlvP, 1, dataP);
+        lwm2m_data_encode_instances(subTlvP, LWM2M_DEVICE_MAX_POWER_SOURCES, dataP);
 
         return COAP_205_CONTENT;
     }        
@@ -279,27 +295,27 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         return COAP_205_CONTENT;
 
     case RES_O_TIMEZONE:
-        lwm2m_data_encode_string(obj->time_zone, dataP);
+        lwm2m_data_encode_string(devDataP->time_zone, dataP);
         return COAP_205_CONTENT;
 
     case RES_M_BINDING_MODES:
-        lwm2m_data_encode_string(obj->binding_mode, dataP);
+        lwm2m_data_encode_string(devDataP->binding_mode, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_DEVICE_TYPE:
-        lwm2m_data_encode_string(obj->device_type, dataP);
+        lwm2m_data_encode_string(devDataP->device_type, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_HARDWARE_VERSION:
-        lwm2m_data_encode_string(obj->hardware_version, dataP);
+        lwm2m_data_encode_string(devDataP->hardware_version, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_SOFTWARE_VERSION:
-        lwm2m_data_encode_string(obj->software_version, dataP);
+        lwm2m_data_encode_string(devDataP->software_version, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_MEMORY_TOTAL:
-        lwm2m_data_encode_int(obj->memory_total, dataP);
+        lwm2m_data_encode_int(devDataP->memory_total, dataP);
         return COAP_205_CONTENT;
 
     default:
@@ -520,6 +536,7 @@ static uint8_t prv_device_execute(uint16_t instanceId,
                                   lwm2m_object_t * objectP)
 {
 	device_data_t * data = (device_data_t*)objectP->userData;
+	uint8_t result = COAP_400_BAD_REQUEST;
 
     // this is a single instance object
     if (instanceId != 0)
@@ -535,22 +552,33 @@ static uint8_t prv_device_execute(uint16_t instanceId,
         fprintf(stdout, "\n\t REBOOT\r\n\n");
         if (data->reboot_callback)
             data->reboot_callback(data->reboot_callback_param, NULL);
-        return COAP_204_CHANGED;
+        result = COAP_204_CHANGED;
+        break;
 
     case RES_O_FACTORY_RESET:
         fprintf(stdout, "\n\t FACTORY RESET\r\n\n");
         if (data->factory_callback)
             data->factory_callback(data->factory_callback_param, NULL);
-        return COAP_204_CHANGED;
+        result = COAP_204_CHANGED;
+        break;
 
     case RES_O_RESET_ERROR_CODE:
+    {
+        int i;
         fprintf(stdout, "\n\t RESET ERROR CODE\r\n\n");
-        ((device_data_t*)(objectP->userData))->error = 0;
-        return COAP_204_CHANGED;
-
-    default:
-        return COAP_405_METHOD_NOT_ALLOWED;
+        for (i=0; i<LWM2M_DEVICE_MAX_ERROR_CODES; i++)
+        {
+            data->error_code[i] = 0;
+        }
+        result = COAP_204_CHANGED;
+        break;
     }
+    default:
+        result = COAP_405_METHOD_NOT_ALLOWED;
+        break;
+    }
+
+    return result;
 }
 
 void display_device_object(lwm2m_object_t * object)
@@ -571,7 +599,8 @@ lwm2m_object_t * get_object_device(object_device_t *default_value)
     /*
      * The get_object_device function create the object itself and return a pointer to the structure that represent it.
      */
-    lwm2m_object_t * deviceObj;
+    lwm2m_object_t *deviceObj;
+    device_data_t *data;
 
     deviceObj = (lwm2m_object_t *)lwm2m_malloc(sizeof(lwm2m_object_t));
 
@@ -616,13 +645,36 @@ lwm2m_object_t * get_object_device(object_device_t *default_value)
          */
         if (NULL != deviceObj->userData)
         {
-            ((device_data_t*)deviceObj->userData)->obj = default_value;
-            ((device_data_t*)deviceObj->userData)->battery_level = default_value->battery_level;
-            ((device_data_t*)deviceObj->userData)->battery_status = default_value->battery_status;
-            ((device_data_t*)deviceObj->userData)->free_memory   = default_value->memory_free;
-            ((device_data_t*)deviceObj->userData)->error = default_value->error_code;
-            ((device_data_t*)deviceObj->userData)->time  = 1367491215;
-            strncpy(((device_data_t*)deviceObj->userData)->time_offset, default_value->utc_offset, PRV_OFFSET_MAXLEN);
+            int i;
+
+            data = (device_data_t*)deviceObj->userData;
+            strncpy(data->manufacturer, default_value->manufacturer, LWM2M_MAX_STR_LEN);
+            strncpy(data->model_number, default_value->model_number, LWM2M_MAX_STR_LEN);
+            strncpy(data->serial_number, default_value->serial_number, LWM2M_MAX_STR_LEN);
+            strncpy(data->firmware_version, default_value->firmware_version, LWM2M_MAX_STR_LEN);
+            strncpy(data->binding_mode, default_value->binding_mode, LWM2M_MAX_STR_LEN);
+            strncpy(data->device_type, default_value->device_type, LWM2M_MAX_STR_LEN);
+            strncpy(data->hardware_version, default_value->hardware_version, LWM2M_MAX_STR_LEN);
+            strncpy(data->software_version, default_value->software_version, LWM2M_MAX_STR_LEN);
+            data->battery_level = default_value->battery_level;
+            data->battery_status = default_value->battery_status;
+            data->memory_total = default_value->memory_total;
+            data->free_memory   = default_value->memory_free;
+            data->time  = 1367491215;
+            strncpy(data->time_offset, default_value->utc_offset, PRV_OFFSET_MAXLEN);
+            strncpy(data->time_zone, default_value->time_zone, LWM2M_MAX_STR_LEN);
+            data->power_source[0] = default_value->power_source_1;
+            data->power_source[1] = default_value->power_source_2;
+            data->power_current[0] = default_value->power_current_1;
+            data->power_current[1] = default_value->power_current_2;
+            data->power_source[0] = default_value->power_source_1;
+            data->power_source[1] = default_value->power_source_2;
+
+            /* Initialize error codes */
+            for (i=0; i<LWM2M_DEVICE_MAX_ERROR_CODES; i++)
+            {
+                data->error_code[i] = 0;
+            }
         }
         else
         {
@@ -653,12 +705,60 @@ void free_object_device(lwm2m_object_t * objectP)
 
 uint8_t device_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
 {
-    uint8_t result;
+    uint8_t result = COAP_400_BAD_REQUEST;
     int64_t value;
     device_data_t *data = (device_data_t *)object->userData;
 
     switch (dataArray->id)
     {
+        case RES_O_MANUFACTURER:
+            memset(&data->manufacturer, 0, LWM2M_MAX_STR_LEN);
+            strncpy(data->manufacturer, (char*)dataArray->value.asBuffer.buffer,
+                    dataArray->value.asBuffer.length);
+            result = COAP_204_CHANGED;
+            break;
+        case RES_O_MODEL_NUMBER:
+            memset(&data->model_number, 0, LWM2M_MAX_STR_LEN);
+            strncpy(data->model_number, (char*)dataArray->value.asBuffer.buffer,
+                    dataArray->value.asBuffer.length);
+            result = COAP_204_CHANGED;
+            break;
+        case RES_O_SERIAL_NUMBER:
+            memset(&data->serial_number, 0, LWM2M_MAX_STR_LEN);
+            strncpy(data->serial_number, (char*)dataArray->value.asBuffer.buffer,
+                    dataArray->value.asBuffer.length);
+            result = COAP_204_CHANGED;
+            break;
+        case RES_O_FIRMWARE_VERSION:
+            memset(&data->firmware_version, 0, LWM2M_MAX_STR_LEN);
+            strncpy(data->firmware_version, (char*)dataArray->value.asBuffer.buffer,
+                    dataArray->value.asBuffer.length);
+            result = COAP_204_CHANGED;
+            break;
+        case RES_M_BINDING_MODES:
+            memset(&data->binding_mode, 0, LWM2M_MAX_STR_LEN);
+            strncpy(data->binding_mode, (char*)dataArray->value.asBuffer.buffer,
+                    dataArray->value.asBuffer.length);
+            result = COAP_204_CHANGED;
+            break;
+        case RES_O_DEVICE_TYPE:
+            memset(&data->device_type, 0, LWM2M_MAX_STR_LEN);
+            strncpy(data->device_type, (char*)dataArray->value.asBuffer.buffer,
+                    dataArray->value.asBuffer.length);
+            result = COAP_204_CHANGED;
+            break;
+        case RES_O_HARDWARE_VERSION:
+            memset(&data->hardware_version, 0, LWM2M_MAX_STR_LEN);
+            strncpy(data->hardware_version, (char*)dataArray->value.asBuffer.buffer,
+                    dataArray->value.asBuffer.length);
+            result = COAP_204_CHANGED;
+            break;
+        case RES_O_SOFTWARE_VERSION:
+            memset(&data->software_version, 0, LWM2M_MAX_STR_LEN);
+            strncpy(data->software_version, (char*)dataArray->value.asBuffer.buffer,
+                    dataArray->value.asBuffer.length);
+            result = COAP_204_CHANGED;
+            break;
         case RES_O_BATTERY_LEVEL:
             if (1 == lwm2m_data_decode_int(dataArray, &value))
             {
@@ -667,14 +767,6 @@ uint8_t device_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
                     data->battery_level = value;
                     result = COAP_204_CHANGED;
                 }
-                else
-                {
-                    result = COAP_400_BAD_REQUEST;
-                }
-            }
-            else
-            {
-                result = COAP_400_BAD_REQUEST;
             }
             break;
         case RES_O_BATTERY_STATUS:
@@ -685,24 +777,27 @@ uint8_t device_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
                     data->battery_status = value;
                     result = COAP_204_CHANGED;
                 }
-                else
-                {
-                    result = COAP_400_BAD_REQUEST;
-                }
-            }
-            else
-            {
-                result = COAP_400_BAD_REQUEST;
             }
             break;
         case RES_M_ERROR_CODE:
-            if (1 == lwm2m_data_decode_int(dataArray, &data->error))
             {
-                result = COAP_204_CHANGED;
-            }
-            else
-            {
-                result = COAP_400_BAD_REQUEST;
+                int num = 0, i = 0;
+                lwm2m_data_t *parsed = NULL;
+
+                num = tlv_parse(dataArray->value.asBuffer.buffer, dataArray->value.asBuffer.length, &parsed);
+                if ((num > LWM2M_DEVICE_MAX_POWER_SOURCES) || (num == 0))
+                {
+                    break;
+                }
+
+                for (i=0; i<num; i++)
+                {
+                    if (1 == lwm2m_data_decode_int(&parsed[i], &data->error_code[i]))
+                    {
+                        result = COAP_204_CHANGED;
+                    }
+                }
+                lwm2m_free(parsed);
             }
             break;
         case RES_O_MEMORY_FREE:
@@ -710,9 +805,68 @@ uint8_t device_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
             {
                 result = COAP_204_CHANGED;
             }
-            else
+            break;
+        case RES_O_AVL_POWER_SOURCES:
             {
-                result = COAP_400_BAD_REQUEST;
+                int num = 0, i = 0;
+                lwm2m_data_t *parsed = NULL;
+
+                num = tlv_parse(dataArray->value.asBuffer.buffer, dataArray->value.asBuffer.length, &parsed);
+                if ((num > LWM2M_DEVICE_MAX_POWER_SOURCES) || (num == 0))
+                {
+                    break;
+                }
+
+                for (i=0; i<num; i++)
+                {
+                    if (1 == lwm2m_data_decode_int(&parsed[i], &data->power_source[i]))
+                    {
+                        result = COAP_204_CHANGED;
+                    }
+                }
+                lwm2m_free(parsed);
+            }
+            break;
+        case RES_O_POWER_SOURCE_CURRENT:
+            {
+                int num = 0, i = 0;
+                lwm2m_data_t *parsed = NULL;
+
+                num = tlv_parse(dataArray->value.asBuffer.buffer, dataArray->value.asBuffer.length, &parsed);
+                if ((num > LWM2M_DEVICE_MAX_POWER_SOURCES) || (num == 0))
+                {
+                    break;
+                }
+
+                for (i=0; i<num; i++)
+                {
+                    if (1 == lwm2m_data_decode_int(&parsed[i], &data->power_current[i]))
+                    {
+                        result = COAP_204_CHANGED;
+                    }
+                }
+                lwm2m_free(parsed);
+            }
+            break;
+        case RES_O_POWER_SOURCE_VOLTAGE:
+            {
+                int num = 0, i = 0;
+                lwm2m_data_t *parsed = NULL;
+
+                num = tlv_parse(dataArray->value.asBuffer.buffer, dataArray->value.asBuffer.length, &parsed);
+                if ((num > LWM2M_DEVICE_MAX_POWER_SOURCES) || (num == 0))
+                {
+                    break;
+                }
+
+                for (i=0; i<num; i++)
+                {
+                    if (1 == lwm2m_data_decode_int(&parsed[i], &data->power_voltage[i]))
+                    {
+                        result = COAP_204_CHANGED;
+                    }
+                }
+                lwm2m_free(parsed);
             }
             break;
         default:

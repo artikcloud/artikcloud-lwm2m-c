@@ -37,7 +37,6 @@ static object_device_t default_device = {
     900,                      /* PRV_POWER_CURRENT_2 */
     100,                      /* PRV_BATTERY_LEVEL */
     15,                       /* PRV_MEMORY_FREE */
-    0,                        /* PRV_ERROR_CODE */
     "Europe/Paris",           /* PRV_TIME_ZONE */
     "+02:00",                 /* PRV_UTC_OFFSET */
     "U",                      /* PRV_BINDING_MODE */

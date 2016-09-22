@@ -30,7 +30,6 @@ typedef struct {
     int power_current_2;                      /*PRV_POWER_CURRENT_2*/
     int battery_level;                        /*PRV_BATTERY_LEVEL*/
     int memory_free;                          /*PRV_MEMORY_FREE*/
-    int error_code;                           /*PRV_ERROR_CODE*/
     char time_zone[LWM2M_MAX_STR_LEN];        /*PRV_TIME_ZONE*/
     char utc_offset[LWM2M_MAX_STR_LEN];       /*PRV_UTC_OFFSET*/
     char binding_mode[LWM2M_MAX_STR_LEN];     /*PRV_BINDING_MODE*/

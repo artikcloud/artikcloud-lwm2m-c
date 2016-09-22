@@ -113,6 +113,7 @@ typedef struct
     int64_t free_memory;
     int64_t error_code[LWM2M_DEVICE_MAX_ERROR_CODES];
     int64_t time;
+    int64_t time_server_offset;
     uint8_t battery_level;
     uint8_t battery_status;
     char time_offset[PRV_OFFSET_MAXLEN];
@@ -287,7 +288,8 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         return COAP_405_METHOD_NOT_ALLOWED;
 
     case RES_O_CURRENT_TIME:
-        lwm2m_data_encode_int(devDataP->time, dataP);
+        devDataP->time = time(NULL);
+        lwm2m_data_encode_int(devDataP->time + devDataP->time_server_offset, dataP);
         return COAP_205_CONTENT;
 
     case RES_O_UTC_OFFSET:
@@ -488,9 +490,12 @@ static uint8_t prv_device_write(uint16_t instanceId,
         switch (dataArray[i].id)
         {
         case RES_O_CURRENT_TIME:
-            if (1 == lwm2m_data_decode_int(dataArray + i, &(data->time)))
+        {
+            int64_t server_time;
+            if (1 == lwm2m_data_decode_int(dataArray + i, &(server_time)))
             {
-                data->time -= time(NULL);
+                data->time = time(NULL);
+                data->time_server_offset = server_time - data->time;
                 result = COAP_204_CHANGED;
                 prv_notify_resource_changed(data, LWM2M_URI_DEVICE_CURRENT_TIME, &dataArray[i]);
             }
@@ -499,7 +504,7 @@ static uint8_t prv_device_write(uint16_t instanceId,
                 result = COAP_400_BAD_REQUEST;
             }
             break;
-
+        }
         case RES_O_UTC_OFFSET:
             if (1 == prv_check_time_offset((char*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length))
             {
@@ -663,7 +668,8 @@ lwm2m_object_t * get_object_device(object_device_t *default_value)
             data->battery_status = default_value->battery_status;
             data->memory_total = default_value->memory_total;
             data->free_memory   = default_value->memory_free;
-            data->time  = 1367491215;
+            data->time = time(NULL);
+            data->time_server_offset = 0;
             strncpy(data->time_offset, default_value->utc_offset, PRV_OFFSET_MAXLEN);
             strncpy(data->time_zone, default_value->time_zone, LWM2M_MAX_STR_LEN);
             data->power_source[0] = default_value->power_source_1;

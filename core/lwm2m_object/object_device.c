@@ -515,8 +515,11 @@ static uint8_t prv_device_write(uint16_t instanceId,
             break;
 
         case RES_O_TIMEZONE:
-            //ToDo IANA TZ Format
-            result = COAP_501_NOT_IMPLEMENTED;
+            memset(&data->time_zone, 0, LWM2M_MAX_STR_LEN);
+            strncpy(data->time_zone, (char*)dataArray->value.asBuffer.buffer,
+                    dataArray->value.asBuffer.length);
+            result = COAP_204_CHANGED;
+            prv_notify_resource_changed(data, LWM2M_URI_DEVICE_TIMEZONE, &dataArray[i]);
             break;
 
         default:

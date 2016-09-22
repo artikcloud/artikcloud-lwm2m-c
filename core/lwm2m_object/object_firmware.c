@@ -185,7 +185,7 @@ static uint8_t prv_firmware_write(uint16_t instanceId,
             break;
 
         case RES_M_PACKAGE_URI:
-            strncpy(data->pkg_uri, (char*)dataArray[i].value.asBuffer.buffer, LWM2M_FIRMWARE_PKG_URI_LEN);
+            strncpy(data->pkg_uri, (char*)dataArray[i].value.asBuffer.buffer, dataArray[i].value.asBuffer.length);
             prv_notify_resource_changed(data, LWM2M_URI_FIRMWARE_PACKAGE_URI, &dataArray[i]);
             result = COAP_204_CHANGED;
             break;

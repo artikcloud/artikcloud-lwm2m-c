@@ -468,7 +468,7 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
 
     if (init_val->server)
     {
-        if (init_val->server->bsPskId && pskBuffer)
+        if (pskBuffer)
         {
             data->objArray[LWM2M_OBJ_SECURITY] = get_security_object(serverId, uri, init_val->server->bsPskId, pskBuffer, pskLen, false);
             if (NULL == data->objArray[LWM2M_OBJ_SECURITY])

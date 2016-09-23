@@ -217,7 +217,7 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         for (i=0; i<LWM2M_DEVICE_MAX_POWER_SOURCES; i++)
         {
             subTlvP[i].id = i;
-            lwm2m_data_encode_int(devDataP->power_source[i], subTlvP);
+            lwm2m_data_encode_int(devDataP->power_source[i], &subTlvP[i]);
         }
 
         lwm2m_data_encode_instances(subTlvP, LWM2M_DEVICE_MAX_POWER_SOURCES, dataP);
@@ -233,7 +233,7 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         for (i=0; i<LWM2M_DEVICE_MAX_POWER_SOURCES; i++)
         {
             subTlvP[i].id = i;
-            lwm2m_data_encode_int(devDataP->power_voltage[i], subTlvP);
+            lwm2m_data_encode_int(devDataP->power_voltage[i], &subTlvP[i]);
         }
 
         lwm2m_data_encode_instances(subTlvP, LWM2M_DEVICE_MAX_POWER_SOURCES, dataP);
@@ -249,7 +249,7 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         for (i=0; i<LWM2M_DEVICE_MAX_POWER_SOURCES; i++)
         {
             subTlvP[i].id = i;
-            lwm2m_data_encode_int(devDataP->power_current[i], subTlvP);
+            lwm2m_data_encode_int(devDataP->power_current[i], &subTlvP[i]);
         }
 
         lwm2m_data_encode_instances(subTlvP, LWM2M_DEVICE_MAX_POWER_SOURCES, dataP);
@@ -272,15 +272,15 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
     case RES_M_ERROR_CODE:
     {
         int i;
-        lwm2m_data_t *subTlvP = lwm2m_data_new(LWM2M_DEVICE_MAX_POWER_SOURCES);
+        lwm2m_data_t *subTlvP = lwm2m_data_new(LWM2M_DEVICE_MAX_ERROR_CODES);
 
-        for (i=0; i<LWM2M_DEVICE_MAX_POWER_SOURCES; i++)
+        for (i=0; i<LWM2M_DEVICE_MAX_ERROR_CODES; i++)
         {
             subTlvP[i].id = i;
-            lwm2m_data_encode_int(devDataP->error_code[i], subTlvP);
+            lwm2m_data_encode_int(devDataP->error_code[i],  &subTlvP[i]);
         }
 
-        lwm2m_data_encode_instances(subTlvP, LWM2M_DEVICE_MAX_POWER_SOURCES, dataP);
+        lwm2m_data_encode_instances(subTlvP, LWM2M_DEVICE_MAX_ERROR_CODES, dataP);
 
         return COAP_205_CONTENT;
     }        
@@ -676,8 +676,8 @@ lwm2m_object_t * get_object_device(object_device_t *default_value)
             data->power_source[1] = default_value->power_source_2;
             data->power_current[0] = default_value->power_current_1;
             data->power_current[1] = default_value->power_current_2;
-            data->power_source[0] = default_value->power_source_1;
-            data->power_source[1] = default_value->power_source_2;
+            data->power_voltage[0] = default_value->power_voltage_1;
+            data->power_voltage[1] = default_value->power_voltage_2;
 
             /* Initialize error codes */
             for (i=0; i<LWM2M_DEVICE_MAX_ERROR_CODES; i++)

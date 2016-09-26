@@ -54,7 +54,9 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 else()
     set(OPENSSL_CONFIG_CMD	./config)
     set(OPENSSL_LIBRARIES ${OPENSSL_LIBRARIES} dl pthread)
-    set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/libwakaama-client.version -Wl,--strip-all")
+    if(CMAKE_BUILD_TYPE MATCHES Release)
+        set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/libwakaama-client.version -Wl,--strip-all")
+    endif()
 endif()
 
 add_custom_command(OUTPUT openssl

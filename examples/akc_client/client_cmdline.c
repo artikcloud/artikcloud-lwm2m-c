@@ -33,9 +33,9 @@ static void prv_read_obj(char *buffer, void *user_data);
 static bool quit_client = false;
 
 command_desc_t commands[] = {
-    { "change", "Change the value of a resource.", NULL, prv_change_obj, NULL },
-    { "read", "Read the value of a resource.", NULL, prv_read_obj, NULL },
-    { "q", "Quit the client.", NULL, prv_quit, NULL },
+    { "change", "Change the value of a resource. (e.g. \"change /3/0/14 +01:00\")", NULL, prv_change_obj, NULL },
+    { "read", "Read the value of a resource. (e.g. \"read /3/0/14\")", NULL, prv_read_obj, NULL },
+    { "quit", "Quit the client.", NULL, prv_quit, NULL },
     { NULL, NULL, NULL, NULL, NULL }
 };
 

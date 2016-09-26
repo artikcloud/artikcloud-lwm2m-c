@@ -600,7 +600,10 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     }
 
     /* Service once to initialize the first steps */
-    lwm2m_client_service(data);
+    if (lwm2m_client_service(data) != LWM2M_CLIENT_OK)
+    {
+        return NULL;
+    }
 
     /* Start rx thread */
     data->rx_thread_exit = false;
@@ -625,7 +628,8 @@ void lwm2m_client_stop(client_handle_t handle)
         if (data->lwm2mH)
             lwm2m_close(data->lwm2mH);
         close(data->sock);
-        connection_free(data->connList);
+        if (data->connList)
+            connection_free(data->connList);
         if (data->objArray[LWM2M_OBJ_SECURITY])
             clean_security_object(data->objArray[LWM2M_OBJ_SECURITY]);
         if (data->objArray[LWM2M_OBJ_SECURITY])

@@ -340,6 +340,7 @@ connection_t * connection_create(connection_t * connList,
     struct sockaddr *sa;
     socklen_t sl;
     connection_t * connP = NULL;
+    long arg = 0;
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = addressFamily;
@@ -369,10 +370,26 @@ connection_t * connection_create(connection_t * connList,
         {
             sa = p->ai_addr;
             sl = p->ai_addrlen;
+
+            /*
+             * Set to non-blocking mode just for the time of the connection
+             * to avoid getting stuck on a non-responsive server
+             */
+            arg = fcntl(s, F_GETFL, NULL);
+            arg |= O_NONBLOCK;
+            fcntl(s, F_SETFL, arg);
+
             if (-1 == connect(s, p->ai_addr, p->ai_addrlen))
             {
                 close(s);
                 s = -1;
+            }
+            else
+            {
+                /* Set blocking mode back */
+                arg = fcntl(s, F_GETFL, NULL);
+                arg &= O_NONBLOCK;
+                fcntl(s, F_SETFL, arg);
             }
         }
     }

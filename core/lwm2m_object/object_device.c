@@ -112,6 +112,7 @@ typedef struct
     int64_t memory_total;
     int64_t free_memory;
     int64_t error_code[LWM2M_DEVICE_MAX_ERROR_CODES];
+    int error_code_index;
     int64_t time;
     int64_t time_server_offset;
     uint8_t battery_level;
@@ -274,13 +275,13 @@ static uint8_t prv_set_value(lwm2m_data_t * dataP,
         int i;
         lwm2m_data_t *subTlvP = lwm2m_data_new(LWM2M_DEVICE_MAX_ERROR_CODES);
 
-        for (i=0; i<LWM2M_DEVICE_MAX_ERROR_CODES; i++)
+        for (i=0; i<devDataP->error_code_index; i++)
         {
             subTlvP[i].id = i;
             lwm2m_data_encode_int(devDataP->error_code[i],  &subTlvP[i]);
         }
 
-        lwm2m_data_encode_instances(subTlvP, LWM2M_DEVICE_MAX_ERROR_CODES, dataP);
+        lwm2m_data_encode_instances(subTlvP, devDataP->error_code_index, dataP);
 
         return COAP_205_CONTENT;
     }        
@@ -557,14 +558,12 @@ static uint8_t prv_device_execute(uint16_t instanceId,
     switch (resourceId)
     {
     case RES_M_REBOOT:
-        fprintf(stdout, "\n\t REBOOT\r\n\n");
         if (data->reboot_callback)
             data->reboot_callback(data->reboot_callback_param, NULL);
         result = COAP_204_CHANGED;
         break;
 
     case RES_O_FACTORY_RESET:
-        fprintf(stdout, "\n\t FACTORY RESET\r\n\n");
         if (data->factory_callback)
             data->factory_callback(data->factory_callback_param, NULL);
         result = COAP_204_CHANGED;
@@ -573,11 +572,11 @@ static uint8_t prv_device_execute(uint16_t instanceId,
     case RES_O_RESET_ERROR_CODE:
     {
         int i;
-        fprintf(stdout, "\n\t RESET ERROR CODE\r\n\n");
         for (i=0; i<LWM2M_DEVICE_MAX_ERROR_CODES; i++)
         {
             data->error_code[i] = 0;
         }
+        data->error_code_index = 1;
         result = COAP_204_CHANGED;
         break;
     }
@@ -684,6 +683,7 @@ lwm2m_object_t * get_object_device(object_device_t *default_value)
             {
                 data->error_code[i] = 0;
             }
+            data->error_code_index = 1;
         }
         else
         {
@@ -806,6 +806,7 @@ uint8_t device_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
                         result = COAP_204_CHANGED;
                     }
                 }
+                data->error_code_index = num;
                 lwm2m_free(parsed);
             }
             break;

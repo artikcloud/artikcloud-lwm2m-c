@@ -83,11 +83,14 @@ static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity,
     memcpy(psk, key, keyLen);
 
 #ifdef WITH_LOGS
-    fprintf(stdout, "id: %s\n", identity);
-    fprintf(stdout, "Key:");
-    for (int i=0; i<keyLen; i++)
-        fprintf(stdout, "%02x", psk[i]);
-    fprintf(stdout, "\n");
+    {
+        int i = 0;
+        fprintf(stdout, "id: %s\n", identity);
+        fprintf(stdout, "Key:");
+        for (i=0; i<keyLen; i++)
+            fprintf(stdout, "%02x", psk[i]);
+        fprintf(stdout, "\n");
+    }
 #endif
 
     return keyLen;

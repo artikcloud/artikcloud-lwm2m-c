@@ -30,6 +30,5 @@ core/CMakeCache.txt
 core/CMakeFiles
 core/Makefile
 core/cmake_install.cmake
-lwm2mclient
 lwm2mserver
 tlvdecode

@@ -11,20 +11,6 @@ set(EXT_SOURCES
 set(CORE_HEADERS
     ${WAKAAMA_SOURCES_DIR}/liblwm2m.h)
 
-set(OBJECT_SOURCES_DIR ${WAKAAMA_SOURCES_DIR}/lwm2m_object)
-set(OBJECT_SOURCES
-    ${OBJECT_SOURCES_DIR}/lwm2mclient.c
-    ${OBJECT_SOURCES_DIR}/system_api.c
-    ${OBJECT_SOURCES_DIR}/object_security.c
-    ${OBJECT_SOURCES_DIR}/object_server.c
-    ${OBJECT_SOURCES_DIR}/object_device.c
-    ${OBJECT_SOURCES_DIR}/object_firmware.c
-    ${OBJECT_SOURCES_DIR}/object_location.c
-    ${OBJECT_SOURCES_DIR}/object_connectivity_moni.c
-    ${OBJECT_SOURCES_DIR}/object_connectivity_stat.c
-    ${OBJECT_SOURCES_DIR}/object_access_control.c
-    )
-
 set(WAKAAMA_SOURCES
     ${WAKAAMA_SOURCES_DIR}/liblwm2m.c
     ${WAKAAMA_SOURCES_DIR}/uri.c
@@ -43,31 +29,6 @@ set(WAKAAMA_SOURCES
     ${WAKAAMA_SOURCES_DIR}/discover.c  
     ${EXT_SOURCES}
     )
-
-set(WAKAAMA_SOURCES ${WAKAAMA_SOURCES} ${OBJECT_SOURCES})
-set(OPENSSL_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/openssl")
-set(OPENSSL_LIBRARIES ${OPENSSL_SRC_DIR}/libssl.a ${OPENSSL_SRC_DIR}/libcrypto.a)
-set(OPENSSL_INCLUDE_DIR "${OPENSSL_SRC_DIR}/include")
-
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(OPENSSL_CONFIG_CMD	./Configure darwin64-x86_64-cc)
-else()
-    set(OPENSSL_CONFIG_CMD	./config)
-    set(OPENSSL_LIBRARIES ${OPENSSL_LIBRARIES} dl pthread)
-    if(CMAKE_BUILD_TYPE MATCHES Release)
-        set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--version-script=${CMAKE_SOURCE_DIR}/libwakaama-client.version -Wl,--strip-all")
-    endif()
-endif()
-
-add_custom_command(OUTPUT openssl
-           COMMAND ${OPENSSL_CONFIG_CMD}
-           COMMAND make
-           WORKING_DIRECTORY ${OPENSSL_SRC_DIR}
-           COMMENT "Building OpenSSL libraries")
-
-add_custom_target(openssl-libs DEPENDS openssl)
-
-include_directories(${OPENSSL_INCLUDE_DIR})
 
 # This will not work for multi project cmake generators like the Visual Studio Generator
 if(CMAKE_BUILD_TYPE MATCHES Debug)

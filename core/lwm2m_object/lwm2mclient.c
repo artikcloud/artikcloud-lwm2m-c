@@ -600,7 +600,7 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     }
 
     /* Service once to initialize the first steps */
-    if (lwm2m_client_service(data) != LWM2M_CLIENT_OK)
+    if (lwm2m_client_service(data) <= LWM2M_CLIENT_OK)
     {
         return NULL;
     }

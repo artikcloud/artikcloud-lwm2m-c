@@ -47,7 +47,7 @@ Fetch the sources
 
 ~~~shell
 $ cd <workdir>
-$ git clone --recursive https://github.com/artikcloud/artikcloud-lwm2m-c.git
+$ git clone https://github.com/artikcloud/artikcloud-lwm2m-c.git
 ~~~
 
 Compilation
@@ -92,7 +92,7 @@ commands to act on the LWM2M client. Type **help** for more information:
 help    Type 'help [COMMAND]' for more details.
 change  Change the value of a resource.
 read    Read the value of a resource.
-q       Quit the client.
+quit    Quit the client.
 ~~~
 
 LWM2M library client API

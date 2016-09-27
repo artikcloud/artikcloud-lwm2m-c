@@ -6,7 +6,6 @@ Summary: Implementation of the Open Mobile Alliance's LightWeight M2M protocol (
 Group: Development/Libraries
 URL: https://github.com/obgm/wakaama
 
-BuildRequires: cmake
 Provides: lib%{name}.so.1
 
 %description
@@ -28,7 +27,12 @@ rm -rf %{buildroot}/*
 cd %{_builddir}
 
 %build
+echo %{_host_cpu}
+%if %(echo %arm | egrep -c %{_host_cpu})
 cmake %{_srcdir} -DCMAKE_INSTALL_PREFIX=%{_prefix}
+%else
+cmake %{_srcdir} -DCMAKE_TOOLCHAIN_FILE=%{_srcdir}/target/toolchain-cross-arm.cmake -DCMAKE_INSTALL_PREFIX=%{_prefix}
+%endif
 make %{?_smp_mflags}
 
 %install

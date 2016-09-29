@@ -1,4 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
+cmake_policy(SET CMP0042 NEW)
 
 include(${CMAKE_CURRENT_LIST_DIR}/core/wakaama.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/examples/shared/shared.cmake)

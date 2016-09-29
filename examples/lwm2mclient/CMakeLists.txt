@@ -1,4 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
+cmake_policy(SET CMP0042 NEW)
 
 project (wakaama-client)
 
@@ -53,9 +54,11 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     SOVERSION ${LIB_VERSION_MAJOR}
     OUTPUT_NAME ${PROJECT_NAME})
 
+# Add WITH_LOGS to debug variant
+set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:Debug>:WITH_LOGS>)
+
 target_link_libraries(${PROJECT_NAME} ${OPENSSL_LIBRARIES})
 add_dependencies (${PROJECT_NAME} openssl-libs)
 
 install (TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 install (FILES lwm2mclient.h DESTINATION /usr/include)
-

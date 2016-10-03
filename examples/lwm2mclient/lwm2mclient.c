@@ -620,38 +620,52 @@ void lwm2m_client_stop(client_handle_t handle)
 {
     client_data_t *data =  (client_data_t *)handle;
 
+    if (!data)
+        return;
+
     /* gracefully exit RX thread */
     data->rx_thread_exit = true;
     pthread_join(data->rx_thread, NULL);
 
-    if (data) {
-        if (data->lwm2mH)
-            lwm2m_close(data->lwm2mH);
-        close(data->sock);
-        if (data->connList)
-            connection_free(data->connList);
-        if (data->objArray[LWM2M_OBJ_SECURITY])
-            clean_security_object(data->objArray[LWM2M_OBJ_SECURITY]);
-        if (data->objArray[LWM2M_OBJ_SECURITY])
-            lwm2m_free(data->objArray[LWM2M_OBJ_SECURITY]);
-        if (data->objArray[LWM2M_OBJ_SERVER]) {
-            clean_server_object(data->objArray[LWM2M_OBJ_SERVER]);
-            lwm2m_free(data->objArray[LWM2M_OBJ_SERVER]);
-        }
-        if (data->objArray[LWM2M_OBJ_DEVICE])
-            free_object_device(data->objArray[LWM2M_OBJ_DEVICE]);
-        if (data->objArray[LWM2M_OBJ_FIRMWARE])
-            free_object_firmware(data->objArray[LWM2M_OBJ_FIRMWARE]);
-        if (data->objArray[LWM2M_OBJ_LOCATION])
-            free_object_location(data->objArray[LWM2M_OBJ_LOCATION]);
-        if (data->objArray[LWM2M_OBJ_CONN_MON])
-            free_object_conn_m(data->objArray[LWM2M_OBJ_CONN_MON]);
-        if (data->objArray[LWM2M_OBJ_CONN_STAT])
-            free_object_conn_s(data->objArray[LWM2M_OBJ_CONN_STAT]);
-        if (data->objArray[LWM2M_OBJ_ACL])
-            acl_ctrl_free_object(data->objArray[LWM2M_OBJ_ACL]);
-        free(data);
+    if (data->lwm2mH)
+        lwm2m_close(data->lwm2mH);
+
+    close(data->sock);
+
+    if (data->connList)
+        connection_free(data->connList);
+
+    if (data->objArray[LWM2M_OBJ_SECURITY])
+        clean_security_object(data->objArray[LWM2M_OBJ_SECURITY]);
+
+    if (data->objArray[LWM2M_OBJ_SECURITY])
+        lwm2m_free(data->objArray[LWM2M_OBJ_SECURITY]);
+
+    if (data->objArray[LWM2M_OBJ_SERVER])
+    {
+        clean_server_object(data->objArray[LWM2M_OBJ_SERVER]);
+        lwm2m_free(data->objArray[LWM2M_OBJ_SERVER]);
     }
+
+    if (data->objArray[LWM2M_OBJ_DEVICE])
+        free_object_device(data->objArray[LWM2M_OBJ_DEVICE]);
+
+    if (data->objArray[LWM2M_OBJ_FIRMWARE])
+        free_object_firmware(data->objArray[LWM2M_OBJ_FIRMWARE]);
+
+    if (data->objArray[LWM2M_OBJ_LOCATION])
+        free_object_location(data->objArray[LWM2M_OBJ_LOCATION]);
+
+    if (data->objArray[LWM2M_OBJ_CONN_MON])
+        free_object_conn_m(data->objArray[LWM2M_OBJ_CONN_MON]);
+
+    if (data->objArray[LWM2M_OBJ_CONN_STAT])
+        free_object_conn_s(data->objArray[LWM2M_OBJ_CONN_STAT]);
+
+    if (data->objArray[LWM2M_OBJ_ACL])
+        acl_ctrl_free_object(data->objArray[LWM2M_OBJ_ACL]);
+
+    free(data);
 }
 
 int lwm2m_client_service(client_handle_t handle)

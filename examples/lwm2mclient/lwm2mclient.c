@@ -103,6 +103,7 @@ typedef struct
     struct sockaddr_storage server_addr;
     size_t server_addrlen;
     SSL *ssl;
+    bool verify_cert;
     int addressFamily;
     lwm2m_object_t * objArray[LWM2M_OBJ_COUNT];
     coap_protocol_t proto;
@@ -202,8 +203,8 @@ void * lwm2m_connect_server(uint16_t secObjInstID, void * userData)
     instance = LWM2M_LIST_FIND(dataP->securityObjP->instanceList, secObjInstID);
     if (instance == NULL) goto exit;
 
-    connection_t *conn = connection_create((connection_t *)dataP->connList, protocol, dataP->sock, host, port,
-                            dataP->addressFamily, securityObj, instance->id);
+    connection_t *conn = connection_create((connection_t *)dataP->connList, protocol, dataP->verify_cert,
+            dataP->sock, host, port, dataP->addressFamily, securityObj, instance->id);
     if (!conn)
     {
         fprintf(stderr, "Connection creation failed.\r\n");
@@ -405,6 +406,11 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     }
 
     data->proto = protocol;
+
+    if (data->proto == COAP_TCP_TLS)
+    {
+        data->verify_cert = init_val->server->verifyCert;
+    }
 
     /* Default to IPV4, should add parameter to allow IPV6 */
     data->addressFamily = AF_INET;

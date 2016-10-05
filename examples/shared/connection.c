@@ -102,6 +102,7 @@ static bool ssl_init(connection_t * conn)
     SSL_CTX *ctx = NULL;
     SSL *ssl = NULL;
     int flags = 0;
+    int ret = 0;
 
     OpenSSL_add_all_algorithms();
     ERR_clear_error();
@@ -110,8 +111,10 @@ static bool ssl_init(connection_t * conn)
 
     if(SSL_library_init() < 0)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to initialize OpenSSL\n");
         goto error;
+#endif
     }
 
     if (conn->protocol == COAP_UDP_DTLS)
@@ -124,7 +127,7 @@ static bool ssl_init(connection_t * conn)
     {
         ctx = SSL_CTX_new(TLS_client_method());
         SSL_CTX_set_cipher_list(ctx, "ALL");
-        SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+        SSL_CTX_set_verify(ctx, conn->verify_cert ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
     }
 
     if (!ctx)
@@ -172,7 +175,15 @@ static bool ssl_init(connection_t * conn)
         }
 
         SSL_set_bio (ssl, sbio, sbio);
-        SSL_connect(ssl);
+        ret = SSL_connect(ssl);
+        if (ret < 1)
+        {
+#ifdef WITH_LOGS
+            fprintf(stderr, "%s: SSL handshake failed: %s\n", __func__,
+                    ERR_error_string(SSL_get_error(ssl, ret), NULL));
+#endif
+            goto error;
+        }
     }
 
     conn->ssl = ssl;
@@ -298,6 +309,7 @@ connection_t * connection_find(connection_t * connList,
 connection_t * connection_new_incoming(connection_t * connList,
                                        int sock,
                                        coap_protocol_t protocol,
+                                       bool verify_cert,
                                        struct sockaddr * addr,
                                        size_t addrLen)
 {
@@ -308,6 +320,7 @@ connection_t * connection_new_incoming(connection_t * connList,
     {
         connP->sock = sock;
         connP->protocol = protocol;
+        connP->verify_cert = verify_cert;
         memcpy(&(connP->addr), addr, addrLen);
         connP->addrLen = addrLen;
         connP->next = connList;
@@ -318,6 +331,7 @@ connection_t * connection_new_incoming(connection_t * connList,
 
 connection_t * connection_create(connection_t * connList,
                                  coap_protocol_t protocol,
+                                 bool verify_cert,
                                  int sock,
                                  char * host,
                                  char * port,
@@ -381,7 +395,7 @@ connection_t * connection_create(connection_t * connList,
             }
         }
 
-        connP = connection_new_incoming(connList, sock, protocol, sa, sl);
+        connP = connection_new_incoming(connList, sock, protocol, verify_cert, sa, sl);
 
         if (protocol == COAP_UDP_DTLS)
         {

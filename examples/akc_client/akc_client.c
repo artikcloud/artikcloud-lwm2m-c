@@ -21,7 +21,8 @@ static object_security_server_t akc_server = {
     "<Artik Cloud device ID>",               /* name : DEVICE ID */
     30,                                      /* lifetime */
     0,                                       /* battery */
-    123                                      /* serverId */
+    123,                                     /* serverId */
+    true                                     /* verifyCert */
 };
 
 static object_device_t default_device = {
@@ -141,6 +142,14 @@ int main(int argc, char *argv[])
         }
 
         strncpy(akc_server.psk, argv[3], AKC_UUID_LEN);
+    }
+
+    if (argc > 4)
+    {
+        if (!strcmp(argv[4], "noverify"))
+        {
+            akc_server.verifyCert = false;
+        }
     }
 
     signal(SIGINT, handle_sigint);

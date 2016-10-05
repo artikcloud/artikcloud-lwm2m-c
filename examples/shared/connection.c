@@ -101,7 +101,6 @@ static bool ssl_init(connection_t * conn)
     BIO *sbio = NULL;
     SSL_CTX *ctx = NULL;
     SSL *ssl = NULL;
-    int ret = 0;
     int flags = 0;
 
     OpenSSL_add_all_algorithms();
@@ -124,6 +123,8 @@ static bool ssl_init(connection_t * conn)
     else
     {
         ctx = SSL_CTX_new(TLS_client_method());
+        SSL_CTX_set_cipher_list(ctx, "ALL");
+        SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
     }
 
     if (!ctx)
@@ -161,29 +162,17 @@ static bool ssl_init(connection_t * conn)
     }
     else
     {
-        ret = SSL_CTX_set_cipher_list(ctx, "ALL");
-        if (ret != 1)
+        sbio = BIO_new_socket(conn->sock, BIO_NOCLOSE);
+        if (!sbio)
         {
-            fprintf(stderr, "Failed to select SSL ciphers (err=%d)\n", SSL_get_error(ssl, ret));
-            fprintf(stderr, "%s\n", ERR_error_string(SSL_get_error(ssl, ret), NULL));
+#ifdef WITH_LOGS
+            fprintf(stderr, "%s: failed to create socket BIO\n", __func__);
+#endif
             goto error;
         }
 
-        ret = SSL_set_fd(ssl, conn->sock);
-        if (ret != 1)
-        {
-            fprintf(stderr, "Failed to associate SSL with file descriptor (err=%d)\n", SSL_get_error(ssl, ret));
-            fprintf(stderr, "%s\n", ERR_error_string(SSL_get_error(ssl, ret), NULL));
-            goto error;
-        }
-
-        ret = SSL_connect(ssl);
-        if (ret != 1)
-        {
-            fprintf(stderr, "Failed to initiate SSL connection\n");
-            fprintf(stderr, "%s\n", ERR_error_string(SSL_get_error(ssl, ret), NULL));
-            goto error;
-        }
+        SSL_set_bio (ssl, sbio, sbio);
+        SSL_connect(ssl);
     }
 
     conn->ssl = ssl;
@@ -374,25 +363,10 @@ connection_t * connection_create(connection_t * connList,
             sa = p->ai_addr;
             sl = p->ai_addrlen;
 
-            /*
-             * Set to non-blocking mode just for the time of the connection
-             * to avoid getting stuck on a non-responsive server
-             */
-            arg = fcntl(s, F_GETFL, NULL);
-            arg |= O_NONBLOCK;
-            fcntl(s, F_SETFL, arg);
-
             if (-1 == connect(s, p->ai_addr, p->ai_addrlen))
             {
                 close(s);
                 s = -1;
-            }
-            else
-            {
-                /* Set blocking mode back */
-                arg = fcntl(s, F_GETFL, NULL);
-                arg &= O_NONBLOCK;
-                fcntl(s, F_SETFL, arg);
             }
         }
     }
@@ -480,11 +454,16 @@ connection_t * connection_create(connection_t * connList,
         }
         close(s);
     }
+    else
+    {
+#ifdef WITH_LOGS
+        fprintf(stderr, "Failed to find responsive server\n");
+#endif
+    }
 
 exit:
-    if (NULL != servinfo) {
+    if (NULL != servinfo)
         free(servinfo);
-    }
 
     return connP;
 }

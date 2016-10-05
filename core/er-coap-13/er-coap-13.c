@@ -423,46 +423,33 @@ size_t coap_serialize_get_size(void *packet)
     coap_packet_t *const coap_pkt = (coap_packet_t *) packet;
     size_t length = 0;
 
-    switch (coap_pkt->protocol)
-    {
-    case COAP_TCP:
-    case COAP_TCP_TLS:
-		length = COAP_TCP_SHIM_LEN + COAP_HEADER_LEN + coap_pkt->payload_len + coap_pkt->token_len;
-		break;
-    case COAP_UDP:
-    case COAP_UDP_DTLS:
-		length = COAP_HEADER_LEN + coap_pkt->payload_len + coap_pkt->token_len;
-		break;
-    default:
-		break;
-    }
-
+    coap_pkt->options_len = 0;
     if (IS_OPTION(coap_pkt, COAP_OPTION_IF_MATCH))
     {
-        length += COAP_MAX_OPTION_HEADER_LEN + coap_pkt->if_match_len;
+        coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN + coap_pkt->if_match_len;
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_URI_HOST))
     {
-        length += COAP_MAX_OPTION_HEADER_LEN + coap_pkt->uri_host_len;
+        coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN + coap_pkt->uri_host_len;
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_ETAG))
     {
-        length += COAP_MAX_OPTION_HEADER_LEN + coap_pkt->etag_len;
+        coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN + coap_pkt->etag_len;
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_IF_NONE_MATCH))
     {
         // can be stored in extended fields
-        length += COAP_MAX_OPTION_HEADER_LEN;
+        coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN;
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_OBSERVE))
     {
         // can be stored in extended fields
-        length += COAP_MAX_OPTION_HEADER_LEN;
+        coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN;
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_URI_PORT))
     {
         // can be stored in extended fields
-        length += COAP_MAX_OPTION_HEADER_LEN;
+        coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN;
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_LOCATION_PATH))
     {
@@ -470,7 +457,7 @@ size_t coap_serialize_get_size(void *packet)
 
         for (optP = coap_pkt->location_path ; optP != NULL ; optP = optP->next)
         {
-            length += COAP_MAX_OPTION_HEADER_LEN + optP->len;
+            coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN + optP->len;
         }
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_URI_PATH))
@@ -479,18 +466,18 @@ size_t coap_serialize_get_size(void *packet)
 
         for (optP = coap_pkt->uri_path ; optP != NULL ; optP = optP->next)
         {
-            length += COAP_MAX_OPTION_HEADER_LEN + optP->len;
+            coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN + optP->len;
         }
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_CONTENT_TYPE))
     {
         // can be stored in extended fields
-        length += COAP_MAX_OPTION_HEADER_LEN;
+        coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN;
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_MAX_AGE))
     {
         // can be stored in extended fields
-        length += COAP_MAX_OPTION_HEADER_LEN;
+        coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN;
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_URI_QUERY))
     {
@@ -498,35 +485,70 @@ size_t coap_serialize_get_size(void *packet)
 
         for (optP = coap_pkt->uri_query ; optP != NULL ; optP = optP->next)
         {
-            length += COAP_MAX_OPTION_HEADER_LEN + optP->len;
+            coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN + optP->len;
         }
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_ACCEPT))
     {
-        length += coap_pkt->accept_num * COAP_MAX_OPTION_HEADER_LEN;
+        coap_pkt->options_len += coap_pkt->accept_num * COAP_MAX_OPTION_HEADER_LEN;
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_LOCATION_QUERY))
     {
-        length += COAP_MAX_OPTION_HEADER_LEN + coap_pkt->location_query_len;
+        coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN + coap_pkt->location_query_len;
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_BLOCK2))
     {
         // can be stored in extended fields
-        length += COAP_MAX_OPTION_HEADER_LEN;
+        coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN;
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_BLOCK1))
     {
         // can be stored in extended fields
-        length += COAP_MAX_OPTION_HEADER_LEN;
+        coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN;
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_SIZE))
     {
         // can be stored in extended fields
-        length += COAP_MAX_OPTION_HEADER_LEN;
+        coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN;
     }
     if (IS_OPTION(coap_pkt, COAP_OPTION_PROXY_URI))
     {
-        length += COAP_MAX_OPTION_HEADER_LEN + coap_pkt->proxy_uri_len;
+        coap_pkt->options_len += COAP_MAX_OPTION_HEADER_LEN + coap_pkt->proxy_uri_len;
+    }
+
+    switch (coap_pkt->protocol)
+    {
+    case COAP_TCP:
+    case COAP_TCP_TLS:
+        {
+            int len = coap_pkt->options_len + coap_pkt->payload_len;
+            if (len < 13)
+            {
+                length += 1;
+            }
+            else if (len < ((1 << 8) + 13))
+            {
+                length += 2;
+            }
+            else if (len < ((1 << 16) + 269))
+            {
+                length += 3;
+            }
+            else
+            {
+                length += 5;
+            }
+
+            length += coap_pkt->token_len + coap_pkt->options_len + 1 + coap_pkt->payload_len;
+        }
+        break;
+    case COAP_UDP:
+    case COAP_UDP_DTLS:
+        length += COAP_HEADER_LEN + coap_pkt->token_len + coap_pkt->options_len
+                    + 1 + coap_pkt->payload_len;
+        break;
+    default:
+        break;
     }
 
     return length;
@@ -538,6 +560,7 @@ coap_serialize_message(void *packet, uint8_t *buffer)
 {
   coap_packet_t *const coap_pkt = (coap_packet_t *) packet;
   uint8_t *option;
+  uint8_t *options_buf;
   unsigned int current_number = 0;
   int i = 0;
 
@@ -547,49 +570,12 @@ coap_serialize_message(void *packet, uint8_t *buffer)
 
   PRINTF("-Serializing MID %u to %p, ", coap_pkt->mid, coap_pkt->buffer);
 
-  switch (coap_pkt->protocol)
-  {
-  case COAP_UDP:
-  case COAP_UDP_DTLS:
-	  coap_pkt->buffer[0]  = 0x00;
-	  coap_pkt->buffer[0] |= COAP_HEADER_VERSION_MASK & (coap_pkt->version)<<COAP_HEADER_VERSION_POSITION;
-	  coap_pkt->buffer[0] |= COAP_HEADER_TYPE_MASK & (coap_pkt->type)<<COAP_HEADER_TYPE_POSITION;
-	  coap_pkt->buffer[0] |= COAP_HEADER_TOKEN_LEN_MASK & (coap_pkt->token_len)<<COAP_HEADER_TOKEN_LEN_POSITION;
-	  coap_pkt->buffer[1] = coap_pkt->code;
-	  coap_pkt->buffer[2] = (uint8_t) ((coap_pkt->mid)>>8);
-	  coap_pkt->buffer[3] = (uint8_t) (coap_pkt->mid);
-	  option = coap_pkt->buffer + COAP_HEADER_LEN;
-	  break;
-
-  case COAP_TCP:
-  case COAP_TCP_TLS:
-	  for (i=0; i<COAP_TCP_SHIM_LEN; i++)
-		  coap_pkt->buffer[1] = 0x00;
-	  coap_pkt->buffer[COAP_TCP_SHIM_LEN] |= COAP_HEADER_VERSION_MASK & (coap_pkt->version)<<COAP_HEADER_VERSION_POSITION;
-	  coap_pkt->buffer[COAP_TCP_SHIM_LEN] |= COAP_HEADER_TYPE_MASK & (coap_pkt->type)<<COAP_HEADER_TYPE_POSITION;
-	  coap_pkt->buffer[COAP_TCP_SHIM_LEN] |= COAP_HEADER_TOKEN_LEN_MASK & (coap_pkt->token_len)<<COAP_HEADER_TOKEN_LEN_POSITION;
-	  coap_pkt->buffer[COAP_TCP_SHIM_LEN+1] = coap_pkt->code;
-	  coap_pkt->buffer[COAP_TCP_SHIM_LEN+2] = (uint8_t) ((coap_pkt->mid)>>8);
-	  coap_pkt->buffer[COAP_TCP_SHIM_LEN+3] = (uint8_t) (coap_pkt->mid);
-	  option = coap_pkt->buffer + COAP_HEADER_LEN + COAP_TCP_SHIM_LEN;
-	  break;
-  default:
-	  break;
-  }
-
-  /* set Token */
-  PRINTF("Token (len %u)", coap_pkt->token_len);
-
-  for (current_number=0; current_number<coap_pkt->token_len; ++current_number)
-  {
-    PRINTF(" %02X", coap_pkt->token[current_number]);
-    *option = coap_pkt->token[current_number];
-    ++option;
-  }
-  PRINTF("-\n");
-
-  /* Serialize options */
+  /* First serialize the options to get their exact size */
   current_number = 0;
+  options_buf = lwm2m_malloc(coap_pkt->options_len);
+  if (!options_buf)
+      return 0;
+  option = options_buf;
 
   PRINTF("-Serializing options at %p-\n", option);
 
@@ -612,7 +598,85 @@ coap_serialize_message(void *packet, uint8_t *buffer)
   COAP_SERIALIZE_INT_OPTION(    COAP_OPTION_SIZE,           size, "Size")
   COAP_SERIALIZE_STRING_OPTION( COAP_OPTION_PROXY_URI,      proxy_uri, '\0', "Proxy-Uri")
 
+  coap_pkt->options_len = option - options_buf;
+
   PRINTF("-Done serializing at %p----\n", option);
+
+  switch (coap_pkt->protocol)
+  {
+  case COAP_UDP:
+  case COAP_UDP_DTLS:
+	  coap_pkt->buffer[0]  = 0x00;
+	  coap_pkt->buffer[0] |= COAP_HEADER_VERSION_MASK & (coap_pkt->version)<<COAP_HEADER_VERSION_POSITION;
+	  coap_pkt->buffer[0] |= COAP_HEADER_TYPE_MASK & (coap_pkt->type)<<COAP_HEADER_TYPE_POSITION;
+	  coap_pkt->buffer[0] |= COAP_HEADER_TOKEN_LEN_MASK & (coap_pkt->token_len)<<COAP_HEADER_TOKEN_LEN_POSITION;
+	  coap_pkt->buffer[1] = coap_pkt->code;
+	  coap_pkt->buffer[2] = (uint8_t) ((coap_pkt->mid)>>8);
+	  coap_pkt->buffer[3] = (uint8_t) (coap_pkt->mid);
+	  option = coap_pkt->buffer + COAP_HEADER_LEN;
+	  break;
+
+  case COAP_TCP:
+  case COAP_TCP_TLS:
+      {
+          uint32_t len = coap_pkt->options_len + coap_pkt->payload_len;
+          PRINTF("Options+Payload (len %u)", len);
+          if (len < 13)
+          {
+              coap_pkt->buffer[0] = (COAP_HEADER_TOKEN_LEN_MASK & coap_pkt->token_len);
+              coap_pkt->buffer[0] |= (len << 4);
+              coap_pkt->buffer[1] = coap_pkt->code;
+              option = coap_pkt->buffer + 2;
+          }
+          else if (len < ((1 << 8) + 13))
+          {
+              coap_pkt->buffer[0] = (COAP_HEADER_TOKEN_LEN_MASK & coap_pkt->token_len);
+              coap_pkt->buffer[0] |= (13 << 4);
+              coap_pkt->buffer[1] = len - 13;
+              coap_pkt->buffer[2] = coap_pkt->code;
+              option = coap_pkt->buffer + 3;
+          }
+          else if (len < ((1 << 16) + 269))
+          {
+              coap_pkt->buffer[0] = (COAP_HEADER_TOKEN_LEN_MASK & coap_pkt->token_len);
+              coap_pkt->buffer[0] |= (14 << 4);
+              coap_pkt->buffer[1] = ((len - 269) & 0xFF00) >> 8;
+              coap_pkt->buffer[2] = (len - 269) & 0x00FF;
+              coap_pkt->buffer[3] = coap_pkt->code;
+              option = coap_pkt->buffer + 4;
+          }
+          else
+          {
+              coap_pkt->buffer[0] = (COAP_HEADER_TOKEN_LEN_MASK & coap_pkt->token_len);
+              coap_pkt->buffer[0] |= (15 << 4);
+              coap_pkt->buffer[1] = ((len - 65805) & 0xFF000000) >> 24;
+              coap_pkt->buffer[2] = ((len - 65805) & 0x00FF0000) >> 16;
+              coap_pkt->buffer[3] = ((len - 65805) & 0x0000FF00) >> 8;
+              coap_pkt->buffer[4] = (len - 65805) & 0x00FF;
+              coap_pkt->buffer[5] = coap_pkt->code;
+              option = coap_pkt->buffer + 6;
+          }
+      }
+	  break;
+  default:
+	  break;
+  }
+
+  /* set Token */
+  PRINTF("Token (len %u)", coap_pkt->token_len);
+
+  for (current_number=0; current_number<coap_pkt->token_len; ++current_number)
+  {
+    PRINTF(" %02X", coap_pkt->token[current_number]);
+    *option = coap_pkt->token[current_number];
+    ++option;
+  }
+  PRINTF("-\n");
+
+  /* Copy options */
+  memcpy(option, options_buf, coap_pkt->options_len);
+  option += coap_pkt->options_len;
+  lwm2m_free(options_buf);
 
   /* Free allocated header fields */
   coap_free_header(packet);
@@ -626,13 +690,6 @@ coap_serialize_message(void *packet, uint8_t *buffer)
   }
 
   memmove(option, coap_pkt->payload, coap_pkt->payload_len);
-
-  if ((coap_pkt->protocol == COAP_TCP) ||
-      (coap_pkt->protocol == COAP_TCP_TLS))
-  {
-	  /* Fill up total packet size */
-	  coap_pkt->buffer[COAP_TCP_SHIM_LEN-1] = (uint8_t)((option - buffer) + coap_pkt->payload_len - COAP_TCP_SHIM_LEN);
-  }
 
   PRINTF("-Done %u B (header len %u, payload len %u)-\n", coap_pkt->payload_len + option - buffer, option - buffer, coap_pkt->payload_len);
 
@@ -678,12 +735,33 @@ coap_parse_message(void *packet, coap_protocol_t protocol, uint8_t *data, uint16
 	  break;
   case COAP_TCP:
   case COAP_TCP_TLS:
-	  coap_pkt->version = (COAP_HEADER_VERSION_MASK & coap_pkt->buffer[COAP_TCP_SHIM_LEN])>>COAP_HEADER_VERSION_POSITION;
-	  coap_pkt->type = (COAP_HEADER_TYPE_MASK & coap_pkt->buffer[COAP_TCP_SHIM_LEN])>>COAP_HEADER_TYPE_POSITION;
-	  coap_pkt->token_len = MIN(COAP_TOKEN_LEN, (COAP_HEADER_TOKEN_LEN_MASK & coap_pkt->buffer[COAP_TCP_SHIM_LEN])>>COAP_HEADER_TOKEN_LEN_POSITION);
-	  coap_pkt->code = coap_pkt->buffer[COAP_TCP_SHIM_LEN+1];
-	  coap_pkt->mid = coap_pkt->buffer[COAP_TCP_SHIM_LEN+2]<<8 | coap_pkt->buffer[COAP_TCP_SHIM_LEN+3];
-	  current_option = data + COAP_HEADER_LEN + COAP_TCP_SHIM_LEN;
+      coap_pkt->token_len = coap_pkt->buffer[0] & COAP_HEADER_TOKEN_LEN_MASK;
+      int nibble = (coap_pkt->buffer[0] & 0xF0) >> 4;
+      if (nibble < 13)
+      {
+          coap_pkt->code = coap_pkt->buffer[1];
+          current_option = data + 2;
+      }
+      else if (nibble == 13)
+      {
+          coap_pkt->code = coap_pkt->buffer[2];
+          current_option = data + 3;
+      }
+      else if (nibble == 14)
+      {
+          coap_pkt->code = coap_pkt->buffer[3];
+          current_option = data + 4;
+      }
+      else
+      {
+          coap_pkt->code = coap_pkt->buffer[5];
+          current_option = data + 6;
+      }
+
+      /* Not passed in TCP, just set defaults */
+      coap_pkt->version = 1;
+      coap_pkt->type = COAP_TYPE_CON;
+      coap_pkt->mid = 0;
 	  break;
   default:
 	  break;

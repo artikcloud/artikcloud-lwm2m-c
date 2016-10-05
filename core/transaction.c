@@ -339,7 +339,8 @@ bool transaction_handleResponse(lwm2m_context_t * contextP,
                 // So we resend transaction that were denied for authentication reason.
                 if (!reset)
                 {
-                    if (COAP_TYPE_CON == message->type && NULL != response)
+                    if (COAP_TYPE_CON == message->type && NULL != response &&
+                       (message->protocol != COAP_TCP_TLS) && (message->protocol != COAP_TCP))
                     {
                         coap_init_message(response, message->protocol, COAP_TYPE_ACK, 0, message->mid);
                         message_send(contextP, response, fromSessionH);

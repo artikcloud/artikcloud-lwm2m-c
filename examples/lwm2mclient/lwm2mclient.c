@@ -410,6 +410,19 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     data->addressFamily = AF_INET;
 
     /*
+     * The liblwm2m library is now initialized with the functions that will be in
+     * charge of communication
+     */
+    ctx = lwm2m_init(data);
+    if (!ctx)
+    {
+        fprintf(stderr, "lwm2m_init() failed\r\n");
+        return NULL;
+    }
+
+    data->lwm2mH = ctx;
+
+    /*
      * Randomize local port based on predefined range
      * Depending on the range it should be enough to avoid reusing
      * twice the same port across the TIME_WAIT period after
@@ -487,9 +500,6 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
             strncpy(init_val->device->binding_mode, "U", LWM2M_MAX_STR_LEN);
             break;
         case COAP_TCP:
-            data->objArray[LWM2M_OBJ_SERVER] = get_server_object(serverId, "C", init_val->server->lifetime, false);
-            strncpy(init_val->device->binding_mode, "C", LWM2M_MAX_STR_LEN);
-            break;
         case COAP_TCP_TLS:
             data->objArray[LWM2M_OBJ_SERVER] = get_server_object(serverId, "T", init_val->server->lifetime, false);
             strncpy(init_val->device->binding_mode, "T", LWM2M_MAX_STR_LEN);
@@ -574,19 +584,6 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
         fprintf(stderr, "Failed to create Access Control ACL resource for serverId: 999\r\n");
         return NULL;
     }
-
-    /*
-     * The liblwm2m library is now initialized with the functions that will be in
-     * charge of communication
-     */
-    ctx = lwm2m_init(data);
-    if (!ctx)
-    {
-        fprintf(stderr, "lwm2m_init() failed\r\n");
-        return NULL;
-    }
-
-    data->lwm2mH = ctx;
 
     /*
      * We configure the liblwm2m library with the name of the client - which shall be unique for each client -

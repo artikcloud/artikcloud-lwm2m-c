@@ -229,6 +229,7 @@ typedef struct {
   uint16_t mid;
 
   uint8_t options[COAP_OPTION_PROXY_URI / OPTION_MAP_SIZE + 1]; /* Bitmap to check if option is set */
+  uint16_t options_len;
 
   coap_content_type_t content_type; /* Parse options once and store; allows setting options in random order  */
   uint32_t max_age;

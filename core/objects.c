@@ -606,9 +606,6 @@ static int prv_getMandatoryInfo(lwm2m_object_t * objectP,
     switch(targetP->binding)
     {
     case BINDING_T:
-        targetP->protocol = COAP_TCP_TLS;
-        break;
-    case BINDING_C:
         targetP->protocol = COAP_TCP;
         break;
     default:

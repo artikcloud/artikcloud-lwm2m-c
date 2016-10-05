@@ -331,7 +331,8 @@ void lwm2m_handle_packet(lwm2m_context_t * contextP,
                         done = observe_handleNotify(contextP, fromSessionH, message, response);
                     }
 #endif
-                    if (!done && message->type == COAP_TYPE_CON )
+                    if (!done && message->type == COAP_TYPE_CON &&
+                       (message->protocol != COAP_TCP) && (message->protocol != COAP_TCP_TLS))
                     {
                         coap_init_message(response, message->protocol, COAP_TYPE_ACK, 0, message->mid);
                         coap_error_code = message_send(contextP, response, fromSessionH);

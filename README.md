@@ -11,15 +11,13 @@ Source code
 
 The relevant code for the Artik Cloud LWM2M C SDK can be found under the following locations:
   * core: LWM2M core code for accessing and manipulating objects
-  * core/lwm2m_object: LWM2M client layer offering several APIs to expose well-known LWM2M objects
+  * examples/lwm2mclient: LWM2M client layer offering several APIs to expose well-known LWM2M objects
   * examples/akc_client: Sample program using the LWM2M client API to connect to the server and expose some objects
 
 Prerequisites
 -------------
 
-The Artik Cloud LWM2M C SDK should compile and run on most UNIX based systems. It has been tested against Mac OS X and
-Ubuntu 16.04. It only depends on the OpenSSL library, which is compiled along and linked as a static library. Therefore
-only the following build tools need to be installed before launching compilation:
+The Artik Cloud LWM2M C SDK should compile and run on most UNIX based systems. It has been tested against Mac OS X, Ubuntu 16.04, and Fedora 24 (ARM). It only depends on the OpenSSL library, which is compiled along and linked as a static library. Therefore only the following build tools need to be installed before launching compilation:
   * cmake
   * gcc
   * g++
@@ -63,7 +61,7 @@ $ make
 
 After the build completes successfully, the following binaries are generated:
 
-  * build/libwakaama-client.(so|dylib): The shared library containing the Wakaama and Artik Cloud specific code
+  * build/examples/lwm2mclient//libwakaama-client.(so|dylib): The shared library containing the Wakaama and Artik Cloud specific code
   * build/examples/akc_client/akc_client: The Artik Cloud sample program
 
 Run the sample program
@@ -72,10 +70,10 @@ Run the sample program
 The **akc_client** sample program takes the following parameters:
 
 ~~~shell
-akc_client <LWM2M server url>  <Artik Cloud device ID> <Artik Cloud device token>
+akc_client <LWM2M server url>  <Artik Cloud device ID> <Artik Cloud device token> [noverify]
 ~~~
 
-The server URL should comply with the following format depending on th protocol to use:
+The server URL should comply with the following format depending on the protocol to use:
 
 | Protocol | URL format                |
 | -------- | --------------------------|
@@ -83,6 +81,10 @@ The server URL should comply with the following format depending on th protocol 
 | UDP/DTLS | coaps://hostname:port     |
 | TCP      | coap+tcp://hostname:port  |
 | TCP/TLS  | coaps+tcp://hostname:port |
+
+The optional **noverify** parameter is used only when connecting over TCP/TLS. It overrides
+the default behavior and disables the verification of the server's certificate during TLS
+handshake.
 
 Upon succesful connection to the server, a prompt is showing in the console and takes some
 commands to act on the LWM2M client. Type **help** for more information:

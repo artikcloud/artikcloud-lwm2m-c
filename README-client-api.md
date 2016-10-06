@@ -304,6 +304,7 @@ This structure describes a LWM2M Connectivity Monitoring object.
     int lifetime;                        /*lifetime*/
     int  batterylevelchanging;           /*battery*/
     int serverId;                        /*serverId*/
+    bool verifyCert;                     /*verify server certificate*/
 } object_security_server_t;
 ```
 

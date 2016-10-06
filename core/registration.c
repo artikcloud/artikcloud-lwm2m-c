@@ -110,7 +110,7 @@ static int prv_getRegistrationQuery(lwm2m_context_t * contextP,
                 char *secret = lwm2m_malloc(length + 1);
                 if (!secret) return 0;
 
-                for (i=0; i<length; i++)
+                for (i=0; i<(length/2); i++)
                 {
                     int low = dataP->value.asBuffer.buffer[i] % 16;
                     int high = (dataP->value.asBuffer.buffer[i] / 16) % 16;

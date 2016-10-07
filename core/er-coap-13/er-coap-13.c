@@ -539,13 +539,16 @@ size_t coap_serialize_get_size(void *packet)
                 length += 5;
             }
 
-            length += coap_pkt->token_len + coap_pkt->options_len + 1 + coap_pkt->payload_len;
+            length += coap_pkt->token_len + coap_pkt->options_len;
+            if (coap_pkt->payload_len > 0)
+                length += COAP_OPTIONS_MARKER_LEN + coap_pkt->payload_len;
         }
         break;
     case COAP_UDP:
     case COAP_UDP_DTLS:
-        length += COAP_HEADER_LEN + coap_pkt->token_len + coap_pkt->options_len
-                    + 1 + coap_pkt->payload_len;
+        length += COAP_HEADER_LEN + coap_pkt->token_len + coap_pkt->options_len;
+        if (coap_pkt->payload_len > 0)
+            length += COAP_OPTIONS_MARKER_LEN + coap_pkt->payload_len;
         break;
     default:
         break;
@@ -619,7 +622,10 @@ coap_serialize_message(void *packet, uint8_t *buffer)
   case COAP_TCP:
   case COAP_TCP_TLS:
       {
-          uint32_t len = coap_pkt->options_len + coap_pkt->payload_len;
+          uint32_t len = coap_pkt->options_len;
+          if (coap_pkt->payload_len > 0)
+              len += COAP_OPTIONS_MARKER_LEN + coap_pkt->payload_len;
+
           PRINTF("Options+Payload (len %u)", len);
           if (len < 13)
           {

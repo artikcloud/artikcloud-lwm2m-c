@@ -97,6 +97,26 @@ read    Read the value of a resource.
 quit    Quit the client.
 ~~~
 
+TLS Certificate management
+--------------------------
+
+When connecting to a TCP/TLS enabled LWM2M server, server certificate verification is done
+by default. If you want to disable certificate verification, add the **noverify** parameter
+at the end of the **akc_client** invoking command.
+
+Certificate verification is done against trusted certificates that must be stored under a
+specific keystore directory, set by default to **/usr/local/ssl/certs**. This directory can
+be overriden by setting the **SSL_CERT_DIR** environment variable. To prepare the keystore 
+directory, copy the certificates to consider as trusted to the directory and launch the following
+command:
+
+~~~shell
+$ openssl rehash < certs dir >
+~~~
+
+Note: Replace **< certs dir >** above by the actual path you chose for the keystore directory,
+or **/usr/local/ssl/certs** if you left the default value.
+
 LWM2M library client API
 ------------------------
 

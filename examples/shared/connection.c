@@ -128,6 +128,7 @@ static bool ssl_init(connection_t * conn)
         ctx = SSL_CTX_new(TLS_client_method());
         SSL_CTX_set_cipher_list(ctx, "ALL");
         SSL_CTX_set_verify(ctx, conn->verify_cert ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
+        SSL_CTX_set_default_verify_dir(ctx);
     }
 
     if (!ctx)
@@ -179,8 +180,8 @@ static bool ssl_init(connection_t * conn)
         if (ret < 1)
         {
 #ifdef WITH_LOGS
-            fprintf(stderr, "%s: SSL handshake failed: %s\n", __func__,
-                    ERR_error_string(SSL_get_error(ssl, ret), NULL));
+            fprintf(stderr, "%s: SSL handshake failed\n", __func__);
+            ERR_print_errors_fp(stderr);
 #endif
             goto error;
         }

@@ -117,6 +117,34 @@ $ openssl rehash < certs dir >
 Note: Replace **< certs dir >** above by the actual path you chose for the keystore directory,
 or **/usr/local/ssl/certs** if you left the default value.
 
+The **rehash** command will only work if you have OpenSSL 1.1.0 or above installed on your machine.
+Otherwise you can use the one built along with the SDK as follows:
+
+**Mac OS X**
+~~~shell
+$ export DYLD_LIBRARY_PATH=<workdir>/artikcloud-lwm2m-c/external/openssl
+$ <workdir>/artikcloud-lwm2m-c/external/openssl/apps/openssl rehash < certs dir >
+~~~
+
+**Linux**
+~~~shell
+$ export LD_LIBRARY_PATH=<workdir>/artikcloud-lwm2m-c/external/openssl
+$ <workdir>/artikcloud-lwm2m-c/external/openssl/apps/openssl rehash < certs dir >
+~~~
+
+Artik Cloud intermediate certificates
+-------------------------------------
+
+When using TCP/TLS connection to Artik Cloud LWM2M server, you need to have proper intermediate
+certificates in the keystore in order for the server certificate verification to pass. These
+certificates can be downloaded in PEM format from the following links:
+
+COMODO RSA Certification Authority: [COMODOECCCertificationAuthority.crt](http://www.tbs-x509.com/COMODOECCCertificationAuthority.crt)
+
+COMODO RSA Extended Validation Secure Server CA: [COMODO_ECC_Extended_Validation_Secure_Server_CA.crt](http://www.tbs-x509.com/COMODO_ECC_Extended_Validation_Secure_Server_CA.crt)
+
+Download and copy these files under **/usr/local/ssl/certs/** (or *SSL_CERT_DIR*), then run the *rehash* procedure as explained above.
+
 LWM2M library client API
 ------------------------
 

@@ -139,9 +139,9 @@ When using TCP/TLS connection to Artik Cloud LWM2M server, you need to have prop
 certificates in the keystore in order for the server certificate verification to pass. These
 certificates can be downloaded in PEM format from the following links:
 
-COMODO RSA Certification Authority: [COMODOECCCertificationAuthority.crt](http://www.tbs-x509.com/COMODOECCCertificationAuthority.crt)
+VeriSign Class 3 Public Primary Certification Authority - G5: [pca3-g5ss.crt](http://www.tbs-internet.com/verisign/pca3-g5ss.crt)
 
-COMODO RSA Extended Validation Secure Server CA: [COMODO_ECC_Extended_Validation_Secure_Server_CA.crt](http://www.tbs-x509.com/COMODO_ECC_Extended_Validation_Secure_Server_CA.crt)
+Symantec Class 3 ECC 256 bit SSL CA - G2: [rc.crt](http://symantec.tbs-certificats.com/rc.crt)
 
 Download and copy these files under **/usr/local/ssl/certs/** (or *SSL_CERT_DIR*), then run the *rehash* procedure as explained above.
 

@@ -15,14 +15,14 @@ extern void cmdline_init(client_handle_t handle);
 extern int cmdline_process(int timeout);
 
 static object_security_server_t akc_server = {
-    "coaps+tcp://coap-dev.artik.cloud:5689", /* serverUri */
-    "<Artik Cloud device ID>",               /* pskId : DEVICE ID */
-    "<Artik Cloud device token>",            /* psk : DEVICE TOKEN */
-    "<Artik Cloud device ID>",               /* name : DEVICE ID */
-    30,                                      /* lifetime */
-    0,                                       /* battery */
-    123,                                     /* serverId */
-    true                                     /* verifyCert */
+    "coaps+tcp://coaps-api.artik.cloud:5689", /* serverUri */
+    "<Artik Cloud device ID>",                /* pskId : DEVICE ID */
+    "<Artik Cloud device token>",             /* psk : DEVICE TOKEN */
+    "<Artik Cloud device ID>",                /* name : DEVICE ID */
+    30,                                       /* lifetime */
+    0,                                        /* battery */
+    123,                                      /* serverId */
+    true                                      /* verifyCert */
 };
 
 static object_device_t default_device = {

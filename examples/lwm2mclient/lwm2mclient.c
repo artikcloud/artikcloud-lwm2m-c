@@ -429,12 +429,15 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     data->lwm2mH = ctx;
 
     /*
-     * Randomize local port based on predefined range
+     * If valid local port is not provided, then randomize one based on a predefined range.
      * Depending on the range it should be enough to avoid reusing
      * twice the same port across the TIME_WAIT period after
-     * closing the socket
+     * closing the socket.
      */
-    snprintf(local_port, 16, "%d", (rand() % (CLIENT_PORT_RANGE_END - CLIENT_PORT_RANGE_START)) + CLIENT_PORT_RANGE_START);
+    if (init_val->server->localPort > 0)
+        snprintf(local_port, 16, "%d", init_val->server->localPort);
+    else
+        snprintf(local_port, 16, "%d", (rand() % (CLIENT_PORT_RANGE_END - CLIENT_PORT_RANGE_START)) + CLIENT_PORT_RANGE_START);
 
 #ifdef WITH_LOGS
     fprintf(stdout, "Trying to bind LWM2M Client to port %s\r\n", local_port);

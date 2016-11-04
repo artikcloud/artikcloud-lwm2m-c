@@ -70,7 +70,13 @@ Run the sample program
 The **akc_client** sample program takes the following parameters:
 
 ~~~shell
-akc_client <LWM2M server url>  <Artik Cloud device ID> <Artik Cloud device token> [noverify]
+Usage: akc_client [options]
+	-u <server URI> : LWM2M server URI
+	-d <device ID> : AKC device ID
+	-t <device token> : AKC device token
+	-n : don't verify SSL certificate
+	-p <port> : local source port to connect from
+	-h : display help
 ~~~
 
 The server URL should comply with the following format depending on the protocol to use:

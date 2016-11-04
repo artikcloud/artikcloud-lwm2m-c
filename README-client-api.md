@@ -305,6 +305,7 @@ This structure describes a LWM2M Connectivity Monitoring object.
     int  batterylevelchanging;           /*battery*/
     int serverId;                        /*serverId*/
     bool verifyCert;                     /*verify server certificate*/
+    int localPort;                       /*local source port - random if set to 0*/
 } object_security_server_t;
 ```
 

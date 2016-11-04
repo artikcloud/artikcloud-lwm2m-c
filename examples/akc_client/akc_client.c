@@ -22,7 +22,8 @@ static object_security_server_t akc_server = {
     30,                                       /* lifetime */
     0,                                        /* battery */
     123,                                      /* serverId */
-    true                                      /* verifyCert */
+    true,                                     /* verifyCert */
+    0                                         /* localPort */
 };
 
 static object_device_t default_device = {
@@ -58,8 +59,13 @@ static bool quit = false;
 
 static void usage()
 {
-    fprintf(stdout, "Usage:\r\n");
-    fprintf(stdout, "\takc_client <server URI> <device ID> <device token>\r\n");
+    fprintf(stdout, "Usage: akc_client [options]\r\n");
+    fprintf(stdout, "\t-u <server URI> : LWM2M server URI\r\n");
+    fprintf(stdout, "\t-d <device ID> : AKC device ID\r\n");
+    fprintf(stdout, "\t-t <device token> : AKC device token\r\n");
+    fprintf(stdout, "\t-n : don't verify SSL certificate\r\n");
+    fprintf(stdout, "\t-p <port> : local source port to connect from\r\n");
+    fprintf(stdout, "\t-h : display help\r\n");
 }
 
 void handle_sigint(int signum)
@@ -113,43 +119,49 @@ static void on_resource_changed(void *param, void *extra)
 
 int main(int argc, char *argv[])
 {
+    int opt;
     object_container_t init_val_ob;
     client_handle_t client = NULL;
 
-    if (argc > 1)
-        strncpy(akc_server.serverUri, argv[1], LWM2M_MAX_STR_LEN);
+    while ((opt = getopt(argc, argv, "u:d:t:np:h")) != -1) {
+            switch (opt) {
+            case 'u':
+                strncpy(akc_server.serverUri, optarg, LWM2M_MAX_STR_LEN);
+                break;
+            case 'd':
+                if (strlen(optarg) != AKC_UUID_LEN)
+                {
+                    fprintf(stderr, "Wrong device ID parameter\r\n");
+                    usage();
+                    return -1;
+                }
 
-    if (argc > 2)
-    {
-        if (strlen(argv[2]) != AKC_UUID_LEN)
-        {
-            fprintf(stderr, "Wrong device ID parameter\r\n");
-            usage();
-            return -1;
-        }
+                strncpy(akc_server.bsPskId, optarg, AKC_UUID_LEN);
+                strncpy(akc_server.client_name, optarg, AKC_UUID_LEN);
+                break;
+            case 't':
+                if (strlen(optarg) != AKC_UUID_LEN)
+                {
+                    fprintf(stderr, "Wrong device token parameter\r\n");
+                    usage();
+                    return -1;
+                }
 
-        strncpy(akc_server.bsPskId, argv[2], AKC_UUID_LEN);
-        strncpy(akc_server.client_name, argv[2], AKC_UUID_LEN);
-    }
-
-    if (argc > 3)
-    {
-        if (strlen(argv[3]) != AKC_UUID_LEN)
-        {
-            fprintf(stderr, "Wrong device token parameter\r\n");
-            usage();
-            return -1;
-        }
-
-        strncpy(akc_server.psk, argv[3], AKC_UUID_LEN);
-    }
-
-    if (argc > 4)
-    {
-        if (!strcmp(argv[4], "noverify"))
-        {
-            akc_server.verifyCert = false;
-        }
+                strncpy(akc_server.psk, optarg, AKC_UUID_LEN);
+                break;
+            case 'n':
+                akc_server.verifyCert = false;
+                break;
+            case 'p':
+                akc_server.localPort = atoi(optarg);
+                break;
+            case 'h':
+                usage();
+                return 0;
+            default:
+                usage();
+                return -1;
+            }
     }
 
     signal(SIGINT, handle_sigint);

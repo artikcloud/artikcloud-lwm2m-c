@@ -8,13 +8,15 @@ project (akc_client)
 
 include_directories (${OBJECT_SOURCES_DIR} ../lwm2mclient)
 
-SET(SOURCES
+set (SOURCES
     akc_client.c
     client_cmdline.c
     )
 
-add_executable(${PROJECT_NAME} ${SOURCES})
-TARGET_LINK_LIBRARIES(${PROJECT_NAME} wakaama-client)
+add_executable (${PROJECT_NAME} ${SOURCES})
+target_link_libraries (${PROJECT_NAME} wakaama-client)
+
+install (TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
 
 # Add WITH_LOGS to debug variant
 set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:Debug>:WITH_LOGS>)

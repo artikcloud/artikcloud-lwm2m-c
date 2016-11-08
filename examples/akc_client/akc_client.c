@@ -65,6 +65,7 @@ static void usage()
     fprintf(stdout, "\t-t <device token> : AKC device token\r\n");
     fprintf(stdout, "\t-n : don't verify SSL certificate\r\n");
     fprintf(stdout, "\t-p <port> : local source port to connect from\r\n");
+    fprintf(stdout, "\t-l <lifetime> : lifetime of the client in seconds\r\n");
     fprintf(stdout, "\t-h : display help\r\n");
 }
 
@@ -123,7 +124,7 @@ int main(int argc, char *argv[])
     object_container_t init_val_ob;
     client_handle_t client = NULL;
 
-    while ((opt = getopt(argc, argv, "u:d:t:np:h")) != -1) {
+    while ((opt = getopt(argc, argv, "u:d:t:np:l:h")) != -1) {
             switch (opt) {
             case 'u':
                 strncpy(akc_server.serverUri, optarg, LWM2M_MAX_STR_LEN);
@@ -154,6 +155,9 @@ int main(int argc, char *argv[])
                 break;
             case 'p':
                 akc_server.localPort = atoi(optarg);
+                break;
+            case 'l':
+                akc_server.lifetime = atoi(optarg);
                 break;
             case 'h':
                 usage();

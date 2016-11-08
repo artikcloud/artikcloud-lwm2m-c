@@ -794,7 +794,7 @@ uint8_t device_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
                 lwm2m_data_t *parsed = NULL;
 
                 num = tlv_parse(dataArray->value.asBuffer.buffer, dataArray->value.asBuffer.length, &parsed);
-                if ((num > LWM2M_DEVICE_MAX_POWER_SOURCES) || (num == 0))
+                if ((num > LWM2M_DEVICE_MAX_ERROR_CODES) || (num == 0))
                 {
                     break;
                 }

@@ -377,7 +377,7 @@ int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res);
  *  \brief Serialize multiple strings into a TLV object
  *
  *  This function fills up a "lwm2m_resource_t" with multiple
- *  strings pas as parameters. The generated object follows the
+ *  strings passed as parameters. The generated object follows the
  *  binary TLV format. This function is used as an helper routine
  *  to format resource objects before writing multiple objects
  *  formatted resources.
@@ -393,6 +393,27 @@ int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res);
  *
  */
 int lwm2m_serialize_tlv_string(int num, char **strs, lwm2m_resource_t* res);
+
+/*!
+ *  \brief Serialize multiple integers into a TLV object
+ *
+ *  This function fills up a "lwm2m_resource_t" with multiple
+ *  integers passed as parameters. The generated object follows the
+ *  binary TLV format. This function is used as an helper routine
+ *  to format resource objects before writing multiple objects
+ *  formatted resources.
+ *
+ *  \param[in] number of integers to process
+ *  \param[in] pointer to the array of integers to process
+ *  \param[in] resource pointer to a "lwm2m_resource_t" object whose "buffer"
+ *  field will be allocated and filled by the library with the content of the
+ *  TLV. After usage, the calling application must free the memory allocated
+ *  for the "buffer" field.
+ *
+ *  \return LWM2M_CLIENT_OK if no error occurred, LWM2M_CLIENT_ERROR otherwise
+ *
+ */
+int lwm2m_serialize_tlv_int(int num, int *ints, lwm2m_resource_t* res);
 
 #ifdef __cplusplus
 }

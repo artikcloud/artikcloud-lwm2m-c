@@ -1017,7 +1017,7 @@ int lwm2m_serialize_tlv_string(int num, char **strs, lwm2m_resource_t* res)
     array = lwm2m_malloc(num * sizeof(*array));
     if (!array)
     {
-        fprintf(stderr, "lwm2m_tlv_string: failed to allocate memory\r\n");
+        fprintf(stderr, "lwm2m_serialize_tlv_string: failed to allocate memory\r\n");
         return LWM2M_CLIENT_ERROR;
     }
 
@@ -1026,6 +1026,34 @@ int lwm2m_serialize_tlv_string(int num, char **strs, lwm2m_resource_t* res)
         array[i].type = LWM2M_TYPE_STRING;
         array[i].value.asBuffer.length = strlen(strs[i]);
         array[i].value.asBuffer.buffer = (uint8_t*)strs[i];
+    }
+
+    res->length = tlv_serialize(true, num, array, &res->buffer);
+    if (!res->length)
+    {
+        fprintf(stderr, "lwm2m_serialize_tlv_string: failed to serialize TLV\r\n");
+        return LWM2M_CLIENT_ERROR;
+    }
+
+    return LWM2M_CLIENT_OK;
+}
+
+int lwm2m_serialize_tlv_int(int num, int *ints, lwm2m_resource_t* res)
+{
+    lwm2m_data_t *array = NULL;
+    int i = 0;
+
+    array = lwm2m_malloc(num * sizeof(*array));
+    if (!array)
+    {
+        fprintf(stderr, "lwm2m_serialize_tlv_int: failed to allocate memory\r\n");
+        return LWM2M_CLIENT_ERROR;
+    }
+
+    for (i=0; i<num; i++)
+    {
+        array[i].type = LWM2M_TYPE_INTEGER;
+        array[i].value.asInteger = (int64_t)ints[i];
     }
 
     res->length = tlv_serialize(true, num, array, &res->buffer);

@@ -100,6 +100,7 @@ commands to act on the LWM2M client. Type **help** for more information:
 help    Type 'help [COMMAND]' for more details.
 change  Change the value of a resource.
 read    Read the value of a resource.
+error   Write error code to resource /3/0/11.
 quit    Quit the client.
 ~~~
 

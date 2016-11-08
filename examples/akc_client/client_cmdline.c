@@ -29,12 +29,14 @@ static void prv_displayHelp(command_desc_t *commandArray, char *buffer);
 static void prv_quit(char *buffer, void *user_data);
 static void prv_change_obj(char *buffer, void *user_data);
 static void prv_read_obj(char *buffer, void *user_data);
+static void prv_write_error(char *buffer, void *user_data);
 
 static bool quit_client = false;
 
 command_desc_t commands[] = {
     { "change", "Change the value of a resource. (e.g. \"change /3/0/14 +01:00\")", NULL, prv_change_obj, NULL },
     { "read", "Read the value of a resource. (e.g. \"read /3/0/14\")", NULL, prv_read_obj, NULL },
+    { "error", "Write error code to resource /3/0/11", NULL, prv_write_error, NULL },
     { "quit", "Quit the client.", NULL, prv_quit, NULL },
     { NULL, NULL, NULL, NULL, NULL }
 };
@@ -259,6 +261,45 @@ void prv_read_obj(char *buffer, void *user_data)
     free(res.buffer);
     free(val);
 }
+
+void prv_write_error(char *buffer, void *user_data)
+{
+    client_handle_t handle = (client_handle_t)user_data;
+    char *end = NULL;
+    char *error_str = NULL;
+    int error;
+    lwm2m_resource_t res;
+
+    end = get_end_of_arg(buffer);
+    if (end[0] == 0)
+    {
+        fprintf(stdout, "Syntax error !\n");
+        return;
+    }
+
+    error_str = strndup(buffer, end - buffer);
+    if (!error_str)
+    {
+        fprintf(stdout, "Wrong parameter\n");
+        return;
+    }
+
+    error = atoi(error_str);
+
+    if (lwm2m_serialize_tlv_int(1, &error, &res))
+    {
+        fprintf(stdout, "Failed to serialize TLV\n");
+        free(error_str);
+        return;
+    }
+
+    strncpy(res.uri, LWM2M_URI_DEVICE_ERROR_CODE, strlen(LWM2M_URI_DEVICE_ERROR_CODE));
+    lwm2m_write_resource(handle, &res);
+
+    free(error_str);
+    free(res.buffer);
+}
+
 
 void prv_quit(char *buffer, void *user_data)
 {

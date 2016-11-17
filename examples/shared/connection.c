@@ -22,6 +22,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <signal.h>
 #include <sys/socket.h>
 #include <netinet/tcp.h>
 
@@ -111,10 +112,8 @@ static bool ssl_init(connection_t * conn)
 
     if(SSL_library_init() < 0)
     {
-#ifdef WITH_LOGS
         fprintf(stderr, "Failed to initialize OpenSSL\n");
         goto error;
-#endif
     }
 
     if (conn->protocol == COAP_UDP_DTLS)
@@ -129,6 +128,9 @@ static bool ssl_init(connection_t * conn)
         SSL_CTX_set_cipher_list(ctx, "ALL");
         SSL_CTX_set_verify(ctx, conn->verify_cert ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
         SSL_CTX_set_default_verify_dir(ctx);
+
+        /* Ignore SIGPIPE to avoid the program from exiting on closed socket */
+        signal(SIGPIPE, SIG_IGN);
     }
 
     if (!ctx)
@@ -149,6 +151,12 @@ static bool ssl_init(connection_t * conn)
         struct sockaddr peer;
         int peerlen = sizeof (struct sockaddr);
         struct timeval timeout;
+        int ret;
+        int handshake_timeout = 50;
+        int oldflags = fcntl (conn->sock, F_GETFL, 0);
+
+        oldflags |= O_NONBLOCK;
+        fcntl(conn->sock, F_SETFL, oldflags);
 
         sbio = BIO_new_dgram (conn->sock, BIO_NOCLOSE);
         if (getsockname (conn->sock, &peer, (socklen_t *)&peerlen) < 0)
@@ -159,19 +167,46 @@ static bool ssl_init(connection_t * conn)
         BIO_ctrl_set_connected (sbio, &peer);
         timeout.tv_sec = 10;
         timeout.tv_usec = 0;
-        BIO_ctrl (sbio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
+        BIO_ctrl(sbio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);
         BIO_ctrl(sbio, BIO_CTRL_DGRAM_MTU_DISCOVER, 0, NULL);
         SSL_set_bio (ssl, sbio, sbio);
         SSL_set_connect_state (ssl);
+
+        conn->ssl = ssl;
+        conn->ssl_ctx = ctx;
+
+        do {
+            ret = SSL_do_handshake(ssl);
+            if (ret < 1)
+            {
+                switch (SSL_get_error(ssl, ret))
+                {
+                case SSL_ERROR_WANT_READ:
+                case SSL_ERROR_WANT_WRITE:
+                    break;
+                default:
+                    fprintf(stderr, "%s: SSL error: %s\n", __func__,
+                            ERR_error_string(SSL_get_error(ssl, ret), NULL));
+                    goto error;
+                }
+
+                usleep(100*1000);
+                if (handshake_timeout-- <= 0) {
+                    fprintf(stderr, "%s: SSL handshake timed out\n", __func__);
+                    goto error;
+                }
+            }
+        } while(ret != 1);
+
+        oldflags &= O_NONBLOCK;
+        fcntl(conn->sock, F_SETFL, oldflags);
     }
     else
     {
         sbio = BIO_new_socket(conn->sock, BIO_NOCLOSE);
         if (!sbio)
         {
-#ifdef WITH_LOGS
             fprintf(stderr, "%s: failed to create socket BIO\n", __func__);
-#endif
             goto error;
         }
 
@@ -179,16 +214,14 @@ static bool ssl_init(connection_t * conn)
         ret = SSL_connect(ssl);
         if (ret < 1)
         {
-#ifdef WITH_LOGS
             fprintf(stderr, "%s: SSL handshake failed\n", __func__);
             ERR_print_errors_fp(stderr);
-#endif
             goto error;
         }
-    }
 
-    conn->ssl = ssl;
-    conn->ssl_ctx = ctx;
+        conn->ssl = ssl;
+        conn->ssl_ctx = ctx;
+    }
 
     return true;
 
@@ -237,6 +270,98 @@ static char *security_get_secret_key(lwm2m_object_t * obj, int instanceId, int *
     {
         return NULL;
     }
+}
+
+int connection_restart(connection_t *conn)
+{
+    int sock;
+    connection_t *newConn = NULL;
+
+    conn->connected = false;
+
+    /* Close previous connection */
+    close(conn->sock);
+
+    if (conn->ssl) {
+        SSL_free(conn->ssl);
+        conn->ssl = NULL;
+    }
+    if (conn->ssl_ctx) {
+        SSL_CTX_free(conn->ssl_ctx);
+        conn->ssl_ctx = NULL;
+    }
+
+    /* Increase port in case of TCP connections to avoid TIME_WAIT issue */
+    if ((conn->protocol == COAP_TCP) || (conn->protocol == COAP_TCP_TLS))
+    {
+        char portStr[16];
+        snprintf(portStr, 16, "%d", atoi(conn->local_port) + 1);
+        strncpy(conn->local_port, portStr, 16);
+    }
+
+    sock = create_socket(conn->protocol, conn->local_port, conn->address_family);
+    if (sock <= 0)
+    {
+        fprintf(stderr, "Failed to create new socket\n");
+        return -1;
+    }
+
+    newConn = connection_create(conn->protocol,
+                                conn->verify_cert,
+                                sock,
+                                conn->host,
+                                conn->local_port,
+                                conn->remote_port,
+                                conn->address_family,
+                                conn->sec_obj,
+                                conn->sec_inst);
+
+    if (!newConn)
+    {
+        fprintf(stderr, "Failed to create new connection\n");
+        close(sock);
+        return -1;
+    }
+
+    if (conn->protocol == COAP_UDP_DTLS)
+    {
+        lwm2m_dtls_info_t *dtls = dtlsinfo_list;
+
+        /* Delete old connection's DTLS info */
+        while (dtls != NULL)
+        {
+            if (conn == dtls->connection)
+            {
+                lwm2m_dtls_info_t *node;
+                dtlsinfo_list = (lwm2m_dtls_info_t *)LWM2M_LIST_RM(dtlsinfo_list, dtls->id, &node);
+                free(node);
+                break;
+            }
+            dtls = dtls->next;
+        }
+
+        /* Replace connection pointer in new DTLS info */
+        dtls = dtlsinfo_list;
+        while (dtls != NULL)
+        {
+            if (newConn == dtls->connection)
+            {
+                dtls->connection = newConn;
+                break;
+            }
+            dtls = dtls->next;
+        }
+    }
+
+    /*
+     * Copy new connection on top of the old one to keep same pointer,
+     * then dispose of the newly allocated memory
+     */
+    free(conn->host);
+    memcpy(conn, newConn, sizeof(connection_t));
+    free(newConn);
+
+    return 0;
 }
 
 int create_socket(coap_protocol_t protocol, const char * portStr, int addressFamily)
@@ -307,35 +432,12 @@ connection_t * connection_find(connection_t * connList,
     return connP;
 }
 
-connection_t * connection_new_incoming(connection_t * connList,
-                                       int sock,
-                                       coap_protocol_t protocol,
-                                       bool verify_cert,
-                                       struct sockaddr * addr,
-                                       size_t addrLen)
-{
-    connection_t * connP;
-
-    connP = (connection_t *)malloc(sizeof(connection_t));
-    if (connP != NULL)
-    {
-        connP->sock = sock;
-        connP->protocol = protocol;
-        connP->verify_cert = verify_cert;
-        memcpy(&(connP->addr), addr, addrLen);
-        connP->addrLen = addrLen;
-        connP->next = connList;
-    }
-
-    return connP;
-}
-
-connection_t * connection_create(connection_t * connList,
-                                 coap_protocol_t protocol,
+connection_t * connection_create(coap_protocol_t protocol,
                                  bool verify_cert,
                                  int sock,
-                                 char * host,
-                                 char * port,
+                                 char *host,
+                                 char *local_port,
+                                 char *remote_port,
                                  int addressFamily,
                                  lwm2m_object_t * sec_obj,
                                  int sec_inst)
@@ -366,7 +468,10 @@ connection_t * connection_create(connection_t * connList,
         break;
     }
 
-    if (0 != getaddrinfo(host, port, &hints, &servinfo) || servinfo == NULL) return NULL;
+    if (0 != getaddrinfo(host, remote_port, &hints, &servinfo) || servinfo == NULL)
+    {
+        return NULL;
+    }
 
     // we test the various addresses
     s = -1;
@@ -385,20 +490,41 @@ connection_t * connection_create(connection_t * connList,
             }
         }
     }
+
     if (s >= 0)
     {
         if (protocol != COAP_UDP)
         {
             if (connect(sock, sa, sl) < 0)
             {
+                fprintf(stderr, "Failed to connect to socket: %s\n", strerror(errno));
                 close(sock);
                 return NULL;
             }
         }
 
-        connP = connection_new_incoming(connList, sock, protocol, verify_cert, sa, sl);
+        /* Allocate and fill up connection structure */
+        connP = (connection_t *)malloc(sizeof(connection_t));
+        if (connP == NULL)
+        {
+            fprintf(stderr, "Failed to allocate memory for connection\n");
+            return NULL;
+        }
 
-        if (protocol == COAP_UDP_DTLS)
+        memset(connP, 0, sizeof(connection_t));
+        connP->sock = sock;
+        connP->protocol = protocol;
+        connP->verify_cert = verify_cert;
+        memcpy(&(connP->addr), sa, sl);
+        connP->host = strndup(host, strlen(host));
+        connP->addrLen = sl;
+        strncpy(connP->local_port, remote_port, 16);
+        strncpy(connP->remote_port, remote_port, 16);
+        connP->address_family = addressFamily;
+        connP->sec_obj = sec_obj;
+        connP->sec_inst = sec_inst;
+
+        if ((protocol == COAP_UDP_DTLS) && sec_obj)
         {
             char *id = NULL, *psk = NULL;
             int len = 0;
@@ -410,19 +536,13 @@ connection_t * connection_create(connection_t * connList,
             if (!sec_obj)
             {
                 fprintf(stderr, "No security object provided\n");
-                free(connP);
-                connP = NULL;
-                close(s);
-                goto exit;
+                goto error;
             }
 
             if (!dtls)
             {
                 fprintf(stderr, "Failed to allocate memory for DTLS security info\n");
-                free(connP);
-                connP = NULL;
-                close(s);
-                goto exit;
+                goto error;
             }
 
             memset(dtls, 0, sizeof(lwm2m_dtls_info_t));
@@ -431,10 +551,7 @@ connection_t * connection_create(connection_t * connList,
             if (len > MAX_DTLS_INFO_LEN)
             {
                 fprintf(stderr, "Public ID is too long\n");
-                free(connP);
-                connP = NULL;
-                close(s);
-                goto exit;
+                goto error;
             }
 
             memcpy(dtls->identity, id, len);
@@ -443,10 +560,7 @@ connection_t * connection_create(connection_t * connList,
             if (len > MAX_DTLS_INFO_LEN)
             {
                 fprintf(stderr, "Secret key is too long\n");
-                free(connP);
-                connP = NULL;
-                close(s);
-                goto exit;
+                goto error;
             }
 
             memcpy(dtls->key, psk, len);
@@ -461,26 +575,37 @@ connection_t * connection_create(connection_t * connList,
         {
             if (!ssl_init(connP))
             {
-                free(connP);
-                connP = NULL;
-                close(s);
-                goto exit;
+                fprintf(stderr, "Failed to initialize SSL session\n");
+                goto error;
             }
         }
         close(s);
     }
     else
     {
-#ifdef WITH_LOGS
         fprintf(stderr, "Failed to find responsive server\n");
-#endif
+        goto error;
     }
 
-exit:
     if (NULL != servinfo)
         free(servinfo);
 
+    connP->connected = true;
+
     return connP;
+
+error:
+    if (NULL != servinfo)
+        free(servinfo);
+
+    if (connP)
+    {
+        free(connP->host);
+        free(connP);
+        connP = NULL;
+    }
+
+    return NULL;
 }
 
 void connection_free(connection_t * connList)
@@ -505,6 +630,8 @@ void connection_free(connection_t * connList)
         }
 
         nextP = connList->next;
+        if (connList->host)
+            free(connList->host);
         free(connList);
 
         connList = nextP;
@@ -517,6 +644,9 @@ int connection_send(connection_t *connP,
 {
     int nbSent;
     size_t offset;
+
+    if (!connP->connected)
+        return -1;
 
 #ifdef WITH_LOGS
     char s[INET6_ADDRSTRLEN];
@@ -593,8 +723,9 @@ uint8_t lwm2m_buffer_send(void * sessionH,
 
     if (-1 == connection_send(connP, buffer, length))
     {
-        fprintf(stderr, "#> failed sending %lu bytes\r\n", length);
-        return COAP_500_INTERNAL_SERVER_ERROR ;
+        fprintf(stderr, "#> failed sending %lu bytes, try reconnecting\r\n", length);
+        connP->connected = false;
+        return COAP_500_INTERNAL_SERVER_ERROR;
     }
 
     return COAP_NO_ERROR;

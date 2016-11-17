@@ -11,7 +11,6 @@
  *    http://www.eclipse.org/org/documents/edl-v10.php.
  *
  * Contributors:
- *    Gregory Lemercier, Samsung - Please refer to git log
  *    David Navarro, Intel Corporation - initial API and implementation
  *    Benjamin Cabé - Please refer to git log
  *    Fabien Fleutot - Please refer to git log
@@ -23,6 +22,7 @@
  *    Pascal Rieux - Please refer to git log
  *    Christian Renz - Please refer to git log
  *    Ricky Liu - Please refer to git log
+ *    Gregory Lemercier, Samsung - Please refer to git log
  *
  *******************************************************************************/
 
@@ -86,6 +86,7 @@
 #define CLIENT_PORT_RANGE_END      64999
 
 #define MAX_PACKET_SIZE            1024
+#define MAX_CONNECTION_RETRIES     5
 
 typedef struct {
     coap_protocol_t proto;
@@ -102,13 +103,14 @@ typedef struct
     lwm2m_context_t * lwm2mH;
     struct sockaddr_storage server_addr;
     size_t server_addrlen;
-    SSL *ssl;
+    connection_t *conn;
     bool verify_cert;
     int addressFamily;
     lwm2m_object_t * objArray[LWM2M_OBJ_COUNT];
     coap_protocol_t proto;
     pthread_t rx_thread;
     bool rx_thread_exit;
+    char local_port[16];
 } client_data_t;
 
 static coap_uri_protocol protocols[] = {
@@ -155,7 +157,6 @@ void * lwm2m_connect_server(uint16_t secObjInstID, void * userData)
     char * uri = NULL;
     char * host = NULL;
     char * port = NULL;
-    void * newConnP = NULL;
     lwm2m_list_t * instance = NULL;
     int i = 0;
     coap_protocol_t protocol = -1;
@@ -203,8 +204,8 @@ void * lwm2m_connect_server(uint16_t secObjInstID, void * userData)
     instance = LWM2M_LIST_FIND(dataP->securityObjP->instanceList, secObjInstID);
     if (instance == NULL) goto exit;
 
-    connection_t *conn = connection_create((connection_t *)dataP->connList, protocol, dataP->verify_cert,
-            dataP->sock, host, port, dataP->addressFamily, securityObj, instance->id);
+    connection_t *conn = connection_create(protocol, dataP->verify_cert,
+            dataP->sock, host, dataP->local_port, port, dataP->addressFamily, securityObj, instance->id);
     if (!conn)
     {
         fprintf(stderr, "Connection creation failed.\r\n");
@@ -213,14 +214,13 @@ void * lwm2m_connect_server(uint16_t secObjInstID, void * userData)
 
     memcpy(&dataP->server_addr, &conn->addr, conn->addrLen);
     dataP->server_addrlen = conn->addrLen;
-    dataP->ssl = conn->ssl;
-    newConnP = (void*)conn;
+    dataP->conn = conn;
 
-    dataP->connList = (void*)newConnP;
+    dataP->connList = (void*)conn;
 
 exit:
     lwm2m_free(uri);
-    return (void *)newConnP;
+    return (void *)conn;
 }
 
 void lwm2m_close_connection(void * sessionH,
@@ -259,11 +259,13 @@ static void *rx_thread_func(void *param)
     struct sockaddr_storage addr;
     socklen_t addrLen = sizeof(addr);
 
-    pfd.fd = data->sock;
     pfd.events = POLLIN;
 
     while(true)
     {
+        /* Rewrite the socket fd everytime in case we have been reconnected */
+        pfd.fd = data->sock;
+
         ret = poll(&pfd, 1, 250);
         if (ret < 0)
         {
@@ -277,7 +279,7 @@ static void *rx_thread_func(void *param)
             break;
         }
 
-        if (!ret)
+        if (!ret || !data->conn->connected)
         {
             /* time out */
             continue;
@@ -304,10 +306,10 @@ static void *rx_thread_func(void *param)
              break;
         case COAP_UDP_DTLS:
         case COAP_TCP_TLS:
-            numBytes = SSL_read(data->ssl, buffer, MAX_PACKET_SIZE);
+            numBytes = SSL_read(data->conn->ssl, buffer, MAX_PACKET_SIZE);
             if (numBytes < 1)
             {
-                fprintf(stderr, "SSL Read error: %s\n", ERR_error_string(SSL_get_error(data->ssl, numBytes), NULL));
+                usleep(100 * 1000);
                 continue;
             }
             break;
@@ -364,7 +366,6 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     int opt;
     bool bootstrapRequested = false;
     coap_protocol_t protocol = -1;
-    char local_port[16];
     client_data_t* data;
     lwm2m_context_t *ctx = NULL;
     uint16_t pskLen = -1;
@@ -435,15 +436,15 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
      * closing the socket.
      */
     if (init_val->server->localPort > 0)
-        snprintf(local_port, 16, "%d", init_val->server->localPort);
+        snprintf(data->local_port, 16, "%d", init_val->server->localPort);
     else
-        snprintf(local_port, 16, "%d", (rand() % (CLIENT_PORT_RANGE_END - CLIENT_PORT_RANGE_START)) + CLIENT_PORT_RANGE_START);
+        snprintf(data->local_port, 16, "%d", (rand() % (CLIENT_PORT_RANGE_END - CLIENT_PORT_RANGE_START)) + CLIENT_PORT_RANGE_START);
 
 #ifdef WITH_LOGS
-    fprintf(stdout, "Trying to bind LWM2M Client to port %s\r\n", local_port);
+    fprintf(stdout, "Trying to bind LWM2M Client to port %s\r\n", data->local_port);
 #endif
 
-    data->sock = create_socket(data->proto, local_port, data->addressFamily);
+    data->sock = create_socket(data->proto, data->local_port, data->addressFamily);
     if (data->sock < 0)
     {
         fprintf(stderr, "Failed to open socket: %d %s\r\n", errno, strerror(errno));
@@ -683,18 +684,31 @@ int lwm2m_client_service(client_handle_t handle)
     struct sockaddr_storage addr;
     socklen_t addrLen = sizeof(addr);
     time_t timeout = 60;
-    time_t reboot_time = 0;
+    static int connection_retries = 0;
 
     result = lwm2m_step(data->lwm2mH, &timeout);
-    if (result != 0)
+    if ((result != 0) || (registration_getStatus(data->lwm2mH) == STATE_REG_FAILED))
     {
-        fprintf(stderr, "lwm2m_step() failed: 0x%X\r\n", result);
-        return LWM2M_CLIENT_ERROR;
+        /* Try reconnecting */
+        data->conn->connected = false;
     }
 
-    if (registration_getStatus(data->lwm2mH) == STATE_REG_FAILED)
+    if (!data->conn->connected)
     {
-        return LWM2M_CLIENT_QUIT;
+        data->lwm2mH->state = STATE_REGISTER_REQUIRED;
+        if (connection_restart(data->conn) < 0)
+        {
+            if (++connection_retries > MAX_CONNECTION_RETRIES)
+            {
+                fprintf(stderr, "Failed to reconnect %d times, exiting...\r\n", MAX_CONNECTION_RETRIES);
+                return LWM2M_CLIENT_ERROR;
+            }
+        }
+        else
+        {
+            connection_retries = 0;
+            timeout = 0;
+        }
     }
 
     return timeout;

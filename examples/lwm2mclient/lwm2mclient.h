@@ -196,9 +196,10 @@ typedef struct {
  * Object: Firmware
  * Resource: State
  */
-#define LWM2M_FIRMWARE_STATE_IDLE        "1"
-#define LWM2M_FIRMWARE_STATE_DOWNLOADING "2"
-#define LWM2M_FIRMWARE_STATE_DOWNLOADED  "3"
+#define LWM2M_FIRMWARE_STATE_IDLE        "0"
+#define LWM2M_FIRMWARE_STATE_DOWNLOADING "1"
+#define LWM2M_FIRMWARE_STATE_DOWNLOADED  "2"
+#define LWM2M_FIRMWARE_STATE_UPDATING    "3"
 
 /*
  * Object: Firmware

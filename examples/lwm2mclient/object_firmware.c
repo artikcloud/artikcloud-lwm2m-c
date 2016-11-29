@@ -232,7 +232,7 @@ static uint8_t prv_firmware_execute(uint16_t instanceId,
     switch (resourceId)
     {
     case RES_M_UPDATE:
-        if (data->state == 3)
+        if (data->state == 2)
         {
 #ifdef WITH_LOGS
             fprintf(stdout, "\n\t Firmware Update\r\n\n");
@@ -356,7 +356,7 @@ uint8_t firmware_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object)
             int64_t value;
             if (1 == lwm2m_data_decode_int(dataArray, &value))
             {
-                if ((1 <= value) && (3 >= value))
+                if ((0 <= value) && (3 >= value))
                 {
                     ((firmware_data_t*)(object->userData))->state = (uint8_t)value;
                     result = COAP_204_CHANGED;

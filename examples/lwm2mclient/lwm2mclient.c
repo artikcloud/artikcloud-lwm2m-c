@@ -687,6 +687,13 @@ int lwm2m_client_service(client_handle_t handle)
     static int connection_retries = 0;
 
     result = lwm2m_step(data->lwm2mH, &timeout);
+
+    if (!data->conn)
+    {
+        /* Connection failed, just quit */
+        return LWM2M_CLIENT_ERROR;
+    }
+
     if ((result != 0) || (registration_getStatus(data->lwm2mH) == STATE_REG_FAILED))
     {
         /* Try reconnecting */

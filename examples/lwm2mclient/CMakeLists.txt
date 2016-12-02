@@ -7,7 +7,7 @@ endif()
 project (wakaama-client)
 
 set(LIB_VERSION_MAJOR "1")
-set(LIB_VERSION_MINOR "0")
+set(LIB_VERSION_MINOR "1")
 set(LIB_VERSION_PATCH "0")
 
 set(SOURCES

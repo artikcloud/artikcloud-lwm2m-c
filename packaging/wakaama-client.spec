@@ -1,6 +1,6 @@
 Name: wakaama-client
-Version: 1.0
-Release: 1%{?dist}
+Version: 1.1
+Release: 0%{?dist}
 License: EDL&EPL
 Summary: Implementation of the Open Mobile Alliance's LightWeight M2M protocol (LWM2M)
 Group: Development/Libraries
@@ -37,7 +37,8 @@ make %{?_smp_mflags}
 
 %install
 rm -rf %{buildroot}
-%make_install
+make install DESTDIR=%{buildroot}
+rm -rf %{buildroot}/%{_bindir}/*
 cp %{_srcdir}/EDL-v1.0 %{_builddir}
 cp %{_srcdir}/EPL-v1.0 %{_builddir}
 cp %{_srcdir}/README.md %{_builddir}

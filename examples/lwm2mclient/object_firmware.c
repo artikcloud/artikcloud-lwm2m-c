@@ -424,7 +424,9 @@ void prv_firmware_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute
         data->notify_callback_param = param;
         break;
     default:
+#ifdef WITH_LOGS
         fprintf(stderr, "prv_firmware_register_callback: unsupported callback\r\n");
+#endif
         break;
     }
 }

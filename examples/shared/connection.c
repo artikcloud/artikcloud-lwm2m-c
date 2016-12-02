@@ -63,13 +63,17 @@ static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity,
 
     if(!id || !key)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Could not find DTLS credentials\n");
+#endif
         return 0;
     }
 
     if (strlen(id) > max_identity_len)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "PSK identity is too long\n");
+#endif
         return 0;
     }
 
@@ -77,7 +81,9 @@ static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity,
 
     if (keyLen > max_psk_len)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "PSK key is too long\n");
+#endif
         return 0;
     }
 
@@ -112,7 +118,9 @@ static bool ssl_init(connection_t * conn)
 
     if(SSL_library_init() < 0)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to initialize OpenSSL\n");
+#endif
         goto error;
     }
 
@@ -135,14 +143,18 @@ static bool ssl_init(connection_t * conn)
 
     if (!ctx)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to create SSL context\n");
+#endif
         goto error;
     }
 
     ssl = SSL_new(ctx);
     if (!ssl)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to allocate SSL connection\n");
+#endif
         goto error;
     }
 
@@ -161,7 +173,9 @@ static bool ssl_init(connection_t * conn)
         sbio = BIO_new_dgram (conn->sock, BIO_NOCLOSE);
         if (getsockname (conn->sock, &peer, (socklen_t *)&peerlen) < 0)
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "getsockname failed (%s)\n", strerror (errno));
+#endif
         }
 
         BIO_ctrl_set_connected (sbio, &peer);
@@ -185,14 +199,18 @@ static bool ssl_init(connection_t * conn)
                 case SSL_ERROR_WANT_WRITE:
                     break;
                 default:
+#ifdef WITH_LOGS
                     fprintf(stderr, "%s: SSL error: %s\n", __func__,
                             ERR_error_string(SSL_get_error(ssl, ret), NULL));
+#endif
                     goto error;
                 }
 
                 usleep(100*1000);
                 if (handshake_timeout-- <= 0) {
+#ifdef WITH_LOGS
                     fprintf(stderr, "%s: SSL handshake timed out\n", __func__);
+#endif
                     goto error;
                 }
             }
@@ -206,7 +224,9 @@ static bool ssl_init(connection_t * conn)
         sbio = BIO_new_socket(conn->sock, BIO_NOCLOSE);
         if (!sbio)
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "%s: failed to create socket BIO\n", __func__);
+#endif
             goto error;
         }
 
@@ -214,7 +234,9 @@ static bool ssl_init(connection_t * conn)
         ret = SSL_connect(ssl);
         if (ret < 1)
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "%s: SSL handshake failed\n", __func__);
+#endif
             ERR_print_errors_fp(stderr);
             goto error;
         }
@@ -302,7 +324,9 @@ int connection_restart(connection_t *conn)
     sock = create_socket(conn->protocol, conn->local_port, conn->address_family);
     if (sock <= 0)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to create new socket\n");
+#endif
         return -1;
     }
 
@@ -318,7 +342,9 @@ int connection_restart(connection_t *conn)
 
     if (!newConn)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to create new connection\n");
+#endif
         close(sock);
         return -1;
     }
@@ -497,7 +523,9 @@ connection_t * connection_create(coap_protocol_t protocol,
         {
             if (connect(sock, sa, sl) < 0)
             {
+#ifdef WITH_LOGS
                 fprintf(stderr, "Failed to connect to socket: %s\n", strerror(errno));
+#endif
                 close(sock);
                 return NULL;
             }
@@ -507,7 +535,9 @@ connection_t * connection_create(coap_protocol_t protocol,
         connP = (connection_t *)malloc(sizeof(connection_t));
         if (connP == NULL)
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "Failed to allocate memory for connection\n");
+#endif
             return NULL;
         }
 
@@ -535,13 +565,17 @@ connection_t * connection_create(coap_protocol_t protocol,
 
             if (!sec_obj)
             {
+#ifdef WITH_LOGS
                 fprintf(stderr, "No security object provided\n");
+#endif
                 goto error;
             }
 
             if (!dtls)
             {
+#ifdef WITH_LOGS
                 fprintf(stderr, "Failed to allocate memory for DTLS security info\n");
+#endif
                 goto error;
             }
 
@@ -550,7 +584,9 @@ connection_t * connection_create(coap_protocol_t protocol,
             id = security_get_public_id(sec_obj, sec_inst, &len);
             if (len > MAX_DTLS_INFO_LEN)
             {
+#ifdef WITH_LOGS
                 fprintf(stderr, "Public ID is too long\n");
+#endif
                 goto error;
             }
 
@@ -559,7 +595,9 @@ connection_t * connection_create(coap_protocol_t protocol,
             psk = security_get_secret_key(sec_obj, sec_inst, &len);
             if (len > MAX_DTLS_INFO_LEN)
             {
+#ifdef WITH_LOGS
                 fprintf(stderr, "Secret key is too long\n");
+#endif
                 goto error;
             }
 
@@ -575,7 +613,9 @@ connection_t * connection_create(coap_protocol_t protocol,
         {
             if (!ssl_init(connP))
             {
+#ifdef WITH_LOGS
                 fprintf(stderr, "Failed to initialize SSL session\n");
+#endif
                 goto error;
             }
         }
@@ -583,7 +623,9 @@ connection_t * connection_create(coap_protocol_t protocol,
     }
     else
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to find responsive server\n");
+#endif
         goto error;
     }
 
@@ -681,21 +723,27 @@ int connection_send(connection_t *connP,
         case COAP_TCP_TLS:
             nbSent = SSL_write(connP->ssl, buffer + offset, length - offset);
             if (nbSent < 1) {
+#ifdef WITH_LOGS
                 fprintf(stderr, "SSL Send error: %s\n", ERR_error_string(SSL_get_error(connP->ssl, nbSent), NULL));
+#endif
                 return -1;
             }
             break;
         case COAP_TCP:
             nbSent = send(connP->sock, buffer + offset, length - offset, 0);
             if (nbSent == -1) {
+#ifdef WITH_LOGS
                 fprintf(stderr, "Send error: %s\n", strerror(errno));
+#endif
                 return -1;
             }
             break;
         case COAP_UDP:
             nbSent = sendto(connP->sock, buffer + offset, length - offset, 0, (struct sockaddr *)&(connP->addr), connP->addrLen);
             if (nbSent == -1) {
+#ifdef WITH_LOGS
                 fprintf(stderr, "Send error: %s\n", strerror(errno));
+#endif
                 return -1;
             }
             break;
@@ -717,13 +765,17 @@ uint8_t lwm2m_buffer_send(void * sessionH,
 
     if (connP == NULL)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "#> failed sending %lu bytes, missing connection\r\n", length);
+#endif
         return COAP_500_INTERNAL_SERVER_ERROR ;
     }
 
     if (-1 == connection_send(connP, buffer, length))
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "#> failed sending %lu bytes, try reconnecting\r\n", length);
+#endif
         connP->connected = false;
         return COAP_500_INTERNAL_SERVER_ERROR;
     }

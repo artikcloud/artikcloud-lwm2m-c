@@ -208,7 +208,9 @@ void * lwm2m_connect_server(uint16_t secObjInstID, void * userData)
             dataP->sock, host, dataP->local_port, port, dataP->addressFamily, securityObj, instance->id);
     if (!conn)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Connection creation failed.\r\n");
+#endif
         goto exit;
     }
 
@@ -269,7 +271,9 @@ static void *rx_thread_func(void *param)
         ret = poll(&pfd, 1, 250);
         if (ret < 0)
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "Error in select(): %d %s\r\n", errno, strerror(errno));
+#endif
             continue;
         }
 
@@ -292,7 +296,9 @@ static void *rx_thread_func(void *param)
              numBytes = recvfrom(data->sock, buffer, MAX_PACKET_SIZE, 0, (struct sockaddr *)&addr, &addrLen);
              if (numBytes < 0)
              {
+#ifdef WITH_LOGS
                  fprintf(stderr, "Error in recvfrom(): %d %s\r\n", errno, strerror(errno));
+#endif
                  continue;
              }
              break;
@@ -300,7 +306,9 @@ static void *rx_thread_func(void *param)
              numBytes = recv(data->sock, buffer, MAX_PACKET_SIZE, 0);
              if (numBytes < 0)
              {
+#ifdef WITH_LOGS
                  fprintf(stderr, "Error in recv(): %d %s\r\n", errno, strerror(errno));
+#endif
                  continue;
              }
              break;
@@ -351,7 +359,9 @@ static void *rx_thread_func(void *param)
         }
         else
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "server has closed the connection\r\n");
+#endif
             break;
         }
     }
@@ -376,7 +386,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
 
     data = malloc(sizeof(client_data_t));
     if (!data) {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to allocate memory for client data\r\n");
+#endif
         return NULL;
     }
 
@@ -397,12 +409,14 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
 
     if (protocol == (coap_protocol_t)-1)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Unknown protocol, should be one of: ");
         for (i=0; i<sizeof(protocols)/sizeof(coap_uri_protocol); i++)
         {
             fprintf(stderr, "%s, ", protocols[i].uri_prefix);
         }
         fprintf(stderr, "\r\n");
+#endif
         return NULL;
     }
 
@@ -423,7 +437,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     ctx = lwm2m_init(data);
     if (!ctx)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_init() failed\r\n");
+#endif
         return NULL;
     }
 
@@ -447,7 +463,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     data->sock = create_socket(data->proto, data->local_port, data->addressFamily);
     if (data->sock < 0)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to open socket: %d %s\r\n", errno, strerror(errno));
+#endif
         return NULL;
     }
 
@@ -462,7 +480,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
 
         if (NULL == pskBuffer)
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "Failed to create PSK binary buffer\r\n");
+#endif
             return NULL;
         }
         // Hex string to binary
@@ -477,7 +497,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
 
             if (!r || !l)
             {
+#ifdef WITH_LOGS
                 fprintf(stderr, "Failed to parse Pre-Shared-Key HEXSTRING\r\n");
+#endif
                 return NULL;
             }
 
@@ -496,7 +518,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
             data->objArray[LWM2M_OBJ_SECURITY] = get_security_object(serverId, uri, init_val->server->bsPskId, pskBuffer, pskLen, false);
             if (NULL == data->objArray[LWM2M_OBJ_SECURITY])
             {
+#ifdef WITH_LOGS
                 fprintf(stderr, "Failed to create security object\r\n");
+#endif
                 return NULL;
             }
             data->securityObjP = data->objArray[LWM2M_OBJ_SECURITY];
@@ -520,7 +544,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
 
         if (NULL == data->objArray[LWM2M_OBJ_SERVER])
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "Failed to create server object\r\n");
+#endif
             return NULL;
         }
     }
@@ -530,7 +556,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
         data->objArray[LWM2M_OBJ_DEVICE] = get_object_device(init_val->device);
         if (NULL == data->objArray[LWM2M_OBJ_DEVICE])
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "Failed to create Device object\r\n");
+#endif
             return NULL;
         }
     }
@@ -540,7 +568,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
         data->objArray[LWM2M_OBJ_FIRMWARE] = get_object_firmware(init_val->firmware);
         if (NULL == data->objArray[LWM2M_OBJ_FIRMWARE])
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "Failed to create Firmware object\r\n");
+#endif
             return NULL;
         }
     }
@@ -550,7 +580,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
         data->objArray[LWM2M_OBJ_LOCATION] = get_object_location(init_val->location);
         if (NULL == data->objArray[LWM2M_OBJ_LOCATION])
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "Failed to create location object\r\n");
+#endif
             return NULL;
         }
     }
@@ -560,7 +592,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
         data->objArray[LWM2M_OBJ_CONN_MON] = get_object_conn_m(init_val->monitoring);
         if (NULL == data->objArray[LWM2M_OBJ_CONN_MON])
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "Failed to create connectivity monitoring object\r\n");
+#endif
             return NULL;
         }
     }
@@ -568,7 +602,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     data->objArray[LWM2M_OBJ_CONN_STAT] = get_object_conn_s();
     if (NULL == data->objArray[LWM2M_OBJ_CONN_STAT])
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to create connectivity statistics object\r\n");
+#endif
         return NULL;
     }
 
@@ -576,22 +612,30 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     data->objArray[LWM2M_OBJ_ACL] = acc_ctrl_create_object();
     if (NULL == data->objArray[LWM2M_OBJ_ACL])
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to create Access Control object\r\n");
+#endif
         return NULL;
     }
     else if (acc_ctrl_obj_add_inst(data->objArray[LWM2M_OBJ_ACL], instId, 3, 0, serverId)==false)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to create Access Control object instance\r\n");
+#endif
         return NULL;
     }
     else if (acc_ctrl_oi_add_ac_val(data->objArray[LWM2M_OBJ_ACL], instId, 0, 0b000000000001111)==false)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to create Access Control ACL default resource\r\n");
+#endif
         return NULL;
     }
     else if (acc_ctrl_oi_add_ac_val(data->objArray[LWM2M_OBJ_ACL], instId, 999, 0b000000000000001)==false)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to create Access Control ACL resource for serverId: 999\r\n");
+#endif
         return NULL;
     }
 
@@ -602,7 +646,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     result = lwm2m_configure(data->lwm2mH, init_val->server->client_name, NULL, NULL, LWM2M_OBJ_COUNT, data->objArray);
     if (result != 0)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_configure() failed: 0x%X\r\n", result);
+#endif
         return NULL;
     }
 
@@ -616,7 +662,9 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     data->rx_thread_exit = false;
     if (pthread_create(&data->rx_thread, NULL, rx_thread_func, (void *)data))
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "Failed to create rx thread\r\n");
+#endif
         return NULL;
     }
 
@@ -707,7 +755,9 @@ int lwm2m_client_service(client_handle_t handle)
         {
             if (++connection_retries > MAX_CONNECTION_RETRIES)
             {
+#ifdef WITH_LOGS
                 fprintf(stderr, "Failed to reconnect %d times, exiting...\r\n", MAX_CONNECTION_RETRIES);
+#endif
                 return LWM2M_CLIENT_ERROR;
             }
         }
@@ -728,7 +778,9 @@ void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback
 
     if (!handle || !callback || (type >= LWM2M_EXE_COUNT))
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_register_callback: wrong parameters\r\n");
+#endif
         return;
     }
 
@@ -750,7 +802,9 @@ void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback
                 callback, param);
         break;
     default:
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_register_callback: unsupported callback\r\n");
+#endif
         break;
     }
 }
@@ -761,7 +815,9 @@ void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callba
 
     if (!handle || (type >= LWM2M_EXE_COUNT))
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_unregister_callback: wrong parameters\r\n");
+#endif
         return;
     }
 
@@ -779,7 +835,9 @@ void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callba
         prv_firmware_register_callback(data->objArray[LWM2M_OBJ_FIRMWARE], type, NULL, NULL);
         break;
     default:
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_register_callback: unsupported callback\r\n");
+#endif
         break;
     }
 }
@@ -792,14 +850,18 @@ int lwm2m_write_resource(client_handle_t handle, lwm2m_resource_t *res)
 
     if (!res)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_write_resource: wrong parameters\r\n");
+#endif
         return LWM2M_CLIENT_ERROR;
     }
 
     ret = lwm2m_stringToUri(res->uri, strlen(res->uri), &uri_t);
     if (ret == 0)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_stringToUri() failed: 0x%X", ret);
+#endif
         return LWM2M_CLIENT_ERROR;
     }
 
@@ -849,13 +911,17 @@ int lwm2m_write_resource(client_handle_t handle, lwm2m_resource_t *res)
 
             if (result != COAP_204_CHANGED)
             {
+#ifdef WITH_LOGS
                 fprintf(stderr, "lwm2m_write_resource: failed (%d)\r\n", result);
+#endif
                 return LWM2M_CLIENT_ERROR;
             }
         }
         else
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "lwm2m_write_resource: object not found\r\n");
+#endif
             return LWM2M_CLIENT_ERROR;
         }
     }
@@ -876,7 +942,9 @@ static int encode_data(lwm2m_data_t *data, uint8_t **buffer)
         *buffer = (uint8_t *)lwm2m_malloc(size);
         if (!buffer)
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "encode_data: failed to allocate memory\r\n");
+#endif
             return LWM2M_CLIENT_ERROR;
         }
         memcpy(*buffer, data[0].value.asBuffer.buffer, size);
@@ -898,7 +966,9 @@ static int encode_data(lwm2m_data_t *data, uint8_t **buffer)
     case LWM2M_TYPE_OPAQUE:
     case LWM2M_TYPE_UNDEFINED:
     default:
+#ifdef WITH_LOGS
         fprintf(stderr, "encode_data: unsupported type (%d)\r\n", data[0].type);
+#endif
         size = LWM2M_CLIENT_ERROR;
         break;
     }
@@ -915,14 +985,18 @@ int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res)
 
     if (!res)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_read_resource: wrong parameters\r\n");
+#endif
         return LWM2M_CLIENT_ERROR;
     }
 
     ret = lwm2m_stringToUri(res->uri, strlen(res->uri), &uri_t);
     if (ret == 0)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_stringToUri() failed: 0x%X", ret);
+#endif
         return LWM2M_CLIENT_ERROR;
     }
 
@@ -940,14 +1014,18 @@ int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res)
             data = malloc(num * sizeof(lwm2m_data_t));
             if (!data)
             {
+#ifdef WITH_LOGS
                 fprintf(stderr, "lwm2m_read_resource: failed to allocate memory\r\n");
+#endif
                 return LWM2M_CLIENT_ERROR;
             }
             data[0].id = uri_t.resourceId;
             result = object->readFunc(uri_t.instanceId, &num, &data, object);
             if (result != COAP_205_CONTENT)
             {
+#ifdef WITH_LOGS
                 fprintf(stderr, "lwm2m_read_resource: failed (%d)\r\n", result);
+#endif
                 free(data);
                 return LWM2M_CLIENT_ERROR;
             }
@@ -963,7 +1041,9 @@ int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res)
                     resarray = lwm2m_malloc(num * sizeof(*resarray));
                     if (!resarray)
                     {
+#ifdef WITH_LOGS
                         fprintf(stderr, "lwm2m_read_resource: failed to allocate memory\r\n");
+#endif
                         return LWM2M_CLIENT_ERROR;
                     }
 
@@ -979,7 +1059,9 @@ int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res)
                     res->buffer = lwm2m_malloc(res->length);
                     if (!res->length)
                     {
+#ifdef WITH_LOGS
                         fprintf(stderr, "lwm2m_read_resource: failed to allocate memory\r\n");
+#endif
                         return LWM2M_CLIENT_ERROR;
                     }
 
@@ -1007,7 +1089,9 @@ int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res)
                     res->length = encode_data(&data[0], &res->buffer);
                     if (res->length < 0)
                     {
+#ifdef WITH_LOGS
                         fprintf(stderr, "lwm2m_read_resource: failed to encode data\r\n");
+#endif
                         return LWM2M_CLIENT_ERROR;
                         free(data);
                     }
@@ -1017,13 +1101,17 @@ int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res)
         }
         else
         {
+#ifdef WITH_LOGS
             fprintf(stderr, "lwm2m_read_resource: object not readable\r\n");
+#endif
             return LWM2M_CLIENT_ERROR;
         }
     }
     else
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_read_resource: object not found\r\n");
+#endif
         return LWM2M_CLIENT_ERROR;
     }
 
@@ -1038,7 +1126,9 @@ int lwm2m_serialize_tlv_string(int num, char **strs, lwm2m_resource_t* res)
     array = lwm2m_malloc(num * sizeof(*array));
     if (!array)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_serialize_tlv_string: failed to allocate memory\r\n");
+#endif
         return LWM2M_CLIENT_ERROR;
     }
 
@@ -1052,7 +1142,9 @@ int lwm2m_serialize_tlv_string(int num, char **strs, lwm2m_resource_t* res)
     res->length = tlv_serialize(true, num, array, &res->buffer);
     if (!res->length)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_serialize_tlv_string: failed to serialize TLV\r\n");
+#endif
         return LWM2M_CLIENT_ERROR;
     }
 
@@ -1067,7 +1159,9 @@ int lwm2m_serialize_tlv_int(int num, int *ints, lwm2m_resource_t* res)
     array = lwm2m_malloc(num * sizeof(*array));
     if (!array)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_serialize_tlv_int: failed to allocate memory\r\n");
+#endif
         return LWM2M_CLIENT_ERROR;
     }
 
@@ -1080,7 +1174,9 @@ int lwm2m_serialize_tlv_int(int num, int *ints, lwm2m_resource_t* res)
     res->length = tlv_serialize(true, num, array, &res->buffer);
     if (!res->length)
     {
+#ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_tlv_string: failed to serialize TLV\r\n");
+#endif
         return LWM2M_CLIENT_ERROR;
     }
 

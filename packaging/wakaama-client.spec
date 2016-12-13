@@ -29,9 +29,12 @@ cd %{_builddir}
 %build
 echo %{_host_cpu}
 %if %(echo %arm | egrep -c %{_host_cpu})
-cmake %{_srcdir} -DCMAKE_INSTALL_PREFIX=%{_prefix}
+cmake %{_srcdir} -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+                 -DCMAKE_BUILD_TYPE=%{?debug:Debug}%{?!debug:Release}
 %else
-cmake %{_srcdir} -DCMAKE_TOOLCHAIN_FILE=%{_srcdir}/target/toolchain-cross-arm.cmake -DCMAKE_INSTALL_PREFIX=%{_prefix}
+cmake %{_srcdir} -DCMAKE_TOOLCHAIN_FILE=%{_srcdir}/target/toolchain-cross-arm.cmake \
+                 -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+                 -DCMAKE_BUILD_TYPE=%{?debug:Debug}%{?!debug:Release}
 %endif
 make %{?_smp_mflags}
 

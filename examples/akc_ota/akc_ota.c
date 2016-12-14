@@ -362,14 +362,14 @@ static void on_resource_changed(void *param, void *extra)
         char *last_slash = strrchr(ota_download->uri, '/');
         if (last_slash == NULL) {
             fprintf(stdout, "Bad uri %s\n", ota_download->uri);
-            ota_download->state = LWM2M_FIRMWARE_UPD_RES_PKG_ERR;
+            ota_download->state = LWM2M_FIRMWARE_UPD_RES_URI_ERR;
             ota_download->is_finished = true;
             return;
         }
 
         if (*(last_slash + 1) == '\0') {
             fprintf(stdout, "Bad uri %s\n", ota_download->uri);
-            ota_download->state = LWM2M_FIRMWARE_UPD_RES_PKG_ERR;
+            ota_download->state = LWM2M_FIRMWARE_UPD_RES_URI_ERR;
             ota_download->is_finished = true;
             return;
         }

@@ -95,6 +95,7 @@ static void usage()
     fprintf(stdout, "\t-t <device token> : AKC device token\r\n");
     fprintf(stdout, "\t-n : don't verify SSL certificate\r\n");
     fprintf(stdout, "\t-p <port> : local source port to connect from\r\n");
+    fprintf(stdout, "\t-v <version> : initial version string\r\n");
     fprintf(stdout, "\t-h : display help\r\n");
 }
 
@@ -203,9 +204,11 @@ static int remove_cb(const char *fpath, const struct stat *sb, int typeflag, str
 }
 
 static void * start_updating_ota(void *user_data) {
-    ota_update_t *ota_update = user_data;
-    ota_update->state = LWM2M_FIRMWARE_UPD_RES_DEFAULT;
+    ota_updater_t *ota_updater = (ota_updater_t *)user_data;
+    ota_update_t *ota_update = &ota_updater->ota_update;
     char cwd[PATH_MAX];
+
+    ota_update->state = LWM2M_FIRMWARE_UPD_RES_DEFAULT;
 
     getcwd(cwd, PATH_MAX);
     mkdir(ota_update->tmp_directory, S_IRWXU);
@@ -232,15 +235,39 @@ static void * start_updating_ota(void *user_data) {
     fprintf(stdout, "Launch %s\n", script);
     int status = system(script);
 
-    if (WIFEXITED(status))
-        if (WEXITSTATUS(status) == 0)
+    if (WIFEXITED(status)) {
+        if (WEXITSTATUS(status) == 0) {
+            FILE *fp = NULL;
+            const char version_file[] = "/tmp/akc-ota-version";
+
             ota_update->state = LWM2M_FIRMWARE_UPD_RES_SUCCESS;
+
+            /* Get new version set by the update package */
+            fp = fopen(version_file, "r");
+            if (!fp) {
+                fprintf(stderr, "Failed to open %s\n", version_file);
+            } else {
+                lwm2m_resource_t version;
+
+                /* Get first line as the version string */
+                fgets(default_device.firmware_version, LWM2M_MAX_STR_LEN, fp);
+
+                /* Update the property */
+                strncpy(version.uri, LWM2M_URI_DEVICE_FW_VERSION, strlen(LWM2M_URI_DEVICE_FW_VERSION)+1);
+                version.length = strlen(default_device.firmware_version) - 1;
+                version.buffer = (uint8_t*)default_device.firmware_version;
+                lwm2m_write_resource(ota_updater->client, &version);
+                fclose(fp);
+            }
+        }
+    }
 
     free(script);
 
 exit:
     chdir(cwd);
     nftw(ota_update->tmp_directory, remove_cb, 64, FTW_DEPTH);
+    remove(ota_update->file);
     ota_update->is_finished = true;
 }
 
@@ -260,6 +287,7 @@ static bool download_ota(ota_download_t* ota_download)
 
         ota_download->is_finished = true;
         pthread_exit(NULL);
+        return false;
     }
 
     curl = curl_easy_init();
@@ -268,6 +296,7 @@ static bool download_ota(ota_download_t* ota_download)
         ota_download->is_finished = true;
         fclose(fp);
         pthread_exit(NULL);
+        return false;
     }
 
     curl_easy_setopt(curl, CURLOPT_URL, ota_download->uri);
@@ -288,13 +317,13 @@ static bool download_ota(ota_download_t* ota_download)
             ota_download->state = LWM2M_FIRMWARE_UPD_RES_SPACE_ERR;
         else
             ota_download->state = LWM2M_FIRMWARE_UPD_RES_CONNE_ERR;
-
-        goto exit;
     }
 
 exit:
     curl_easy_cleanup(curl);
     fclose(fp);
+
+    return (ota_download->state == LWM2M_FIRMWARE_UPD_RES_SUCCESS);
 }
 
 static void * start_downloading_ota(void *user_data)
@@ -331,7 +360,7 @@ static void on_firmware_update(void *param, void *extra)
     if (pthread_create(&ota_updater->ota_update.thread,
                        NULL,
                        start_updating_ota,
-                       &(ota_updater->ota_update))) {
+                       ota_updater)) {
         ota_updater->ota_update.state = LWM2M_FIRMWARE_UPD_RES_OOM;
         ota_updater->ota_update.is_finished = true;
     }
@@ -347,51 +376,58 @@ static void on_resource_changed(void *param, void *extra)
 
     if (!strncmp(params->uri, LWM2M_URI_FIRMWARE_PACKAGE_URI, LWM2M_MAX_URI_LEN))
     {
-        lwm2m_resource_t state;
+        lwm2m_resource_t state, update_res;
+        char *url = NULL;
+        char *file = NULL;
+
+        /* Initialize update result */
+        strncpy(update_res.uri, LWM2M_URI_FIRMWARE_UPDATE_RES, strlen(LWM2M_URI_FIRMWARE_UPDATE_RES)+1);
+        update_res.length = strlen(LWM2M_FIRMWARE_UPD_RES_DEFAULT);
+        update_res.buffer = (uint8_t*)strndup(LWM2M_FIRMWARE_UPD_RES_DEFAULT, update_res.length);
+        lwm2m_write_resource(ota_updater->client, &update_res);
+        free(update_res.buffer);
+
+        /* Change state to Downloading */
         strncpy(state.uri, LWM2M_URI_FIRMWARE_STATE, strlen(LWM2M_URI_FIRMWARE_STATE)+1);
         state.length = strlen(LWM2M_FIRMWARE_STATE_DOWNLOADING);
         state.buffer = (uint8_t*)strndup(LWM2M_FIRMWARE_STATE_DOWNLOADING, state.length);
-
-        /* Change state */
         lwm2m_write_resource(ota_updater->client, &state);
         free(state.buffer);
 
+        if ((params->length == 0) || (params->length > 255))
+        {
+            ota_download->state = LWM2M_FIRMWARE_UPD_RES_URI_ERR;
+            ota_download->is_finished = true;
+            return;
+        }
+
         ota_download->uri = strndup((char*)params->buffer, params->length);
 
-        /* Check the URI */
-        char *last_slash = strrchr(ota_download->uri, '/');
-        if (last_slash == NULL) {
-            fprintf(stdout, "Bad uri %s\n", ota_download->uri);
-            ota_download->state = LWM2M_FIRMWARE_UPD_RES_URI_ERR;
-            ota_download->is_finished = true;
-            return;
+        /* Extract the download UUID */
+        url = strstr(ota_download->uri, "updates/urls/");
+        if (url)
+        {
+            /* Extract the UUID from the URL to generate the filename */
+            char *prefix = "/tmp/ota-";
+            char *ext = ".tar.xz";
+            char *dluuid = strndup(url + strlen("updates/urls/"), 32);
+            file = malloc(sizeof(char)*(strlen(prefix)+strlen(dluuid)+strlen(ext)+1));
+            strcpy(file, prefix);
+            strcat(file, dluuid);
+            strcat(file, ext);
+            free(dluuid);
+        }
+        else
+        {
+            /* Malformed URL, just use a default name */
+            file = strdup("/tmp/ota-update.tar.xz");
         }
 
-        if (*(last_slash + 1) == '\0') {
-            fprintf(stdout, "Bad uri %s\n", ota_download->uri);
-            ota_download->state = LWM2M_FIRMWARE_UPD_RES_URI_ERR;
-            ota_download->is_finished = true;
-            return;
-        }
-
-        char *regexp = "OTA-update-([0-9a-zA-Z\\-]+)-(([0-9]+\\.)+)tar\\.xz$";
-        regex_t reg;
-        regcomp(&reg, regexp, REG_EXTENDED);
-        int match = regexec (&reg, last_slash+1, 0, NULL, 0);
-        fprintf(stdout, "match = %d\n", match);
-        if (match) {
-            fprintf(stdout, "Don't match regex\n");
-            ota_download->state = LWM2M_FIRMWARE_UPD_RES_PKG_ERR;
-            ota_download->is_finished = true;
-            return;
-        }
-
-        char *tmp = "/tmp/";
-        char *file = malloc(sizeof(char)*(strlen(last_slash)+strlen(tmp)));
-        strcpy(file, tmp);
-        strcat(file, last_slash+1);
+        fprintf(stdout, "Downloading update to %s\n", file);
 
         ota_download->file = file;
+        ota_download->state = LWM2M_FIRMWARE_UPD_RES_DEFAULT;
+
         /* Launch the downloading */
         if (pthread_create(&ota_download->thread,
                            NULL,
@@ -439,7 +475,7 @@ int main(int argc, char *argv[])
     ota_updater.ota_update.is_finished = false;
 
     init_tmp_directory(&(ota_updater.ota_update));
-    while ((opt = getopt(argc, argv, "u:d:t:np:h")) != -1) {
+    while ((opt = getopt(argc, argv, "u:d:t:np:v:h")) != -1) {
             switch (opt) {
             case 'u':
                 strncpy(akc_server.serverUri, optarg, LWM2M_MAX_STR_LEN);
@@ -470,6 +506,9 @@ int main(int argc, char *argv[])
                 break;
             case 'p':
                 akc_server.localPort = atoi(optarg);
+                break;
+            case 'v':
+                strncpy(default_device.firmware_version, optarg, LWM2M_MAX_STR_LEN);
                 break;
             case 'h':
                 usage();
@@ -512,26 +551,24 @@ int main(int argc, char *argv[])
         read_obj(LWM2M_URI_FIRMWARE_UPDATE_RES, ota_updater.client);
         read_obj(LWM2M_URI_FIRMWARE_STATE, ota_updater.client);
         if (ota_updater.ota_download.is_finished) {
-            lwm2m_resource_t state;
-            strncpy(state.uri, LWM2M_URI_FIRMWARE_STATE, strlen(LWM2M_URI_FIRMWARE_STATE)+1);
+            lwm2m_resource_t state, update_res;
+
             if (!strcmp(ota_updater.ota_download.state, LWM2M_FIRMWARE_UPD_RES_SUCCESS)) {
                 state.length = strlen(LWM2M_FIRMWARE_STATE_DOWNLOADED);
                 state.buffer = (uint8_t*)strndup(LWM2M_FIRMWARE_STATE_DOWNLOADED, state.length);
             } else {
-                lwm2m_resource_t error;
-                strncpy(error.uri,
-                        LWM2M_URI_FIRMWARE_UPDATE_RES,
-                        strlen(LWM2M_URI_FIRMWARE_UPDATE_RES)+1);
-                error.length = strlen(ota_updater.ota_download.state);
-                error.buffer = (uint8_t*)strndup(ota_updater.ota_download.state, state.length);
-                lwm2m_write_resource(ota_updater.client, &error);
-                free(error.buffer);
-
                 state.length = strlen(LWM2M_FIRMWARE_STATE_IDLE);
                 state.buffer = (uint8_t*)strndup(LWM2M_FIRMWARE_STATE_IDLE, state.length);
             }
 
+            /* Change update result */
+            strncpy(update_res.uri, LWM2M_URI_FIRMWARE_UPDATE_RES, strlen(LWM2M_URI_FIRMWARE_UPDATE_RES)+1);
+            update_res.length = strlen(ota_updater.ota_download.state);
+            update_res.buffer = (uint8_t*)ota_updater.ota_download.state;
+            lwm2m_write_resource(ota_updater.client, &update_res);
+
             /* Change state */
+            strncpy(state.uri, LWM2M_URI_FIRMWARE_STATE, strlen(LWM2M_URI_FIRMWARE_STATE)+1);
             lwm2m_write_resource(ota_updater.client, &state);
             free(state.buffer);
 

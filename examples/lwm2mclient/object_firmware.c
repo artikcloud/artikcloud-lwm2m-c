@@ -16,7 +16,7 @@
  *    David Navarro, Intel Corporation - Please refer to git log
  *    Bosch Software Innovations GmbH - Please refer to git log
  *    Pascal Rieux - Please refer to git log
- *    
+ *
  *******************************************************************************/
 
 /*
@@ -314,7 +314,7 @@ lwm2m_object_t * get_object_firmware(object_firmware_t *default_value)
          */
         if (NULL != firmwareObj->userData)
         {
-            ((firmware_data_t*)firmwareObj->userData)->state = 1;
+            ((firmware_data_t*)firmwareObj->userData)->state = 0;
             ((firmware_data_t*)firmwareObj->userData)->supported = default_value->supported;
             ((firmware_data_t*)firmwareObj->userData)->result = 0;
             strncpy(((firmware_data_t*)firmwareObj->userData)->pkg_name, default_value->pkg_name, LWM2M_MAX_STR_LEN);
@@ -430,4 +430,3 @@ void prv_firmware_register_callback(lwm2m_object_t * objectP, enum lwm2m_execute
         break;
     }
 }
-

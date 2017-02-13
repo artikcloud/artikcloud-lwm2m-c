@@ -21,6 +21,15 @@ Requires: %{name} = %{version}-%{release}
 %description devel
 Implementation of the Open Mobile Alliance's LightWeight M2M protocol (devel)
 
+%package examples
+Summary: Example programs that use wakaama-client library
+Group: Development/Libraries
+
+Requires: %{name} = %{version}-%{release}
+
+%description examples
+This package contains akc_client and akc_ota
+
 %prep
 rm -rf %{_builddir}/*
 rm -rf %{buildroot}/*
@@ -34,6 +43,7 @@ cmake %{_srcdir} -DCMAKE_INSTALL_PREFIX=%{_prefix} \
 %else
 cmake %{_srcdir} -DCMAKE_TOOLCHAIN_FILE=%{_srcdir}/target/toolchain-cross-arm.cmake \
                  -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+		 -DCMAKE_SYSROOT=%{_sysrootdir} \
                  -DCMAKE_BUILD_TYPE=%{?debug:Debug}%{?!debug:Release}
 %endif
 make %{?_smp_mflags}
@@ -41,7 +51,6 @@ make %{?_smp_mflags}
 %install
 rm -rf %{buildroot}
 make install DESTDIR=%{buildroot}
-rm -rf %{buildroot}/%{_bindir}/*
 cp %{_srcdir}/EDL-v1.0 %{_builddir}
 cp %{_srcdir}/EPL-v1.0 %{_builddir}
 cp %{_srcdir}/README.md %{_builddir}
@@ -57,3 +66,7 @@ cp %{_srcdir}/README-wakaama.md %{_builddir}
 %{_libdir}/*.so
 %{_includedir}/*
 
+%files examples
+%defattr(-,root,root,-)
+%{_bindir}/akc_client
+%{_bindir}/akc_ota

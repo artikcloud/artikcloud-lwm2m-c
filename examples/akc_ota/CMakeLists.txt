@@ -21,7 +21,7 @@ TARGET_LINK_LIBRARIES(${PROJECT_NAME} wakaama-client ${LIBARCHIVE_LIBRARIES} ${C
 
 # Add WITH_LOGS to debug variant
 set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:Debug>:WITH_LOGS>)
-
+install (TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
 if (NOT ${LibArchive_FOUND} OR NOT ${CURL_FOUND})
 	message ( "-- Skipping compilation of ${PROJECT_NAME} due to missing dependencies" )
 	set_target_properties(${PROJECT_NAME} PROPERTIES EXCLUDE_FROM_ALL 1)

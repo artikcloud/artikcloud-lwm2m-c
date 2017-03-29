@@ -79,7 +79,6 @@
 #include <errno.h>
 #include <signal.h>
 #include <time.h>
-#include <pthread.h>
 #include <poll.h>
 
 #define CLIENT_PORT_RANGE_START    64900
@@ -108,8 +107,6 @@ typedef struct
     int addressFamily;
     lwm2m_object_t * objArray[LWM2M_OBJ_COUNT];
     coap_protocol_t proto;
-    pthread_t rx_thread;
-    bool rx_thread_exit;
     char local_port[16];
 } client_data_t;
 
@@ -251,9 +248,8 @@ void lwm2m_close_connection(void * sessionH,
     }
 }
 
-static void *rx_thread_func(void *param)
+static void poll_lwm2m_socket(client_data_t *data, int timeout)
 {
-    client_data_t *data = (client_data_t *)param;
     struct pollfd pfd;
     int ret = 0;
     int numBytes;
@@ -262,111 +258,100 @@ static void *rx_thread_func(void *param)
     socklen_t addrLen = sizeof(addr);
 
     pfd.events = POLLIN;
+    pfd.fd = data->sock;
 
-    while(true)
+    ret = poll(&pfd, 1, timeout);
+    if (ret < 0)
     {
-        /* Rewrite the socket fd everytime in case we have been reconnected */
-        pfd.fd = data->sock;
-
-        ret = poll(&pfd, 1, 250);
-        if (ret < 0)
-        {
 #ifdef WITH_LOGS
-            fprintf(stderr, "Error in select(): %d %s\r\n", errno, strerror(errno));
+        fprintf(stderr, "Error in poll(): %d %s\r\n", errno, strerror(errno));
 #endif
-            continue;
-        }
+       return;
+    }
 
-        if (data->rx_thread_exit)
-        {
-            /* Exiting */
-            break;
-        }
+    if (!ret || !data->conn->connected)
+    {
+        /* time out */
+        return;
+    }
 
-        if (!ret || !data->conn->connected)
-        {
-            /* time out */
-            continue;
-        }
-
-        /* Handling incoming data */
-        switch(data->proto)
-        {
+    /* Handling incoming data */
+    switch(data->proto)
+    {
         case COAP_UDP:
-             numBytes = recvfrom(data->sock, buffer, MAX_PACKET_SIZE, 0, (struct sockaddr *)&addr, &addrLen);
-             if (numBytes < 0)
-             {
+            numBytes = recvfrom(data->sock, buffer, MAX_PACKET_SIZE, 0, (struct sockaddr *)&addr, &addrLen);
+            if (numBytes < 0)
+            {
 #ifdef WITH_LOGS
-                 fprintf(stderr, "Error in recvfrom(): %d %s\r\n", errno, strerror(errno));
+                fprintf(stderr, "Error in recvfrom(): %d %s\r\n", errno, strerror(errno));
 #endif
-                 continue;
-             }
-             break;
+                return;
+            }
+            break;
         case COAP_TCP:
-             numBytes = recv(data->sock, buffer, MAX_PACKET_SIZE, 0);
-             if (numBytes < 0)
-             {
+            numBytes = recv(data->sock, buffer, MAX_PACKET_SIZE, 0);
+            if (numBytes < 0)
+            {
 #ifdef WITH_LOGS
-                 fprintf(stderr, "Error in recv(): %d %s\r\n", errno, strerror(errno));
+                fprintf(stderr, "Error in recv(): %d %s\r\n", errno, strerror(errno));
 #endif
-                 continue;
-             }
-             break;
+                return;
+            }
+            break;
         case COAP_UDP_DTLS:
         case COAP_TCP_TLS:
             numBytes = SSL_read(data->conn->ssl, buffer, MAX_PACKET_SIZE);
             if (numBytes < 1)
             {
-                usleep(100 * 1000);
-                continue;
+                return;
             }
             break;
         default:
-            break;
-        }
-
-        memcpy(&addr, &data->server_addr, data->server_addrlen);
-        addrLen = data->server_addrlen;
-
-        if (numBytes > 0)
-        {
-             char s[INET6_ADDRSTRLEN];
-             in_port_t port;
-
-            if (AF_INET == addr.ss_family)
-            {
-                 struct sockaddr_in *saddr = (struct sockaddr_in *)&addr;
-                 inet_ntop(saddr->sin_family, &saddr->sin_addr, s, INET6_ADDRSTRLEN);
-                 port = saddr->sin_port;
-            }
-            else if (AF_INET6 == addr.ss_family)
-            {
-                struct sockaddr_in6 *saddr = (struct sockaddr_in6 *)&addr;
-                inet_ntop(saddr->sin6_family, &saddr->sin6_addr, s, INET6_ADDRSTRLEN);
-                port = saddr->sin6_port;
-            }
 #ifdef WITH_LOGS
-            fprintf(stdout, "%d bytes received from [%s]:%hu\r\n", numBytes, s, ntohs(port));
-            output_buffer(stdout, buffer, numBytes, 0);
+            fprintf(stderr, "Error data->proto = %d is not supported.", data->proto);
 #endif
-
-            connection_t *conn = connection_find((connection_t *)data->connList, &addr, addrLen);
-            if (conn)
-            {
-                lwm2m_handle_packet(data->lwm2mH, data->proto, buffer, numBytes, conn);
-                conn_s_updateRxStatistic(data->objArray[LWM2M_OBJ_CONN_STAT], numBytes, false);
-            }
-        }
-        else
-        {
-#ifdef WITH_LOGS
-            fprintf(stderr, "server has closed the connection\r\n");
-#endif
-            break;
-        }
+            return;
     }
 
-    return NULL;
+    memcpy(&addr, &data->server_addr, data->server_addrlen);
+    addrLen = data->server_addrlen;
+
+    if (numBytes > 0)
+    {
+        char s[INET6_ADDRSTRLEN];
+        in_port_t port;
+
+        if (AF_INET == addr.ss_family)
+        {
+            struct sockaddr_in *saddr = (struct sockaddr_in *)&addr;
+            inet_ntop(saddr->sin_family, &saddr->sin_addr, s, INET6_ADDRSTRLEN);
+            port = saddr->sin_port;
+        }
+        else if (AF_INET6 == addr.ss_family)
+        {
+            struct sockaddr_in6 *saddr = (struct sockaddr_in6 *)&addr;
+            inet_ntop(saddr->sin6_family, &saddr->sin6_addr, s, INET6_ADDRSTRLEN);
+            port = saddr->sin6_port;
+        }
+#ifdef WITH_LOGS
+        fprintf(stdout, "%d bytes received from [%s]:%hu\r\n", numBytes, s, ntohs(port));
+        output_buffer(stdout, buffer, numBytes, 0);
+#endif
+
+        connection_t *conn = connection_find((connection_t *)data->connList, &addr, addrLen);
+        if (conn)
+        {
+            lwm2m_handle_packet(data->lwm2mH, data->proto, buffer, numBytes, conn);
+            conn_s_updateRxStatistic(data->objArray[LWM2M_OBJ_CONN_STAT], numBytes, false);
+        }
+    }
+    else
+    {
+#ifdef WITH_LOGS
+        fprintf(stderr, "server has closed the connection\r\n");
+#endif
+    }
+
 }
 
 client_handle_t lwm2m_client_start(object_container_t *init_val)
@@ -653,18 +638,8 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     }
 
     /* Service once to initialize the first steps */
-    if (lwm2m_client_service(data) <= LWM2M_CLIENT_OK)
+    if (lwm2m_client_service(data, 0) <= LWM2M_CLIENT_OK)
     {
-        return NULL;
-    }
-
-    /* Start rx thread */
-    data->rx_thread_exit = false;
-    if (pthread_create(&data->rx_thread, NULL, rx_thread_func, (void *)data))
-    {
-#ifdef WITH_LOGS
-        fprintf(stderr, "Failed to create rx thread\r\n");
-#endif
         return NULL;
     }
 
@@ -677,10 +652,6 @@ void lwm2m_client_stop(client_handle_t handle)
 
     if (!data)
         return;
-
-    /* gracefully exit RX thread */
-    data->rx_thread_exit = true;
-    pthread_join(data->rx_thread, NULL);
 
     if (data->lwm2mH)
         lwm2m_close(data->lwm2mH);
@@ -723,7 +694,7 @@ void lwm2m_client_stop(client_handle_t handle)
     free(data);
 }
 
-int lwm2m_client_service(client_handle_t handle)
+int lwm2m_client_service(client_handle_t handle, int timeout_ms)
 {
     client_data_t *data =  (client_data_t *)handle;
     int result;
@@ -766,6 +737,9 @@ int lwm2m_client_service(client_handle_t handle)
             connection_retries = 0;
             timeout = 0;
         }
+    } else {
+            timeout = timeout * 1000 < timeout_ms || timeout_ms == 0 ? timeout * 1000 : timeout_ms;
+            poll_lwm2m_socket(data, timeout);
     }
 
     return timeout;

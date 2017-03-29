@@ -250,6 +250,10 @@ client_handle_t lwm2m_client_start(object_container_t *init_val);
  *  lifetime of the LWM2M client connection.
  *
  *  \param[in] handle returned by "lwm2m_client_start"
+ *  \param[in] timeout Max time (in milliseconds) the lwm2m client waits for data. If timeout is
+ *                     greater than the number of seconds returned by the function, the function
+ *                     waits for the number of seconds returned. If timeout is equal to zero, the
+ *                     function also waits for the number of seconds returned by the function.
  *
  *  \return the number of seconds after which the function
  *  must be called again. If an error happens, it returns a negative
@@ -257,7 +261,7 @@ client_handle_t lwm2m_client_start(object_container_t *init_val);
  *   - LWM2M_CLIENT_ERROR in case an error happened
  *   - LWM2M_CLIENT_QUIT in case the connection was terminated
  */
-int lwm2m_client_service(client_handle_t handle);
+int lwm2m_client_service(client_handle_t handle, int timeout);
 
 /*!
  *  \brief Stops the LWM2M connection to the server

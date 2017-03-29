@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <errno.h>
 
 #include "lwm2mclient.h"
@@ -51,6 +52,9 @@ void cmdline_init(client_handle_t handle)
     }
 
     fprintf(stdout, "> "); fflush(stdout);
+
+    int flags = fcntl(STDIN_FILENO, F_GETFL);
+    fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
 }
 
 int cmdline_process(int timeout)
@@ -66,28 +70,15 @@ int cmdline_process(int timeout)
 
     tv.tv_usec = 0;
     tv.tv_sec = timeout;
+    numBytes = read(STDIN_FILENO, buffer, MAX_READ_SIZE - 1);
 
-    result = select(FD_SETSIZE, &readfd, NULL, NULL, &tv);
-    if (result < 0)
+    if (numBytes > 1)
     {
-        if (errno != EINTR)
-        {
-            fprintf(stderr, "Error in select(): %d %s\r\n", errno, strerror(errno));
-            return LWM2M_CLIENT_ERROR;
-        }
-    }
-    else if (result > 0)
-    {
-        numBytes = read(STDIN_FILENO, buffer, MAX_READ_SIZE - 1);
-
-        if (numBytes > 1)
-        {
-            buffer[numBytes] = 0;
-            /*
-             * We call the corresponding callback of the typed command passing it the buffer for further arguments
-             */
-            handle_command(commands, (char*)buffer);
-        }
+        buffer[numBytes] = 0;
+        /*
+         * We call the corresponding callback of the typed command passing it the buffer for further arguments
+         */
+        handle_command(commands, (char*)buffer);
 
         fprintf(stdout, "\r\n");
     }

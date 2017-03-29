@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
 
     while (!quit)
     {
-        int ret = lwm2m_client_service(client);
+        int ret = lwm2m_client_service(client, 100);
         if ((ret == LWM2M_CLIENT_QUIT) || (ret == LWM2M_CLIENT_ERROR))
             break;
 

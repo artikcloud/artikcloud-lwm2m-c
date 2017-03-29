@@ -65,7 +65,6 @@
 /*-----------------------------------------------------------------------------------*/
 static uint16_t current_mid = 0;
 
-coap_status_t coap_error_code = NO_ERROR;
 const char *coap_error_message = "";
 /*-----------------------------------------------------------------------------------*/
 /*- LOCAL HELP FUNCTIONS ------------------------------------------------------------*/
@@ -524,19 +523,19 @@ size_t coap_serialize_get_size(void *packet)
             int len = coap_pkt->options_len + coap_pkt->payload_len;
             if (len < 13)
             {
-                length += 1;
+                length += 2;
             }
             else if (len < ((1 << 8) + 13))
             {
-                length += 2;
+                length += 3;
             }
             else if (len < ((1 << 16) + 269))
             {
-                length += 3;
+                length += 4;
             }
             else
             {
-                length += 5;
+                length += 6;
             }
 
             length += coap_pkt->token_len + coap_pkt->options_len;

@@ -544,7 +544,7 @@ int main(int argc, char *argv[])
 
     while (!quit)
     {
-        int ret = lwm2m_client_service(ota_updater.client);
+        int ret = lwm2m_client_service(ota_updater.client, 0);
         if ((ret == LWM2M_CLIENT_QUIT) || (ret == LWM2M_CLIENT_ERROR))
             break;
 
@@ -602,11 +602,6 @@ int main(int argc, char *argv[])
             ota_updater.ota_update.state = LWM2M_FIRMWARE_UPD_RES_DEFAULT;
             ota_updater.ota_update.is_finished = false;
         }
-        struct timeval tv;
-        tv.tv_usec = 0;
-        tv.tv_sec = ret;
-
-        select(0, NULL, NULL, NULL, &tv);
     }
 
     lwm2m_client_stop(ota_updater.client);

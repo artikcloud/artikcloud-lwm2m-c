@@ -13,6 +13,7 @@ The relevant code for the Artik Cloud LWM2M C SDK can be found under the followi
   * core: LWM2M core code for accessing and manipulating objects
   * examples/lwm2mclient: LWM2M client layer offering several APIs to expose well-known LWM2M objects
   * examples/akc_client: Sample program using the LWM2M client API to connect to the server and expose some objects
+  * examples/akc_ota: Sample program using the LWM2M client API to connect to the ARTIK Cloud server and apply OTA updates
 
 Prerequisites
 -------------
@@ -37,7 +38,7 @@ $ sudo apt-get install git cmake gcc g++
 
 **Fedora 24**
 ~~~shell
-$ sudo dnf install git cmake gcc gcc-c++ make
+$ sudo dnf install git cmake gcc gcc-c++ make libarchive-devel
 ~~~
 
 Fetch the sources

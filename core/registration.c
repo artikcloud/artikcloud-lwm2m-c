@@ -168,6 +168,7 @@ static void prv_handleRegistrationReply(lwm2m_transaction_t * transacP,
 {
     coap_packet_t * packet = (coap_packet_t *)message;
     lwm2m_server_t * targetP = (lwm2m_server_t *)(transacP->peerP);
+    lwm2m_context_t * contextP = (lwm2m_context_t *)(transacP->userData);
 
     if (targetP->status == STATE_REG_PENDING)
     {
@@ -185,12 +186,12 @@ static void prv_handleRegistrationReply(lwm2m_transaction_t * transacP,
             }
             targetP->location = coap_get_multi_option_as_string(packet->location_path);
 
-            LOG("    => REGISTERED\r\n");
+            LOG("    => REGISTERED: %s\r\n", contextP->endpointName);
         }
         else
         {
             targetP->status = STATE_REG_FAILED;
-            LOG("    => Registration FAILED\r\n");
+            LOG("    => Registration FAILED: %s\r\n", contextP->endpointName);
         }
     }
 }
@@ -243,7 +244,7 @@ static uint8_t prv_register(lwm2m_context_t * contextP,
     coap_set_payload(transaction->message, payload, payload_length);
 
     transaction->callback = prv_handleRegistrationReply;
-    transaction->userData = (void *) server;
+    transaction->userData = (void *) contextP;
 
     contextP->transactionList = (lwm2m_transaction_t *)LWM2M_LIST_ADD(contextP->transactionList, transaction);
     if (transaction_send(contextP, transaction) != 0) return COAP_500_INTERNAL_SERVER_ERROR;
@@ -258,6 +259,7 @@ static void prv_handleRegistrationUpdateReply(lwm2m_transaction_t * transacP,
 {
     coap_packet_t * packet = (coap_packet_t *)message;
     lwm2m_server_t * targetP = (lwm2m_server_t *)(transacP->peerP);
+    lwm2m_context_t * contextP = (lwm2m_context_t *)(transacP->userData);
 
     if (targetP->status == STATE_REG_UPDATE_PENDING)
     {
@@ -269,12 +271,12 @@ static void prv_handleRegistrationUpdateReply(lwm2m_transaction_t * transacP,
         if (packet != NULL && packet->code == COAP_204_CHANGED)
         {
             targetP->status = STATE_REGISTERED;
-            LOG("    => REGISTERED\r\n");
+            LOG("    => REGISTERED: %s\r\n", contextP->endpointName);
         }
         else
         {
             targetP->status = STATE_REG_FAILED;
-            LOG("    => Registration update FAILED\r\n");
+            LOG("    => Registration update FAILED: %s\r\n", contextP->endpointName);
         }
     }
 }
@@ -304,7 +306,7 @@ static int prv_updateRegistration(lwm2m_context_t * contextP,
     }
 
     transaction->callback = prv_handleRegistrationUpdateReply;
-    transaction->userData = (void *) server;
+    transaction->userData = (void *) contextP;
 
     contextP->transactionList = (lwm2m_transaction_t *)LWM2M_LIST_ADD(contextP->transactionList, transaction);
 
@@ -1159,7 +1161,7 @@ void registration_step(lwm2m_context_t * contextP,
             interval = targetP->registration + nextUpdate - currentTime;
             if (0 >= interval)
             {
-                LOG("Updating registration...\r\n");
+                LOG("Updating registration for %s\r\n", contextP->endpointName);
                 prv_updateRegistration(contextP, targetP, false);
             }
             else if (interval < *timeoutP)

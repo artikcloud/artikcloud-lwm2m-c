@@ -11,7 +11,7 @@
 
 #define AKC_UUID_LEN    32
 
-extern void cmdline_init(client_handle_t handle);
+extern void cmdline_init(client_handle_t *handle);
 extern int cmdline_process(int timeout);
 
 static object_security_server_t akc_server = {
@@ -91,7 +91,7 @@ static void on_factory_reset(void *param, void *extra)
 
 static void on_resource_changed(void *param, void *extra)
 {
-    client_handle_t client = (client_handle_t)param;
+    client_handle_t *client = (client_handle_t*)param;
     lwm2m_resource_t *params = (lwm2m_resource_t*)extra;
 
     fprintf(stdout, "Resource Changed: %s\r\n", params->uri);
@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
 {
     int opt;
     object_container_t init_val_ob;
-    client_handle_t client = NULL;
+    client_handle_t *client = NULL;
 
     while ((opt = getopt(argc, argv, "u:d:t:np:l:h")) != -1) {
             switch (opt) {

@@ -42,7 +42,7 @@ command_desc_t commands[] = {
     { NULL, NULL, NULL, NULL, NULL }
 };
 
-void cmdline_init(client_handle_t handle)
+void cmdline_init(client_handle_t *handle)
 {
     int i = 0;
 
@@ -204,7 +204,7 @@ static char *get_next_arg(char * buffer, char** end)
 
 void prv_change_obj(char *buffer, void *user_data)
 {
-    client_handle_t handle = (client_handle_t)user_data;
+    client_handle_t *handle = (client_handle_t *)user_data;
     char *end = NULL;
     lwm2m_resource_t res;
 
@@ -224,7 +224,7 @@ void prv_change_obj(char *buffer, void *user_data)
 
 void prv_read_obj(char *buffer, void *user_data)
 {
-    client_handle_t handle = (client_handle_t)user_data;
+    client_handle_t *handle = (client_handle_t *)user_data;
     char *end = NULL;
     char *val = NULL;
     lwm2m_resource_t res;
@@ -255,7 +255,7 @@ void prv_read_obj(char *buffer, void *user_data)
 
 void prv_write_error(char *buffer, void *user_data)
 {
-    client_handle_t handle = (client_handle_t)user_data;
+    client_handle_t *handle = (client_handle_t *)user_data;
     char *end = NULL;
     char *error_str = NULL;
     int error;

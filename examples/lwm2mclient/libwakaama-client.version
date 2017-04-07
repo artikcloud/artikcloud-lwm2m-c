@@ -1,6 +1,7 @@
 {
     global:
         lwm2m_client_service;
+        lwm2m_clients_service;
         lwm2m_client_stop;
         lwm2m_client_start;
         lwm2m_register_callback;

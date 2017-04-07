@@ -39,7 +39,7 @@ typedef struct {
 } ota_update_t;
 
 typedef struct {
-    client_handle_t client;
+    client_handle_t *client;
     ota_download_t ota_download;
     ota_update_t ota_update;
 } ota_updater_t;

@@ -12,7 +12,16 @@ extern "C" {
 #define LWM2M_MAX_URI_LEN 16
 #define LWM2M_MAX_STR_LEN 100
 
-typedef void* client_handle_t;
+/*
+ * Client object
+ */
+typedef struct {
+    void *client; /* Client handle. */
+    int error;    /* Error code:
+                   *   LWM2M_CLIENT_ERROR or LWM2M_CLIENT_QUIT when \ref lwm2m_clients_service
+                   *   failed, otherwise 0.
+                   */
+} client_handle_t;
 
 /*
  * Device object
@@ -235,12 +244,33 @@ typedef struct {
  *
  *  \param[in] container object defining the default values
  *  to set to the LWM2M standard resources. These values can
- *  be later changed dynamically by calling "lwm2m_write_resource"
+ *  be later changed dynamically by calling \ref lwm2m_write_resource
  *
  *  \return handle to the client connection, or NULL if an error
  *  occured
  */
-client_handle_t lwm2m_client_start(object_container_t *init_val);
+client_handle_t* lwm2m_client_start(object_container_t *init_val);
+
+/*!
+ *  \brief Process current tasks
+ *
+ *  This function has to be called periodically from the application
+ *  code. It performs necessary updates needed throughout the
+ *  lifetime of the LWM2M client connections.
+ *
+ *  \param[in] handles Array of client_handle_t returned by \ref lwm2m_client_start
+ *  \param[in] number_handles Size of \ref handles
+ *  \param[in] timeout Max time (in milliseconds) the lwm2m client waits for data. If timeout is
+ *                     greater than the number of seconds returned by the function, the function
+ *                     waits for the number of seconds returned. If timeout is equal to zero, the
+ *                     function also waits for the number of seconds returned by the function.
+ *
+ *  \return the number of seconds after which the function
+ *  must be called again.
+ *   - LWM2M_CLIENT_ERROR in case an error happened
+ *   - LWM2M_CLIENT_QUIT in case the connection was terminated
+ */
+int lwm2m_clients_service(client_handle_t **handles, int number_handles, int timeout_ms);
 
 /*!
  *  \brief Process current tasks
@@ -249,7 +279,7 @@ client_handle_t lwm2m_client_start(object_container_t *init_val);
  *  code. It performs necessary updates needed throughout the
  *  lifetime of the LWM2M client connection.
  *
- *  \param[in] handle returned by "lwm2m_client_start"
+ *  \param[in] handle returned by \ref lwm2m_client_start
  *  \param[in] timeout Max time (in milliseconds) the lwm2m client waits for data. If timeout is
  *                     greater than the number of seconds returned by the function, the function
  *                     waits for the number of seconds returned. If timeout is equal to zero, the
@@ -261,32 +291,33 @@ client_handle_t lwm2m_client_start(object_container_t *init_val);
  *   - LWM2M_CLIENT_ERROR in case an error happened
  *   - LWM2M_CLIENT_QUIT in case the connection was terminated
  */
-int lwm2m_client_service(client_handle_t handle, int timeout);
+int lwm2m_client_service(client_handle_t *handles, int timeout_ms);
+
 
 /*!
  *  \brief Stops the LWM2M connection to the server
  *
  *  This function terminates the connection and release
  *  all the resources previously created during the call
- *  to "lwm2m_client_start"
+ *  to \ref lwm2m_client_start
  *
- *  \param[in] handle returned by "lwm2m_client_start"
+ *  \param[in] handle returned by \ref lwm2m_client_start
  *
  */
-void lwm2m_client_stop(client_handle_t handle);
+void lwm2m_client_stop(client_handle_t* handle);
 
 /*!
  *  \brief Register a callback for the application to
  *  be notified of specific events.
  *
  *  This function registers a callback function linked
- *  to events specified by "lwm2m_execute_callback_type".
+ *  to events specified by \ref lwm2m_execute_callback_type.
  *  When the event occurs, the library calls the callback
  *  that was previously registered by the application.
  *  The application can then take action on this specific
  *  event.
  *
- *  \param[in] handle returned by "lwm2m_client_start"
+ *  \param[in] handle returned by \ref lwm2m_client_start
  *  \param[in] type event to link to the callback, among:
  *   - LWM2M_EXE_FACTORY_RESET: called when the server executes
  *   a factory reset request on the client device
@@ -310,17 +341,17 @@ void lwm2m_client_stop(client_handle_t handle);
  *   }
  *
  *   The "param" parameter contains the pointer passed as a parameter
- *   to the "lwm2m_register_callback" function. The "extra" parameter
+ *   to the \ref lwm2m_register_callback function. The "extra" parameter
  *   contains some event-specific data passed by the library.
  *
  *    - LWM2M_EXE_FACTORY_RESET, LWM2M_EXE_DEVICE_REBOOT, LWM2M_EXE_FIRMWARE_UPDATE:
  *    "extra" is set to NULL.
- *    - LWM2M_NOTIFY_RESOURCE_CHANGED: contains a pointer to a "lwm2m_resource_t"
+ *    - LWM2M_NOTIFY_RESOURCE_CHANGED: contains a pointer to a \ref lwm2m_resource_t
  *    object containing the URI and data of the resource that has been written
  *    by the LWM2M server.
  *
  */
-void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback_type type,
+void lwm2m_register_callback(client_handle_t* handle, enum lwm2m_execute_callback_type type,
         lwm2m_exe_callback callback, void *param);
 
 /*!
@@ -332,12 +363,12 @@ void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback
  *  the library upon occurrence of the previously associated
  *  event.
  *
- *  \param[in] handle returned by "lwm2m_client_start"
+ *  \param[in] handle returned by \ref lwm2m_client_start
  *  \param[in] type event that was previously associated
  *  to the callback
  *
  */
-void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callback_type type);
+void lwm2m_unregister_callback(client_handle_t* handle, enum lwm2m_execute_callback_type type);
 
 /*!
  *  \brief Change the value of a resource
@@ -347,16 +378,16 @@ void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callba
  *  to the LWM2M standard, therefore from the server point of
  *  view) can be modified by the application.
  *
- *  \param[in] handle returned by "lwm2m_client_start"
- *  \param[in] resource pointer to a "lwm2m_resource_t" object containing
+ *  \param[in] handle returned by \ref lwm2m_client_start
+ *  \param[in] resource pointer to a \ref lwm2m_resource_t object containing
  *  the URI and data of the resource to modify. The "buffer" field of the
- *  "lwm2m_resource_t" must be allocated and freed by the calling
+ *  \ref lwm2m_resource_t structure must be allocated and freed by the calling
  *  application.
  *
  *  \return LWM2M_CLIENT_OK if no error occurred, LWM2M_CLIENT_ERROR otherwise
  *
  */
-int lwm2m_write_resource(client_handle_t handle, lwm2m_resource_t *res);
+int lwm2m_write_resource(client_handle_t* handle, lwm2m_resource_t *res);
 
 /*!
  *  \brief Read the value of a resource
@@ -376,12 +407,12 @@ int lwm2m_write_resource(client_handle_t handle, lwm2m_resource_t *res);
  *  \return LWM2M_CLIENT_OK if no error occurred, LWM2M_CLIENT_ERROR otherwise
  *
  */
-int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res);
+int lwm2m_read_resource(client_handle_t* handle, lwm2m_resource_t *res);
 
 /*!
  *  \brief Serialize multiple strings into a TLV object
  *
- *  This function fills up a "lwm2m_resource_t" with multiple
+ *  This function fills up a \ref lwm2m_resource_t with multiple
  *  strings passed as parameters. The generated object follows the
  *  binary TLV format. This function is used as an helper routine
  *  to format resource objects before writing multiple objects
@@ -389,7 +420,7 @@ int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res);
  *
  *  \param[in] number of strings to process
  *  \param[in] pointer to the array of strings to process
- *  \param[in] resource pointer to a "lwm2m_resource_t" object whose "buffer"
+ *  \param[in] resource pointer to a \ref lwm2m_resource_t object whose "buffer"
  *  field will be allocated and filled by the library with the content of the
  *  TLV. After usage, the calling application must free the memory allocated
  *  for the "buffer" field.
@@ -402,7 +433,7 @@ int lwm2m_serialize_tlv_string(int num, char **strs, lwm2m_resource_t* res);
 /*!
  *  \brief Serialize multiple integers into a TLV object
  *
- *  This function fills up a "lwm2m_resource_t" with multiple
+ *  This function fills up a \ref lwm2m_resource_t with multiple
  *  integers passed as parameters. The generated object follows the
  *  binary TLV format. This function is used as an helper routine
  *  to format resource objects before writing multiple objects
@@ -410,7 +441,7 @@ int lwm2m_serialize_tlv_string(int num, char **strs, lwm2m_resource_t* res);
  *
  *  \param[in] number of integers to process
  *  \param[in] pointer to the array of integers to process
- *  \param[in] resource pointer to a "lwm2m_resource_t" object whose "buffer"
+ *  \param[in] resource pointer to a \ref lwm2m_resource_t object whose "buffer"
  *  field will be allocated and filled by the library with the content of the
  *  TLV. After usage, the calling application must free the memory allocated
  *  for the "buffer" field.

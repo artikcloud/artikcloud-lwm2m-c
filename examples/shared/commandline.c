@@ -184,11 +184,15 @@ void output_buffer(FILE * stream,
     i = 0;
     while (i < length)
     {
-        uint8_t array[16];
+        uint8_t array[16] = {0};
         int j;
 
         print_indent(stream, indent);
-        memcpy(array, buffer+i, 16);
+        size_t size = 16;
+        if ( size > length - i)
+            size = length - i ;
+
+        memcpy(array, buffer+i, size);
         for (j = 0 ; j < 16 && i+j < length; j++)
         {
             fprintf(stream, "%02X ", array[j]);

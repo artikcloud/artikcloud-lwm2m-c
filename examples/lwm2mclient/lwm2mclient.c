@@ -108,6 +108,7 @@ typedef struct
     lwm2m_object_t * objArray[LWM2M_OBJ_COUNT];
     coap_protocol_t proto;
     char local_port[16];
+    int connection_retries;
 } client_data_t;
 
 static coap_uri_protocol protocols[] = {
@@ -231,7 +232,11 @@ void lwm2m_close_connection(void * sessionH,
     if (targetP == app_data->connList)
     {
         app_data->connList = targetP->next;
+        if (targetP == app_data->conn)
+            app_data->conn = targetP->next;
+
         lwm2m_free(targetP);
+
     }
     else
     {
@@ -248,19 +253,24 @@ void lwm2m_close_connection(void * sessionH,
     }
 }
 
-static void poll_lwm2m_socket(client_data_t *data, int timeout)
+static void poll_lwm2m_sockets(client_data_t **clients, int number_clients, int timeout)
 {
-    struct pollfd pfd;
     int ret = 0;
-    int numBytes;
-    uint8_t buffer[MAX_PACKET_SIZE];
-    struct sockaddr_storage addr;
-    socklen_t addrLen = sizeof(addr);
+    int i = 0, j = 0;
 
-    pfd.events = POLLIN;
-    pfd.fd = data->sock;
+    if (number_clients == 0) {
+        return;
+    }
 
-    ret = poll(&pfd, 1, timeout);
+    struct pollfd *pfds = malloc(sizeof(struct pollfd) * number_clients);
+    memset(pfds, 0, sizeof(struct pollfd)*number_clients);
+    for (i = 0; i < number_clients; i++)
+    {
+        pfds[i].events = POLLIN;
+        pfds[i].fd = clients[i]->sock;
+    }
+
+    ret = poll(pfds, number_clients, timeout);
     if (ret < 0)
     {
 #ifdef WITH_LOGS
@@ -269,92 +279,110 @@ static void poll_lwm2m_socket(client_data_t *data, int timeout)
        return;
     }
 
-    if (!ret || !data->conn->connected)
-    {
-        /* time out */
-        return;
-    }
+    for (i = 0; i < number_clients; i++) {
+        if (pfds[i].revents == 0)
+            continue;
 
-    /* Handling incoming data */
-    switch(data->proto)
-    {
-        case COAP_UDP:
-            numBytes = recvfrom(data->sock, buffer, MAX_PACKET_SIZE, 0, (struct sockaddr *)&addr, &addrLen);
-            if (numBytes < 0)
+        client_data_t *data = NULL;
+        for (j = 0; j < number_clients; j++)
+        {
+            if (clients[j]->sock == pfds[i].fd)
             {
+                data = clients[j];
+                break;
+             }
+        }
+
+        if (data == NULL)
+            continue;
+
+        /* Handling incoming data */
+        int numBytes;
+        uint8_t buffer[MAX_PACKET_SIZE];
+        struct sockaddr_storage addr;
+        socklen_t addrLen = sizeof(addr);
+
+        switch(data->proto)
+        {
+            case COAP_UDP:
+                numBytes = recvfrom(data->sock, buffer, MAX_PACKET_SIZE, 0, (struct sockaddr *)&addr, &addrLen);
+                if (numBytes < 0)
+                {
 #ifdef WITH_LOGS
-                fprintf(stderr, "Error in recvfrom(): %d %s\r\n", errno, strerror(errno));
+                    fprintf(stderr, "Error in recvfrom(): %d %s\r\n", errno, strerror(errno));
+#endif
+                    return;
+               }
+               break;
+            case COAP_TCP:
+                numBytes = recv(data->sock, buffer, MAX_PACKET_SIZE, 0);
+                if (numBytes < 0)
+                {
+#ifdef WITH_LOGS
+                    fprintf(stderr, "Error in recv(): %d %s\r\n", errno, strerror(errno));
+#endif
+                    return;
+                }
+                break;
+            case COAP_UDP_DTLS:
+            case COAP_TCP_TLS:
+                numBytes = SSL_read(data->conn->ssl, buffer, MAX_PACKET_SIZE);
+                if (numBytes < 1)
+                {
+                    return;
+                }
+                break;
+            default:
+#ifdef WITH_LOGS
+                fprintf(stderr, "Error data->proto = %d is not supported.", data->proto);
 #endif
                 return;
-            }
-            break;
-        case COAP_TCP:
-            numBytes = recv(data->sock, buffer, MAX_PACKET_SIZE, 0);
-            if (numBytes < 0)
+        }
+
+        memcpy(&addr, &data->server_addr, data->server_addrlen);
+        addrLen = data->server_addrlen;
+
+        if (numBytes > 0)
+        {
+            char s[INET6_ADDRSTRLEN];
+            in_port_t port;
+
+            if (AF_INET == addr.ss_family)
             {
-#ifdef WITH_LOGS
-                fprintf(stderr, "Error in recv(): %d %s\r\n", errno, strerror(errno));
-#endif
-                return;
+                struct sockaddr_in *saddr = (struct sockaddr_in *)&addr;
+                inet_ntop(saddr->sin_family, &saddr->sin_addr, s, INET6_ADDRSTRLEN);
+                port = saddr->sin_port;
             }
-            break;
-        case COAP_UDP_DTLS:
-        case COAP_TCP_TLS:
-            numBytes = SSL_read(data->conn->ssl, buffer, MAX_PACKET_SIZE);
-            if (numBytes < 1)
+            else if (AF_INET6 == addr.ss_family)
             {
-                return;
+                struct sockaddr_in6 *saddr = (struct sockaddr_in6 *)&addr;
+                inet_ntop(saddr->sin6_family, &saddr->sin6_addr, s, INET6_ADDRSTRLEN);
+                port = saddr->sin6_port;
             }
-            break;
-        default:
 #ifdef WITH_LOGS
-            fprintf(stderr, "Error data->proto = %d is not supported.", data->proto);
-#endif
-            return;
-    }
-
-    memcpy(&addr, &data->server_addr, data->server_addrlen);
-    addrLen = data->server_addrlen;
-
-    if (numBytes > 0)
-    {
-        char s[INET6_ADDRSTRLEN];
-        in_port_t port;
-
-        if (AF_INET == addr.ss_family)
-        {
-            struct sockaddr_in *saddr = (struct sockaddr_in *)&addr;
-            inet_ntop(saddr->sin_family, &saddr->sin_addr, s, INET6_ADDRSTRLEN);
-            port = saddr->sin_port;
-        }
-        else if (AF_INET6 == addr.ss_family)
-        {
-            struct sockaddr_in6 *saddr = (struct sockaddr_in6 *)&addr;
-            inet_ntop(saddr->sin6_family, &saddr->sin6_addr, s, INET6_ADDRSTRLEN);
-            port = saddr->sin6_port;
-        }
-#ifdef WITH_LOGS
-        fprintf(stdout, "%d bytes received from [%s]:%hu\r\n", numBytes, s, ntohs(port));
-        output_buffer(stdout, buffer, numBytes, 0);
+            fprintf(stdout, "%d bytes received from [%s]:%hu\r\n", numBytes, s, ntohs(port));
+            output_buffer(stdout, buffer, numBytes, 0);
 #endif
 
-        connection_t *conn = connection_find((connection_t *)data->connList, &addr, addrLen);
-        if (conn)
+            connection_t *conn = connection_find((connection_t *)data->connList, &addr, addrLen);
+            if (conn)
+            {
+                lwm2m_handle_packet(data->lwm2mH, data->proto, buffer, numBytes, conn);
+                conn_s_updateRxStatistic(data->objArray[LWM2M_OBJ_CONN_STAT], numBytes, false);
+            }
+        }
+        else
         {
-            lwm2m_handle_packet(data->lwm2mH, data->proto, buffer, numBytes, conn);
-            conn_s_updateRxStatistic(data->objArray[LWM2M_OBJ_CONN_STAT], numBytes, false);
+#ifdef WITH_LOGS
+            fprintf(stderr, "server has closed the connection\r\n");
+#endif
         }
     }
-    else
-    {
-#ifdef WITH_LOGS
-        fprintf(stderr, "server has closed the connection\r\n");
-#endif
-    }
 
+    free(pfds);
 }
 
-client_handle_t lwm2m_client_start(object_container_t *init_val)
+client_handle_t* lwm2m_client_start(object_container_t *init_val)
 {
     int result;
     int i;
@@ -368,8 +396,10 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     char * psk = init_val->server->psk;
     char * uri = init_val->server->serverUri;
     int serverId = init_val->server->serverId;
+    client_handle_t *handle;
 
     data = malloc(sizeof(client_data_t));
+    handle = malloc(sizeof(client_handle_t));
     if (!data) {
 #ifdef WITH_LOGS
         fprintf(stderr, "Failed to allocate memory for client data\r\n");
@@ -378,6 +408,8 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     }
 
     memset(data, 0, sizeof(client_data_t));
+    memset(data, 0, sizeof(client_handle_t));
+    handle->client = data;
 
     /* Figure out protocol from the URI prefix */
     for (i=0; i<sizeof(protocols)/sizeof(coap_uri_protocol); i++)
@@ -638,17 +670,17 @@ client_handle_t lwm2m_client_start(object_container_t *init_val)
     }
 
     /* Service once to initialize the first steps */
-    if (lwm2m_client_service(data, 0) <= LWM2M_CLIENT_OK)
+    if (lwm2m_client_service(handle, 0) <= LWM2M_CLIENT_OK)
     {
         return NULL;
     }
 
-    return (client_handle_t)data;
+    return handle;
 }
 
-void lwm2m_client_stop(client_handle_t handle)
+void lwm2m_client_stop(client_handle_t* handle)
 {
-    client_data_t *data =  (client_data_t *)handle;
+    client_data_t *data =  (client_data_t *)handle->client;
 
     if (!data)
         return;
@@ -692,63 +724,81 @@ void lwm2m_client_stop(client_handle_t handle)
         acl_ctrl_free_object(data->objArray[LWM2M_OBJ_ACL]);
 
     free(data);
+    free(handle);
 }
 
-int lwm2m_client_service(client_handle_t handle, int timeout_ms)
+int lwm2m_client_service(client_handle_t *handle, int timeout_ms)
 {
-    client_data_t *data =  (client_data_t *)handle;
-    int result;
-    int numBytes;
-    uint8_t buffer[MAX_PACKET_SIZE];
-    struct sockaddr_storage addr;
-    socklen_t addrLen = sizeof(addr);
-    time_t timeout = 60;
-    static int connection_retries = 0;
+    time_t timeout = lwm2m_clients_service(&handle, 1, timeout_ms);
 
-    result = lwm2m_step(data->lwm2mH, &timeout);
+    if (handle->error != 0)
+        return handle->error;
+    else
+        return timeout;
+}
 
-    if (!data->conn)
+int lwm2m_clients_service(client_handle_t **handles, int number_handles, int timeout_ms)
+{
+    time_t min_timeout = 60;
+    client_data_t **clients = malloc(sizeof(client_data_t *)*number_handles);
+    int number_clients = 0;
+    int i = 0;
+
+    for (i = 0; i < number_handles; i++)
     {
-        /* Connection failed, just quit */
-        return LWM2M_CLIENT_ERROR;
-    }
+        int result;
+        time_t timeout = 60;
+        client_data_t *data =  (client_data_t *)handles[i]->client;
+        result = lwm2m_step(data->lwm2mH, &timeout);
+        min_timeout = min_timeout > timeout ? timeout : min_timeout;
+        handles[i]->error = 0;
 
-    if ((result != 0) || (registration_getStatus(data->lwm2mH) == STATE_REG_FAILED))
-    {
-        /* Try reconnecting */
-        data->conn->connected = false;
-    }
+        if (!data->conn) {
+            handles[i]->error = LWM2M_CLIENT_ERROR;
+            continue;
+        }
 
-    if (!data->conn->connected)
-    {
-        data->lwm2mH->state = STATE_REGISTER_REQUIRED;
-        if (connection_restart(data->conn) < 0)
+        if ((result != 0) || (registration_getStatus(data->lwm2mH) == STATE_REG_FAILED))
         {
-            if (++connection_retries > MAX_CONNECTION_RETRIES)
+            /* Try reconnecting */
+            data->conn->connected = false;
+        }
+
+        if (!data->conn->connected)
+        {
+            data->lwm2mH->state = STATE_REGISTER_REQUIRED;
+            if (connection_restart(data->conn) < 0)
             {
+                if (++(data->connection_retries) > MAX_CONNECTION_RETRIES)
+                {
 #ifdef WITH_LOGS
-                fprintf(stderr, "Failed to reconnect %d times, exiting...\r\n", MAX_CONNECTION_RETRIES);
+                    fprintf(stderr, "Failed to reconnect %d times, exiting...\r\n", MAX_CONNECTION_RETRIES);
 #endif
-                return LWM2M_CLIENT_ERROR;
+                    handles[i]->error = LWM2M_CLIENT_ERROR;
+                }
+                continue;
+            }
+            else
+            {
+                data->connection_retries = 0;
+                min_timeout = 0;
             }
         }
-        else
-        {
-            connection_retries = 0;
-            timeout = 0;
-        }
-    } else {
-            timeout = timeout * 1000 < timeout_ms || timeout_ms == 0 ? timeout * 1000 : timeout_ms;
-            poll_lwm2m_socket(data, timeout);
+
+        clients[number_clients] = data;
+        number_clients++;
     }
 
-    return timeout;
+    min_timeout = min_timeout * 1000 < timeout_ms || timeout_ms == 0 ? min_timeout * 1000 : timeout_ms;
+    poll_lwm2m_sockets(clients, number_clients, min_timeout);
+    free(clients);
+    return min_timeout;
 }
 
-void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback_type type,
+void lwm2m_register_callback(client_handle_t* handle, enum lwm2m_execute_callback_type type,
         lwm2m_exe_callback callback, void *param)
 {
-    client_data_t *data =  (client_data_t *)handle;
+    client_data_t *data =  (client_data_t *)handle->client;
 
     if (!handle || !callback || (type >= LWM2M_EXE_COUNT))
     {
@@ -783,9 +833,9 @@ void lwm2m_register_callback(client_handle_t handle, enum lwm2m_execute_callback
     }
 }
 
-void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callback_type type)
+void lwm2m_unregister_callback(client_handle_t* handle, enum lwm2m_execute_callback_type type)
 {
-    client_data_t *data =  (client_data_t *)handle;
+    client_data_t *data =  (client_data_t *)handle->client;
 
     if (!handle || (type >= LWM2M_EXE_COUNT))
     {
@@ -816,10 +866,10 @@ void lwm2m_unregister_callback(client_handle_t handle, enum lwm2m_execute_callba
     }
 }
 
-int lwm2m_write_resource(client_handle_t handle, lwm2m_resource_t *res)
+int lwm2m_write_resource(client_handle_t* handle, lwm2m_resource_t *res)
 {
     int ret;
-    client_data_t *client =  (client_data_t *)handle;
+    client_data_t *client =  (client_data_t *)handle->client;
     lwm2m_uri_t uri_t;
 
     if (!res)
@@ -950,10 +1000,10 @@ static int encode_data(lwm2m_data_t *data, uint8_t **buffer)
     return size;
 }
 
-int lwm2m_read_resource(client_handle_t handle, lwm2m_resource_t *res)
+int lwm2m_read_resource(client_handle_t* handle, lwm2m_resource_t *res)
 {
     int ret;
-    client_data_t *client =  (client_data_t *)handle;
+    client_data_t *client =  (client_data_t *)handle->client;
     lwm2m_uri_t uri_t;
     lwm2m_object_t *object;
 

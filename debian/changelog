@@ -1,3 +1,9 @@
+wakaama-client (1.2-0) xenial; urgency=medium
+
+  * Increase package version to 1.2-0 before release
+
+ -- Chanho Park <chanho61.park@samsung.com>  Mon, 08 May 2017 09:43:56 +0900
+
 wakaama-client (1.1-0) unstable; urgency=medium
 
   * Initial release

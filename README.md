@@ -2,7 +2,7 @@
 
 This SDK helps developers to create C applications to connect to Artik Cloud LightWeight M2M server.
 
-It is based on [Wakaama](README-wakaama.md) (formerly liblwm2m), to which Artik Cloud specifics are added to generate a
+It is based on [Eclipse Wakaama](README-wakaama.md) (formerly liblwm2m), to which Artik Cloud specifics are added to generate a
 shared library ("libwakaama") containing read-to-use APIs to connect any device to the monitoring
 features offered by the Artik Cloud LWM2M server.
 

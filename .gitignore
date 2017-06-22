@@ -32,3 +32,4 @@ core/Makefile
 core/cmake_install.cmake
 lwm2mserver
 tlvdecode
+build/

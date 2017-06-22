@@ -5,8 +5,6 @@ Maintainer: Gregory Lemercier <g.lemercier@samsung.com>
 Uploaders: Chanho Park <chanho61.park@samsung.com>
 Build-Depends: debhelper (>=9),
 	cmake,
-	libarchive-dev,
-	libcurl-dev,
 Standards-Version: 3.9.6
 Homepage: https://github.com/obgm/wakaama
 
@@ -15,7 +13,12 @@ Architecture: linux-any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Implementation of the Open Mobile Alliance's LightWeight M2M protocol
 
+Package: wakaama-client-examples
+Architecture: linux-any
+Depends: libcurl3, libarchive13
+Description: Example Clients using Wakaama Client Library
+
 Package: wakaama-client-dev
 Architecture: any
-Depends: wakaama-client
+Depends: wakaama-client, libcurl4-openssl-dev, libarchive-dev
 Description: Development files for implementation of the Open Mobile Alliance's LightWeight M2M protocol (LWM2M)

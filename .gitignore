@@ -33,3 +33,5 @@ core/cmake_install.cmake
 lwm2mserver
 tlvdecode
 build/
+build-armhf/
+build-arm64/

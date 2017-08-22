@@ -1,11 +1,18 @@
 #!/bin/bash
 
-echo "When cross-compiling, do not forget to set CROSS_COMPILE and SYSROOT environment variables"
-
-rm -rf build/
-mkdir -p build/package/src/
+if [ "$#" -ne 1 ]; then
+    echo "Please specify the target architecture like armhf, arm64 "
+	exit
+fi
+TARGET_ARCH=$1
+BUILD_DIR=build-$TARGET_ARCH
+echo "Tager Architecture is $TARGET_ARCH"
+echo "When cross-compiling, do not forget to set the environment variables CROSS_COMPILE, SYSROOT"
+rm -rf $BUILD_DIR/
+mkdir -p $BUILD_DIR/package/src/
 git archive -o update.tgz HEAD
-mv update.tgz build/package/src/
-cd build/package/src/
+mv update.tgz $BUILD_DIR/package/src/
+cd $BUILD_DIR/package/src/
 tar -xvf update.tgz
-DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -uc -us -aarm64 --target-arch arm64
+JOBS=$(nproc)
+DEB_BUILD_OPTIONS=nocheck dpkg-buildpackage -j$JOBS -d -uc -us -a $TARGET_ARCH --target-arch $TARGET_ARCH

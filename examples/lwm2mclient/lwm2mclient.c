@@ -119,8 +119,8 @@ static coap_uri_protocol protocols[] = {
 };
 
 extern lwm2m_object_t *get_server_object(int serverId, const char *binding, int lifetime, bool storing);
-extern lwm2m_object_t *get_security_object(int serverId, const char *serverUri, char *bsPskId, char *psk, uint16_t pskLen,
-        bool isBootstrap);
+extern lwm2m_object_t *get_security_object(int serverId, const char *serverUri, uint8_t securityMode,
+        char *serverCertificate, char *clientCertificateOrPskId, char *psk, uint16_t pskLen, bool isBootstrap);
 extern lwm2m_object_t *get_object_device(object_device_t *default_value);
 extern lwm2m_object_t *get_object_firmware(object_firmware_t *default_value);
 extern lwm2m_object_t *get_object_location(object_location_t *default_value);
@@ -393,7 +393,7 @@ client_handle_t* lwm2m_client_start(object_container_t *init_val)
     lwm2m_context_t *ctx = NULL;
     uint16_t pskLen = -1;
     char * pskBuffer = NULL;
-    char * psk = init_val->server->psk;
+    char * token = init_val->server->token;
     char * uri = init_val->server->serverUri;
     int serverId = init_val->server->serverId;
     client_handle_t *handle;
@@ -461,6 +461,7 @@ client_handle_t* lwm2m_client_start(object_container_t *init_val)
     }
 
     data->lwm2mH = ctx;
+    ctx->token = strdup(init_val->server->token);
 
     /*
      * If valid local port is not provided, then randomize one based on a predefined range.
@@ -490,9 +491,9 @@ client_handle_t* lwm2m_client_start(object_container_t *init_val)
      * Now the main function fill an array with each object, this list will be later passed to liblwm2m.
      * Those functions are located in their respective object file.
      */
-    if (psk != NULL)
+    if (token != NULL && init_val->server->securityMode == LWM2M_SECURITY_MODE_PRE_SHARED_KEY)
     {
-        pskLen = strlen(psk) / 2;
+        pskLen = strlen(token) / 2;
         pskBuffer = malloc(pskLen);
 
         if (NULL == pskBuffer)
@@ -503,7 +504,7 @@ client_handle_t* lwm2m_client_start(object_container_t *init_val)
             return NULL;
         }
         // Hex string to binary
-        char *h = psk;
+        char *h = token;
         char *b = pskBuffer;
         char xlate[] = "0123456789ABCDEF";
 
@@ -522,6 +523,8 @@ client_handle_t* lwm2m_client_start(object_container_t *init_val)
 
             *b = ((l - xlate) << 4) + (r - xlate);
         }
+    } else {
+        pskBuffer = init_val->server->privateKey;
     }
 
 #ifdef WITH_LOGS
@@ -532,7 +535,11 @@ client_handle_t* lwm2m_client_start(object_container_t *init_val)
     {
         if (pskBuffer)
         {
-            data->objArray[LWM2M_OBJ_SECURITY] = get_security_object(serverId, uri, init_val->server->bsPskId, pskBuffer, pskLen, false);
+            data->objArray[LWM2M_OBJ_SECURITY] =
+                get_security_object(serverId, uri, init_val->server->securityMode,
+                                    init_val->server->serverCertificate,
+                                    init_val->server->clientCertificateOrPskId,
+                                    pskBuffer, pskLen, false);
             if (NULL == data->objArray[LWM2M_OBJ_SECURITY])
             {
 #ifdef WITH_LOGS

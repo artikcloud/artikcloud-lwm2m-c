@@ -42,6 +42,9 @@
 
 #include "liblwm2m.h"
 
+#include <openssl/pem.h>
+#include <openssl/x509.h>
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -481,18 +484,111 @@ void clean_security_object(lwm2m_object_t * objectP)
         {
             lwm2m_free(securityInstance->uri);
         }
-        if (securityInstance->securityMode == LWM2M_SECURITY_MODE_PRE_SHARED_KEY)
+
+        if (securityInstance->securityMode == LWM2M_SECURITY_MODE_PRE_SHARED_KEY || securityInstance->securityMode == LWM2M_SECURITY_MODE_CERTIFICATE)
         {
-            lwm2m_free(securityInstance->publicIdentity);
-            lwm2m_free(securityInstance->secretKey);
+            if (securityInstance->publicIdentity) {
+                lwm2m_free(securityInstance->publicIdentity);
+            }
+
+            if (securityInstance->secretKey) {
+                lwm2m_free(securityInstance->secretKey);
+            }
+        }
+
+        if (securityInstance->securityMode == LWM2M_SECURITY_MODE_CERTIFICATE)
+        {
+            if (securityInstance->serverPublicKey) {
+                lwm2m_free(securityInstance->serverPublicKey);
+            }
         }
         lwm2m_free(securityInstance);
     }
 }
 
+static int convert_pem_privatekey_to_der(const char *private_key_pem, char **private_key_der, uint16_t *len)
+{
+	EVP_PKEY *key = NULL;
+	BIO *bio = NULL;
+	bool ret = false;
+
+	*private_key_der = NULL;
+
+	bio = BIO_new_mem_buf(private_key_pem, -1);
+	if (!bio) {
+		goto exit;
+	}
+
+	key = PEM_read_bio_PrivateKey(bio, NULL, 0, NULL);
+	if (!key) {
+		goto exit;
+	}
+
+	*len = i2d_PrivateKey(key, (unsigned char **)private_key_der);
+	if (len < 0) {
+		goto exit;
+	}
+
+	ret = true;
+
+exit:
+	if (bio) {
+		BIO_free(bio);
+	}
+
+	if (key) {
+		EVP_PKEY_free(key);
+	}
+
+	return ret;
+}
+
+static bool convert_pem_x509_to_der(const char *cert_buffer_pem, char **cert_buffer_der, uint16_t *len)
+{
+    X509 *x509 = NULL;
+    BIO *bio = NULL;
+    bool ret = false;
+
+    *cert_buffer_der = NULL;
+    bio = BIO_new_mem_buf(cert_buffer_pem, -1);
+    if (!bio)
+    {
+        goto exit;
+    }
+
+    x509 = PEM_read_bio_X509(bio, NULL, 0, NULL);
+    if (!x509)
+    {
+        goto exit;
+    }
+
+    *len = i2d_X509(x509, (unsigned char **)cert_buffer_der);
+    if (len < 0)
+    {
+        goto exit;
+    }
+
+    ret = true;
+
+exit:
+    if (bio)
+    {
+        BIO_free(bio);
+    }
+
+    if (x509)
+    {
+        X509_free(x509);
+    }
+
+    return ret;
+}
+
 lwm2m_object_t * get_security_object(int serverId,
                                      const char* serverUri,
-                                     char * bsPskId,
+                                     uint8_t securityMode,
+                                     char * serverCertificate,
+                                     char * clientCertificateOrPskId,
                                      char * psk,
                                      uint16_t pskLen,
                                      bool isBootstrap)
@@ -513,40 +609,78 @@ lwm2m_object_t * get_security_object(int serverId,
         targetP = (security_instance_t *)lwm2m_malloc(sizeof(security_instance_t));
         if (NULL == targetP)
         {
+#ifdef WITH_LOGS
+                fprintf(stderr, "Failed to allocate security instance\r\n");
+#endif
             lwm2m_free(securityObj);
             return NULL;
         }
 
         memset(targetP, 0, sizeof(security_instance_t));
-        targetP->instanceId = 0;
-        targetP->uri = (char*)lwm2m_malloc(strlen(serverUri)+1); 
+        targetP->uri = (char*)lwm2m_malloc(strlen(serverUri)+1);
         strcpy(targetP->uri, serverUri);
+        targetP->securityMode = securityMode;
 
-        targetP->securityMode = LWM2M_SECURITY_MODE_NONE;
-        targetP->publicIdentity = NULL;
-        targetP->publicIdLen = 0;
-        targetP->secretKey = NULL;
-        targetP->secretKeyLen = 0;
-        if (bsPskId != NULL || psk != NULL)
+        if (securityMode == LWM2M_SECURITY_MODE_PRE_SHARED_KEY)
         {
-            targetP->securityMode = LWM2M_SECURITY_MODE_PRE_SHARED_KEY;
-            if (bsPskId)
+            if (psk == NULL || clientCertificateOrPskId == NULL || pskLen < 1)
             {
-                targetP->publicIdentity = strdup(bsPskId);
-                targetP->publicIdLen = strlen(bsPskId);
+#ifdef WITH_LOGS
+                fprintf(stderr, "Bad parameters for PSK mode.\r\n");
+#endif
+               clean_security_object(securityObj);
+               return NULL;
             }
-            if (psk && (pskLen > 0))
+
+            targetP->publicIdentity = strdup(clientCertificateOrPskId);
+            targetP->publicIdLen = strlen(clientCertificateOrPskId);
+            targetP->secretKey = (char *)lwm2m_malloc(pskLen);
+            if (!targetP->secretKey)
             {
-                targetP->secretKey = (char*)lwm2m_malloc(pskLen);
-                if (targetP->secretKey == NULL)
-                {
-                    clean_security_object(securityObj);
-                    return NULL;
-                }
-                memcpy(targetP->secretKey, psk, pskLen);
-                targetP->secretKeyLen = pskLen;
+#ifdef WITH_LOGS
+                fprintf(stderr, "Failed to allocate secretKey\r\n");
+#endif
+               clean_security_object(securityObj);
+               return NULL;
             }
+
+            memcpy(targetP->secretKey, psk, pskLen);
+            targetP->secretKeyLen = pskLen;
+    }
+
+    if (securityMode == LWM2M_SECURITY_MODE_CERTIFICATE)
+    {
+        convert_pem_x509_to_der(serverCertificate, &targetP->serverPublicKey, &targetP->serverPublicKeyLen);
+        if (!convert_pem_x509_to_der(clientCertificateOrPskId, &targetP->publicIdentity, &targetP->publicIdLen))
+        {
+#ifdef WITH_LOGS
+            fprintf(stderr, "Failed to parse client certificate\r\n");
+#endif
+            clean_security_object(securityObj);
+            return NULL;
         }
+
+        if (!convert_pem_privatekey_to_der(psk, &targetP->secretKey, &targetP->secretKeyLen))
+        {
+#ifdef WITH_LOGS
+            fprintf(stderr, "Failed to parse private key (Certificate mode)\r\n");
+#endif
+            clean_security_object(securityObj);
+            return NULL;
+        }
+
+    }
+
+        // ARTIK Cloud does not support NoSec mode
+        if (securityMode == LWM2M_SECURITY_MODE_NONE)
+        {
+                clean_security_object(securityObj);
+#ifdef WITH_LOGS
+                fprintf(stderr, "NoSec is not supported.\r\n");
+#endif
+                return NULL;
+        }
+
         targetP->isBootstrap = isBootstrap;
         targetP->shortID = serverId;
         targetP->clientHoldOffTime = 10;

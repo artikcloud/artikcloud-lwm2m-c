@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <signal.h>
+#include <errno.h>
 
 #define AKC_UUID_LEN    32
 
@@ -16,8 +17,11 @@ extern int cmdline_process(int timeout);
 
 static object_security_server_t akc_server = {
     "coaps+tcp://coaps-api.artik.cloud:5689", /* serverUri */
+    LWM2M_SEC_MODE_PSK,                       /* securityMode: PSK */
     "<Artik Cloud device ID>",                /* pskId : DEVICE ID */
-    "<Artik Cloud device token>",             /* psk : DEVICE TOKEN */
+    "<Artik Cloud device token>",             /* token : DEVICE TOKEN */
+    NULL,                                     /* privateKey */
+    NULL,                                     /* serverCertificate */
     "<Artik Cloud device ID>",                /* name : DEVICE ID */
     30,                                       /* lifetime */
     0,                                        /* battery */
@@ -63,10 +67,65 @@ static void usage()
     fprintf(stdout, "\t-u <server URI> : LWM2M server URI\r\n");
     fprintf(stdout, "\t-d <device ID> : AKC device ID\r\n");
     fprintf(stdout, "\t-t <device token> : AKC device token\r\n");
+    fprintf(stdout, "\t-c <path device certificate> : Device certificate\r\n");
+    fprintf(stdout, "\t-k <path device private key> : Device private key\r\n");
+    fprintf(stdout, "\t-s <path server certificate> : Server certificate\r\n");
     fprintf(stdout, "\t-n : don't verify SSL certificate\r\n");
     fprintf(stdout, "\t-p <port> : local source port to connect from\r\n");
     fprintf(stdout, "\t-l <lifetime> : lifetime of the client in seconds\r\n");
     fprintf(stdout, "\t-h : display help\r\n");
+}
+
+static bool fill_buffer_from_file(const char *file, char **pbuffer)
+{
+    FILE *stream = NULL;
+    long size = 0;
+    char *buffer = NULL;
+    if (access(file, F_OK) != 0) {
+        fprintf(stderr, "cannot access '%s': %s\n", file, strerror(errno));
+        return false;
+    }
+
+    stream = fopen(file, "r");
+    if (!stream) {
+        fprintf(stderr, "cannot open '%s': %s\n", file, strerror(errno));
+        goto error;
+    }
+
+    if (fseek(stream, 0, SEEK_END) != 0) {
+        fprintf(stderr, "cannot seek '%s': %s\n", file, strerror(errno));
+        goto error;
+    }
+
+    size = ftell(stream);
+    if (size < 0) {
+        fprintf(stderr, "cannot tell '%s': %s\n", file, strerror(errno));
+        goto error;
+    }
+
+    rewind(stream);
+    buffer = malloc(size * sizeof(char));
+    if (!buffer) {
+        fprintf(stderr, "cannot allocate %ld bytes\n", size);
+        goto error;
+    }
+
+    fread(buffer, sizeof(char), size, stream);
+    fclose(stream);
+
+    *pbuffer = buffer;
+    return true;
+
+error:
+    if (buffer) {
+        free(buffer);
+    }
+
+    if (stream) {
+        fclose(stream);
+    }
+
+	return false;
 }
 
 void handle_sigint(int signum)
@@ -124,7 +183,7 @@ int main(int argc, char *argv[])
     object_container_t init_val_ob;
     client_handle_t *client = NULL;
 
-    while ((opt = getopt(argc, argv, "u:d:t:np:l:h")) != -1) {
+    while ((opt = getopt(argc, argv, "s:c:k:u:d:t:np:l:h")) != -1) {
             switch (opt) {
             case 'u':
                 strncpy(akc_server.serverUri, optarg, LWM2M_MAX_STR_LEN);
@@ -137,7 +196,6 @@ int main(int argc, char *argv[])
                     return -1;
                 }
 
-                strncpy(akc_server.bsPskId, optarg, AKC_UUID_LEN);
                 strncpy(akc_server.client_name, optarg, AKC_UUID_LEN);
                 break;
             case 't':
@@ -148,7 +206,32 @@ int main(int argc, char *argv[])
                     return -1;
                 }
 
-                strncpy(akc_server.psk, optarg, AKC_UUID_LEN);
+                akc_server.token = strdup(optarg);
+                break;
+            case 'c':
+                if (!fill_buffer_from_file(optarg, &akc_server.clientCertificateOrPskId)) {
+                    usage();
+                    return -1;
+                }
+
+                akc_server.securityMode = LWM2M_SEC_MODE_CERT;
+
+                break;
+            case 's':
+                if (!fill_buffer_from_file(optarg, &akc_server.serverCertificate)) {
+                    usage();
+                    return -1;
+                }
+
+                akc_server.securityMode = LWM2M_SEC_MODE_CERT;
+                break;
+            case 'k':
+                if (!fill_buffer_from_file(optarg, &akc_server.privateKey)) {
+                    usage();
+                    return -1;
+                }
+
+                akc_server.securityMode = LWM2M_SEC_MODE_CERT;
                 break;
             case 'n':
                 akc_server.verifyCert = false;
@@ -167,6 +250,9 @@ int main(int argc, char *argv[])
                 return -1;
             }
     }
+
+    if (akc_server.securityMode == LWM2M_SEC_MODE_PSK)
+        akc_server.clientCertificateOrPskId = strdup(akc_server.client_name);
 
     signal(SIGINT, handle_sigint);
 
@@ -201,6 +287,7 @@ int main(int argc, char *argv[])
     }
 
     lwm2m_client_stop(client);
+    free(akc_server.clientCertificateOrPskId);
 
     return 0;
 }

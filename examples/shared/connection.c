@@ -37,6 +37,8 @@ static lwm2m_dtls_info_t *dtlsinfo_list = NULL;
 
 // from commandline.c
 void output_buffer(FILE * stream, uint8_t * buffer, int length, int indent);
+static char *security_get_public_id(lwm2m_object_t * obj, int instanceId, int * length);
+static char *security_get_secret_key(lwm2m_object_t * obj, int instanceId, int * length);
 
 static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity,
                                   unsigned int max_identity_len,
@@ -103,6 +105,207 @@ static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity,
     return keyLen;
 }
 
+static int security_get_security_mode(lwm2m_object_t * obj, int instanceId)
+{
+    int size = 1;
+    lwm2m_data_t * dataP = lwm2m_data_new(size);
+    dataP->id = 2; // security mode
+
+    obj->readFunc(instanceId, &size, &dataP, obj);
+    if (dataP != NULL &&
+            dataP->type == LWM2M_TYPE_INTEGER)
+    {
+        int val = dataP->value.asInteger;
+        lwm2m_free(dataP);
+        return val;
+    }
+    else
+    {
+        lwm2m_free(dataP);
+        return -1;
+    }
+}
+
+static char *security_get_server_public(lwm2m_object_t * obj, int instanceId, int * length)
+{
+    int size = 1;
+    lwm2m_data_t * dataP = lwm2m_data_new(size);
+    dataP->id = 4; // server public key or id
+
+    obj->readFunc(instanceId, &size, &dataP, obj);
+    if (dataP != NULL &&
+            dataP->type == LWM2M_TYPE_OPAQUE)
+    {
+        char *val = (char*)dataP->value.asBuffer.buffer;
+        *length = dataP->value.asBuffer.length;
+        lwm2m_free(dataP);
+        return val;
+    }
+    else
+    {
+        lwm2m_free(dataP);
+        return NULL;
+    }
+}
+
+static bool ssl_add_client_cert(SSL_CTX *ctx, lwm2m_object_t *sec_obj, int sec_inst)
+{
+    int len = 0;
+    X509* cert;
+    char *public_cert = NULL, *secret_key = NULL;
+
+    public_cert = security_get_public_id(sec_obj, sec_inst, &len);
+    if (!public_cert) {
+#ifdef WITH_LOGS
+        fprintf(stderr, "Failed to get client certificate from security object.\r\n");
+#endif
+        return false;
+    }
+
+    cert = d2i_X509(NULL, (const unsigned char **)&public_cert, len);
+    if (!cert) {
+#ifdef WITH_LOGS
+        fprintf(stderr, "Failed to parse client certificate.\r\n");
+#endif
+        return false;
+    }
+
+    SSL_CTX_use_certificate(ctx, cert);
+    X509_free(cert);
+
+    secret_key = security_get_secret_key(sec_obj, sec_inst, &len);
+    if (!secret_key) {
+#ifdef WITH_LOGS
+        fprintf(stderr, "Failed to get secret private key from security object.\r\n");
+#endif
+       return false;
+    }
+
+    if (!SSL_CTX_use_PrivateKey_ASN1(EVP_PKEY_EC, ctx,
+            (const unsigned char *)secret_key, len)) {
+#ifdef WITH_LOGS
+        fprintf(stderr, "Failed to parse private key. (len %d)\r\n", len);
+#endif
+        return false;
+    }
+
+    if (!SSL_CTX_check_private_key(ctx)) {
+#ifdef WITH_LOGS
+        fprintf(stderr, "Failed to check private key.\r\n");
+#endif
+        return false;
+    }
+
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
+
+    return true;
+}
+
+static SSL_CTX* ssl_configure_certificate_mode(connection_t *conn)
+{
+    SSL_CTX *ctx = NULL;
+
+    if (conn->protocol == COAP_UDP_DTLS) {
+        ctx = SSL_CTX_new(DTLS_client_method());
+    } else {
+        ctx = SSL_CTX_new(TLS_client_method());
+    }
+
+    if (!ctx) {
+        return NULL;
+    }
+
+    if (!ssl_add_client_cert(ctx, conn->sec_obj, conn->sec_inst)) {
+#ifdef WITH_LOGS
+        fprintf(stderr, "Failed to add client certificate to SSL context.\r\n");
+#endif
+        SSL_CTX_free(ctx);
+        return NULL;
+    }
+
+    SSL_CTX_set_verify(ctx, conn->verify_cert ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
+
+    return ctx;
+}
+
+static SSL_CTX* ssl_configure_pre_shared_key(connection_t *conn)
+{
+    SSL_CTX *ctx = NULL;
+
+    if ((conn->protocol == COAP_UDP_DTLS) && conn->sec_obj)
+    {
+        char *id = NULL, *psk = NULL;
+        int len = 0;
+        lwm2m_dtls_info_t *dtls = NULL;
+
+        if (!conn->sec_obj)
+        {
+#ifdef WITH_LOGS
+            fprintf(stderr, "No security object provided\n");
+#endif
+            return NULL;
+        }
+        // Retrieve ID/PSK from security object for DTLS handshake
+        dtls = malloc(sizeof(lwm2m_dtls_info_t));
+
+        if (!dtls)
+        {
+#ifdef WITH_LOGS
+            fprintf(stderr, "Failed to allocate memory for DTLS security info\n");
+#endif
+            free(dtls);
+            return NULL;
+        }
+
+        memset(dtls, 0, sizeof(lwm2m_dtls_info_t));
+
+        id = security_get_public_id(conn->sec_obj, conn->sec_inst, &len);
+        if (len > MAX_DTLS_INFO_LEN)
+        {
+#ifdef WITH_LOGS
+            fprintf(stderr, "Public ID is too long\n");
+#endif
+            free(dtls);
+            return NULL;
+        }
+
+        memcpy(dtls->identity, id, len);
+
+        psk = security_get_secret_key(conn->sec_obj, conn->sec_inst, &len);
+        if (len > MAX_DTLS_INFO_LEN)
+        {
+#ifdef WITH_LOGS
+            fprintf(stderr, "Secret key is too long\n");
+#endif
+            free(dtls);
+            return NULL;
+        }
+
+        memcpy(dtls->key, psk, len);
+        dtls->key_length = len;
+        dtls->connection = conn;
+        dtls->id = lwm2m_list_newId((lwm2m_list_t*)dtlsinfo_list);
+        dtlsinfo_list = (lwm2m_dtls_info_t*)LWM2M_LIST_ADD((lwm2m_list_t*)dtlsinfo_list, (lwm2m_list_t*)dtls);
+
+        ctx = SSL_CTX_new(DTLS_client_method());
+        SSL_CTX_set_psk_client_callback(ctx, psk_client_cb);
+        SSL_CTX_set_cipher_list(ctx, "PSK-AES128-CCM8:PSK-AES128-CBC-SHA");
+    }
+    else
+    {
+        ctx = SSL_CTX_new(TLS_client_method());
+        SSL_CTX_set_cipher_list(ctx, "ALL");
+		printf("SSL verify ? %d\n", conn->verify_cert);
+        SSL_CTX_set_verify(ctx, conn->verify_cert ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
+        SSL_CTX_set_default_verify_dir(ctx);
+
+        /* Ignore SIGPIPE to avoid the program from exiting on closed socket */
+        signal(SIGPIPE, SIG_IGN);
+    }
+
+    return ctx;
+}
+
 static bool ssl_init(connection_t * conn)
 {
     BIO *sbio = NULL;
@@ -124,21 +327,13 @@ static bool ssl_init(connection_t * conn)
         goto error;
     }
 
-    if (conn->protocol == COAP_UDP_DTLS)
-    {
-        ctx = SSL_CTX_new(DTLS_client_method());
-        SSL_CTX_set_psk_client_callback(ctx, psk_client_cb);
-        SSL_CTX_set_cipher_list(ctx, "PSK-AES128-CCM8:PSK-AES128-CBC-SHA");
-    }
-    else
-    {
-        ctx = SSL_CTX_new(TLS_client_method());
-        SSL_CTX_set_cipher_list(ctx, "ALL");
-        SSL_CTX_set_verify(ctx, conn->verify_cert ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
-        SSL_CTX_set_default_verify_dir(ctx);
-
-        /* Ignore SIGPIPE to avoid the program from exiting on closed socket */
-        signal(SIGPIPE, SIG_IGN);
+    uint8_t securityMode = security_get_security_mode(conn->sec_obj, conn->sec_inst);
+    if (securityMode == 0) { /* Pre shared key mode */
+        ctx = ssl_configure_pre_shared_key(conn);
+    } else if (securityMode == 2) { /* Certificate mode */
+        ctx =  ssl_configure_certificate_mode(conn);
+    } else {
+        return NULL;
     }
 
     if (!ctx)
@@ -160,11 +355,15 @@ static bool ssl_init(connection_t * conn)
 
     if (conn->protocol == COAP_UDP_DTLS)
     {
+        X509* peer_cert = NULL;
+        X509* server_cert = NULL;
         struct sockaddr peer;
         int peerlen = sizeof (struct sockaddr);
         struct timeval timeout;
         int ret;
         int handshake_timeout = 50;
+        char *cert = NULL;
+        int len;
         int oldflags = fcntl (conn->sock, F_GETFL, 0);
 
         oldflags |= O_NONBLOCK;
@@ -176,6 +375,23 @@ static bool ssl_init(connection_t * conn)
 #ifdef WITH_LOGS
             fprintf(stderr, "getsockname failed (%s)\n", strerror (errno));
 #endif
+        }
+        if (securityMode == 2) { /* Certificate mode */
+            cert = security_get_server_public(conn->sec_obj, conn->sec_inst, &len);
+            if (len < 0) {
+#ifdef WITH_LOGS
+                fprintf(stderr, "Failed to get server certificate\n");
+#endif
+                goto error;
+            }
+
+            server_cert = d2i_X509(NULL, (const unsigned char **)&cert, len);
+            if (!server_cert) {
+#ifdef WITH_LOGS
+                fprintf(stderr, "Failed to parse server certificate\n");
+#endif
+                goto error;
+            }
         }
 
         BIO_ctrl_set_connected (sbio, &peer);
@@ -218,6 +434,16 @@ static bool ssl_init(connection_t * conn)
 
         oldflags &= O_NONBLOCK;
         fcntl(conn->sock, F_SETFL, oldflags);
+
+        if (securityMode == 2) { /* Certificate mode */
+            peer_cert = SSL_get_peer_certificate(ssl);
+            if (X509_cmp(peer_cert, server_cert)) {
+#ifdef WITH_LOGS
+                fprintf(stderr, "%s: server.serverCertificate does not match peer certificate.\n", __func__);
+#endif
+                goto error;
+            }
+        }
     }
     else
     {
@@ -266,11 +492,14 @@ static char *security_get_public_id(lwm2m_object_t * obj, int instanceId, int * 
     if (dataP != NULL &&
             dataP->type == LWM2M_TYPE_OPAQUE)
     {
+        char *val = (char*)dataP->value.asBuffer.buffer;
         *length = dataP->value.asBuffer.length;
-        return (char*)dataP->value.asBuffer.buffer;
+        lwm2m_free(dataP);
+        return val;
     }
     else
     {
+        lwm2m_free(dataP);
         return NULL;
     }
 }
@@ -285,11 +514,14 @@ static char *security_get_secret_key(lwm2m_object_t * obj, int instanceId, int *
     if (dataP != NULL &&
             dataP->type == LWM2M_TYPE_OPAQUE)
     {
+        char *val = (char*)dataP->value.asBuffer.buffer;
         *length = dataP->value.asBuffer.length;
-        return (char*)dataP->value.asBuffer.buffer;
+        lwm2m_free(dataP);
+        return val;
     }
     else
     {
+        lwm2m_free(dataP);
         return NULL;
     }
 }
@@ -553,60 +785,6 @@ connection_t * connection_create(coap_protocol_t protocol,
         connP->address_family = addressFamily;
         connP->sec_obj = sec_obj;
         connP->sec_inst = sec_inst;
-
-        if ((protocol == COAP_UDP_DTLS) && sec_obj)
-        {
-            char *id = NULL, *psk = NULL;
-            int len = 0;
-            lwm2m_dtls_info_t *dtls = NULL;
-
-            // Retrieve ID/PSK from security object for DTLS handshake
-            dtls = malloc(sizeof(lwm2m_dtls_info_t));
-
-            if (!sec_obj)
-            {
-#ifdef WITH_LOGS
-                fprintf(stderr, "No security object provided\n");
-#endif
-                goto error;
-            }
-
-            if (!dtls)
-            {
-#ifdef WITH_LOGS
-                fprintf(stderr, "Failed to allocate memory for DTLS security info\n");
-#endif
-                goto error;
-            }
-
-            memset(dtls, 0, sizeof(lwm2m_dtls_info_t));
-
-            id = security_get_public_id(sec_obj, sec_inst, &len);
-            if (len > MAX_DTLS_INFO_LEN)
-            {
-#ifdef WITH_LOGS
-                fprintf(stderr, "Public ID is too long\n");
-#endif
-                goto error;
-            }
-
-            memcpy(dtls->identity, id, len);
-
-            psk = security_get_secret_key(sec_obj, sec_inst, &len);
-            if (len > MAX_DTLS_INFO_LEN)
-            {
-#ifdef WITH_LOGS
-                fprintf(stderr, "Secret key is too long\n");
-#endif
-                goto error;
-            }
-
-            memcpy(dtls->key, psk, len);
-            dtls->key_length = len;
-            dtls->connection = connP;
-            dtls->id = lwm2m_list_newId((lwm2m_list_t*)dtlsinfo_list);
-            dtlsinfo_list = (lwm2m_dtls_info_t*)LWM2M_LIST_ADD((lwm2m_list_t*)dtlsinfo_list, (lwm2m_list_t*)dtls);
-        }
 
         if ((protocol == COAP_TCP_TLS) ||
             (protocol == COAP_UDP_DTLS))

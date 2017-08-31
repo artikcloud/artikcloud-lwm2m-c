@@ -1,4 +1,3 @@
-
 #ifndef _LWM2MCLIENT_H_
 #define _LWM2MCLIENT_H_
 
@@ -87,13 +86,21 @@ typedef struct {
     int  smcc;                               /*VALUE_SMCC*/
 } object_conn_monitoring_t;
 
+enum lwm2m_sec_mode_type {
+    LWM2M_SEC_MODE_PSK = 0,
+    LWM2M_SEC_MODE_CERT = 2,
+};
+
 /*
  * LWM2M security object
  */
  typedef struct {
     char serverUri[LWM2M_MAX_STR_LEN];   /*serverUri*/
-    char bsPskId[LWM2M_MAX_STR_LEN];     /*pskId : DEVICE ID*/
-    char psk[LWM2M_MAX_STR_LEN];         /*psk : DEVICE TOKEN*/
+    enum lwm2m_sec_mode_type securityMode;                /*securityMode: determine wich security mode is used*/
+    char *clientCertificateOrPskId;      /*pskId : DEVICE ID or client certificate*/
+    char *token;                         /*token : DEVICE TOKEN */
+    char *privateKey;                    /*privateKey : private key*/
+    char *serverCertificate;             /*serverCertificate: store the LWM2M server certificate*/
     char client_name[LWM2M_MAX_STR_LEN]; /*name : DEVICE ID*/
     int lifetime;                        /*lifetime*/
     int  batterylevelchanging;           /*battery*/

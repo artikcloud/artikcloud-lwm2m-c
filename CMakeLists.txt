@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 
+set(LWM2M_USE_EMBEDDED_OPENSSL true CACHE BOOL "Use the embedded openssl (version 1.1.0) that includes the cipher TLS_PSK_WITH_AES_128_CCM_8 needed by ARTIK Cloud")
+
 if (CMAKE_MAJOR_VERSION GREATER 2)
 	cmake_policy(SET CMP0042 NEW)
 endif()

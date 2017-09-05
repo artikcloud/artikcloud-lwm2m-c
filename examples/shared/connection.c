@@ -208,7 +208,11 @@ static SSL_CTX* ssl_configure_certificate_mode(connection_t *conn)
     if (conn->protocol == COAP_UDP_DTLS) {
         ctx = SSL_CTX_new(DTLS_client_method());
     } else {
+#if (OPENSSL_VERSION_NUMBER >= 0x10100005L)
         ctx = SSL_CTX_new(TLS_client_method());
+#else
+        ctx = SSL_CTX_new(SSLv23_client_method());
+#endif
     }
 
     if (!ctx) {
@@ -293,11 +297,17 @@ static SSL_CTX* ssl_configure_pre_shared_key(connection_t *conn)
     }
     else
     {
+#if (OPENSSL_VERSION_NUMBER >= 0x10100005L)
         ctx = SSL_CTX_new(TLS_client_method());
+#else
+        ctx = SSL_CTX_new(SSLv23_client_method());
+#endif
         SSL_CTX_set_cipher_list(ctx, "ALL");
-		printf("SSL verify ? %d\n", conn->verify_cert);
+        printf("SSL verify ? %d\n", conn->verify_cert);
         SSL_CTX_set_verify(ctx, conn->verify_cert ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
+#if (OPENSSL_VERSION_NUMBER >= 0x10100005L)
         SSL_CTX_set_default_verify_dir(ctx);
+#endif
 
         /* Ignore SIGPIPE to avoid the program from exiting on closed socket */
         signal(SIGPIPE, SIG_IGN);
@@ -394,7 +404,12 @@ static bool ssl_init(connection_t * conn)
             }
         }
 
+#if (OPENSSL_VERSION_NUMBER >= 0x10100005L)
         BIO_ctrl_set_connected (sbio, &peer);
+#else
+        BIO_ctrl_set_connected (sbio, 0, &peer);
+#endif
+
         timeout.tv_sec = 10;
         timeout.tv_usec = 0;
         BIO_ctrl(sbio, BIO_CTRL_DGRAM_SET_SEND_TIMEOUT, 0, &timeout);

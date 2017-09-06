@@ -75,8 +75,12 @@ Usage: akc_client [options]
 	-u <server URI> : LWM2M server URI
 	-d <device ID> : AKC device ID
 	-t <device token> : AKC device token
+	-c <path device certificate> : Device certificate
+	-k <path device private key> : Device private key
+	-s <path server certificate> : Server certificate
 	-n : don't verify SSL certificate
 	-p <port> : local source port to connect from
+	-l <lifetime> : lifetime of the client in seconds
 	-h : display help
 ~~~
 

@@ -51,6 +51,7 @@ typedef struct _connection_t
     SSL_CTX               * ssl_ctx;
     SSL                   * ssl;
     char                  * host;
+    char                  * root_ca;
     bool                    verify_cert;
     char                    local_port[16];
     char                    remote_port[16];
@@ -76,7 +77,7 @@ int create_socket(coap_protocol_t protocol, const char * portStr, int ai_family)
 connection_t *connection_find(connection_t *connList, struct sockaddr_storage *addr,
         size_t addrLen);
 
-connection_t *connection_create(coap_protocol_t protocol, bool verify_cert, int sock,
+connection_t *connection_create(coap_protocol_t protocol,char *root_ca, bool verify_cert, int sock,
         char *host, char *local_port, char *remote_port, int addressFamily,
         lwm2m_object_t * obj, int instanceId);
 

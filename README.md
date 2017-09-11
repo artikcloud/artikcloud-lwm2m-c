@@ -78,6 +78,7 @@ Usage: akc_client [options]
 	-c <path device certificate> : Device certificate
 	-k <path device private key> : Device private key
 	-s <path server certificate> : Server certificate
+	-r <path root CA> : root CA
 	-n : don't verify SSL certificate
 	-p <port> : local source port to connect from
 	-l <lifetime> : lifetime of the client in seconds

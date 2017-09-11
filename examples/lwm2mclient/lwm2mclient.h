@@ -249,14 +249,17 @@ typedef struct {
  *  to the server. It returns a connection-specific handle
  *  that can be used by other functions in subsequent calls.
  *
- *  \param[in] container object defining the default values
+ *  \param[in] init_val container object defining the default values
  *  to set to the LWM2M standard resources. These values can
  *  be later changed dynamically by calling \ref lwm2m_write_resource
+ *
+ * \param[in] root_ca If not null, use it as trusted root CA for verifying the
+ *                    server's certificate.
  *
  *  \return handle to the client connection, or NULL if an error
  *  occured
  */
-client_handle_t* lwm2m_client_start(object_container_t *init_val);
+client_handle_t* lwm2m_client_start(object_container_t *init_val, char *root_ca);
 
 /*!
  *  \brief Process current tasks

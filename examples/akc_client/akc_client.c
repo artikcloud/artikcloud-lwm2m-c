@@ -59,6 +59,7 @@ static object_firmware_t default_firmware ={
     "PKG Version", /* PKG_VERSION */
 };
 
+static char* root_ca = NULL;
 static bool quit = false;
 
 static void usage()
@@ -70,6 +71,7 @@ static void usage()
     fprintf(stdout, "\t-c <path device certificate> : Device certificate\r\n");
     fprintf(stdout, "\t-k <path device private key> : Device private key\r\n");
     fprintf(stdout, "\t-s <path server certificate> : Server certificate\r\n");
+    fprintf(stdout, "\t-r <path root ca> : Root CA\r\n");
     fprintf(stdout, "\t-n : don't verify SSL certificate\r\n");
     fprintf(stdout, "\t-p <port> : local source port to connect from\r\n");
     fprintf(stdout, "\t-l <lifetime> : lifetime of the client in seconds\r\n");
@@ -183,7 +185,7 @@ int main(int argc, char *argv[])
     object_container_t init_val_ob;
     client_handle_t *client = NULL;
 
-    while ((opt = getopt(argc, argv, "s:c:k:u:d:t:np:l:h")) != -1) {
+    while ((opt = getopt(argc, argv, "r:s:c:k:u:d:t:np:l:h")) != -1) {
             switch (opt) {
             case 'u':
                 strncpy(akc_server.serverUri, optarg, LWM2M_MAX_STR_LEN);
@@ -233,7 +235,13 @@ int main(int argc, char *argv[])
 
                 akc_server.securityMode = LWM2M_SEC_MODE_CERT;
                 break;
-            case 'n':
+            case 'r':
+                if (!fill_buffer_from_file(optarg, &root_ca)) {
+                    usage();
+                    return -1;
+                }
+                break;
+             case 'n':
                 akc_server.verifyCert = false;
                 break;
             case 'p':
@@ -261,7 +269,7 @@ int main(int argc, char *argv[])
     init_val_ob.device = &default_device;
     init_val_ob.firmware = &default_firmware;
 
-    client = lwm2m_client_start(&init_val_ob);
+    client = lwm2m_client_start(&init_val_ob, root_ca);
     if (!client)
     {
         fprintf(stderr, "Failed to start client\n");

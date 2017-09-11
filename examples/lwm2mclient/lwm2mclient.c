@@ -109,6 +109,7 @@ typedef struct
     coap_protocol_t proto;
     char local_port[16];
     int connection_retries;
+    char *root_ca;
 } client_data_t;
 
 static coap_uri_protocol protocols[] = {
@@ -202,7 +203,7 @@ void * lwm2m_connect_server(uint16_t secObjInstID, void * userData)
     instance = LWM2M_LIST_FIND(dataP->securityObjP->instanceList, secObjInstID);
     if (instance == NULL) goto exit;
 
-    connection_t *conn = connection_create(protocol, dataP->verify_cert,
+    connection_t *conn = connection_create(protocol, dataP->root_ca, dataP->verify_cert,
             dataP->sock, host, dataP->local_port, port, dataP->addressFamily, securityObj, instance->id);
     if (!conn)
     {
@@ -382,7 +383,7 @@ static void poll_lwm2m_sockets(client_data_t **clients, int number_clients, int 
     free(pfds);
 }
 
-client_handle_t* lwm2m_client_start(object_container_t *init_val)
+client_handle_t* lwm2m_client_start(object_container_t *init_val, char *root_ca)
 {
     int result;
     int i;
@@ -408,7 +409,7 @@ client_handle_t* lwm2m_client_start(object_container_t *init_val)
     }
 
     memset(data, 0, sizeof(client_data_t));
-    memset(data, 0, sizeof(client_handle_t));
+    memset(handle, 0, sizeof(client_handle_t));
     handle->client = data;
 
     /* Figure out protocol from the URI prefix */
@@ -461,6 +462,7 @@ client_handle_t* lwm2m_client_start(object_container_t *init_val)
     }
 
     data->lwm2mH = ctx;
+    data->root_ca = root_ca;
     ctx->token = strdup(init_val->server->token);
 
     /*

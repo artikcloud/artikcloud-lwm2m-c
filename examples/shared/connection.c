@@ -200,6 +200,52 @@ static bool ssl_add_client_cert(SSL_CTX *ctx, lwm2m_object_t *sec_obj, int sec_i
 
     return true;
 }
+static bool ssl_store_add_cert(SSL_CTX *ctx, const char *root_ca)
+{
+    X509 *x509_cert = NULL;
+    X509_STORE *keystore;
+    bool ret = false;
+    BIO* bio;
+
+    bio = BIO_new_mem_buf(root_ca, -1);
+    if (!bio) {
+        goto exit;
+    }
+
+    x509_cert = PEM_read_bio_X509(bio, NULL, 0, NULL);
+    if (!x509_cert) {
+#ifdef WITH_LOGS
+        fprintf(stderr, "Failed to parse root CA.\r\n");
+#endif
+        goto exit;
+    }
+
+    keystore = SSL_CTX_get_cert_store(ctx);
+    if (!keystore) {
+#ifdef WITH_LOGS
+        fprintf(stderr, "Failed to load keystore.\r\n");
+#endif
+        goto exit;
+    }
+
+    /* Set CA certificate to context */
+    if (!X509_STORE_add_cert(keystore, x509_cert)) {
+#ifdef WITH_LOGS
+        fprintf(stderr, "Failed to add certificate to the keystore");
+#endif
+        goto exit;
+    }
+
+    ret = true;
+exit:
+    if (bio)
+        BIO_free(bio);
+
+    if (x509_cert)
+        X509_free(x509_cert);
+
+    return ret;
+}
 
 static SSL_CTX* ssl_configure_certificate_mode(connection_t *conn)
 {
@@ -227,7 +273,18 @@ static SSL_CTX* ssl_configure_certificate_mode(connection_t *conn)
         return NULL;
     }
 
-    SSL_CTX_set_verify(ctx, conn->verify_cert ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
+    if (conn->protocol == COAP_TCP_TLS) {
+        SSL_CTX_set_verify(ctx, conn->verify_cert ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
+        if (conn->root_ca) {
+            if (!ssl_store_add_cert(ctx, conn->root_ca))
+            {
+                SSL_CTX_free(ctx);
+                return NULL;
+            }
+        }
+    } else {
+        SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+    }
 
     return ctx;
 }
@@ -302,6 +359,14 @@ static SSL_CTX* ssl_configure_pre_shared_key(connection_t *conn)
 #else
         ctx = SSL_CTX_new(SSLv23_client_method());
 #endif
+        if (conn->root_ca) {
+            if (!ssl_store_add_cert(ctx, conn->root_ca))
+            {
+                SSL_CTX_free(ctx);
+                return NULL;
+            }
+        }
+
         SSL_CTX_set_cipher_list(ctx, "ALL");
         printf("SSL verify ? %d\n", conn->verify_cert);
         SSL_CTX_set_verify(ctx, conn->verify_cert ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
@@ -578,6 +643,7 @@ int connection_restart(connection_t *conn)
     }
 
     newConn = connection_create(conn->protocol,
+                                conn->root_ca,
                                 conn->verify_cert,
                                 sock,
                                 conn->host,
@@ -706,6 +772,7 @@ connection_t * connection_find(connection_t * connList,
 }
 
 connection_t * connection_create(coap_protocol_t protocol,
+                                 char *root_ca,
                                  bool verify_cert,
                                  int sock,
                                  char *host,
@@ -792,6 +859,10 @@ connection_t * connection_create(coap_protocol_t protocol,
         connP->sock = sock;
         connP->protocol = protocol;
         connP->verify_cert = verify_cert;
+
+        if (root_ca)
+            connP->root_ca = strdup(root_ca);
+
         memcpy(&(connP->addr), sa, sl);
         connP->host = strndup(host, strlen(host));
         connP->addrLen = sl;
@@ -867,6 +938,8 @@ void connection_free(connection_t * connList)
         nextP = connList->next;
         if (connList->host)
             free(connList->host);
+       if (connList->root_ca)
+            free(connList->root_ca);
         free(connList);
 
         connList = nextP;

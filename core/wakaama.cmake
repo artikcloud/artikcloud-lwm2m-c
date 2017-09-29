@@ -14,7 +14,7 @@ set(CORE_HEADERS
 set(WAKAAMA_SOURCES
     ${WAKAAMA_SOURCES_DIR}/liblwm2m.c
     ${WAKAAMA_SOURCES_DIR}/uri.c
-    ${WAKAAMA_SOURCES_DIR}/utils.c
+    ${WAKAAMA_SOURCES_DIR}/lwm2m_utils.c
     ${WAKAAMA_SOURCES_DIR}/objects.c
     ${WAKAAMA_SOURCES_DIR}/tlv.c
     ${WAKAAMA_SOURCES_DIR}/data.c

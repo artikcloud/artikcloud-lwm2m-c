@@ -45,9 +45,6 @@
 #include <stdint.h>
 #include <stddef.h> /* for size_t */
 
-#include <signal.h>
-#include <time.h>
-
 /*
  * The maximum buffer size that is provided for resource responses and must be respected due to the limited IP buffer.
  * Larger data must be handled by the resource and will be sent chunk-wise through a TCP stream or CoAP blocks.
@@ -59,8 +56,10 @@
 #define COAP_DEFAULT_MAX_AGE                 60
 #define COAP_RESPONSE_TIMEOUT                2
 #define COAP_MAX_RETRANSMIT                  4
+#define COAP_ACK_RANDOM_FACTOR               1.5
 
-#define COAP_TCP_SHIM_LEN					 4 /* 32bit Length shim header for TCP */
+#define COAP_MAX_TRANSMIT_WAIT               ((COAP_RESPONSE_TIMEOUT * ( (1 << (COAP_MAX_RETRANSMIT + 1) ) - 1) * COAP_ACK_RANDOM_FACTOR))
+#define COAP_TCP_SHIM_LEN                    4 /* 32bit Length shim header for TCP */
 #define COAP_HEADER_LEN                      4 /* | version:0x03 type:0x0C tkl:0xF0 | code | mid:0x00FF | mid:0xFF00 | */
 #define COAP_ETAG_LEN                        8 /* The maximum number of bytes for the ETag */
 #define COAP_TOKEN_LEN                       8 /* The maximum number of bytes for the Token */
@@ -90,10 +89,7 @@
 
 #define COAP_MAX_PACKET_SIZE  (COAP_MAX_HEADER_SIZE + REST_MAX_CHUNK_SIZE)
 /*                                        0/14          48 for IPv6 (28 for IPv4) */
-#if COAP_MAX_PACKET_SIZE > (UIP_BUFSIZE - UIP_LLH_LEN - UIP_IPUDPH_LEN)
-//#error "UIP_CONF_BUFFER_SIZE too small for REST_MAX_CHUNK_SIZE"
-#endif
-
+#define COAP_MAX_URI_PREFIX_SIZE 16
 
 /* Bitmap for set options */
 enum { OPTION_MAP_SIZE = sizeof(uint8_t) * 8 };
@@ -106,10 +102,11 @@ enum { OPTION_MAP_SIZE = sizeof(uint8_t) * 8 };
 
 /* CoAP protocols */
 typedef enum {
-  COAP_UDP,
+  COAP_UDP = 0,
   COAP_UDP_DTLS,
   COAP_TCP,
-  COAP_TCP_TLS
+  COAP_TCP_TLS,
+  COAP_PROTOCOL_MAX
 } coap_protocol_t;
 
 /* CoAP message types */
@@ -185,6 +182,7 @@ typedef enum {
   COAP_OPTION_BLOCK1 = 27,        /* 1-3 B */
   COAP_OPTION_SIZE = 28,          /* 0-4 B */
   COAP_OPTION_PROXY_URI = 35,     /* 1-270 B */
+  OPTION_MAX_VALUE = 0xFFFF
 } coap_option_t;
 
 /* CoAP Content-Types */
@@ -210,7 +208,8 @@ typedef enum {
   APPLICATION_FASTINFOSET = 48,
   APPLICATION_SOAP_FASTINFOSET = 49,
   APPLICATION_JSON = 50,
-  APPLICATION_X_OBIX_BINARY = 51
+  APPLICATION_X_OBIX_BINARY = 51,
+  CONTENT_MAX_VALUE = 0xFFFF
 } coap_content_type_t;
 
 typedef struct _multi_option_t {
@@ -318,8 +317,8 @@ typedef struct {
 #define COAP_SERIALIZE_BLOCK_OPTION(number, field, text)      \
     if (IS_OPTION(coap_pkt, number)) \
     { \
-      PRINTF(text" [%lu%s (%u B/blk)]\n", coap_pkt->field##_num, coap_pkt->field##_more ? "+" : "", coap_pkt->field##_size); \
       uint32_t block = coap_pkt->field##_num << 4; \
+      PRINTF(text" [%lu%s (%u B/blk)]\n", coap_pkt->field##_num, coap_pkt->field##_more ? "+" : "", coap_pkt->field##_size); \
       if (coap_pkt->field##_more) block |= 0x8; \
       block |= 0xF & coap_log_2(coap_pkt->field##_size/16); \
       PRINTF(text" encoded: 0x%lX\n", block); \

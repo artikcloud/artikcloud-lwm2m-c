@@ -40,14 +40,12 @@
  * Here we implement a very basic LWM2M Security Object which only knows NoSec security mode.
  */
 
-#include "liblwm2m.h"
-
-#include <openssl/pem.h>
-#include <openssl/x509.h>
-
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
+#include "liblwm2m.h"
+#include "pem_utils.h"
 
 #define LWM2M_SECURITY_URI_ID                 0
 #define LWM2M_SECURITY_BOOTSTRAP_ID           1
@@ -67,7 +65,7 @@ typedef struct _security_instance_
     struct _security_instance_ * next;        // matches lwm2m_list_t::next
     uint16_t                     instanceId;  // matches lwm2m_list_t::id
     char *                       uri;
-    bool                         isBootstrap;    
+    bool                         isBootstrap;
     uint8_t                      securityMode;
     char *                       publicIdentity;
     uint16_t                     publicIdLen;
@@ -506,84 +504,6 @@ void clean_security_object(lwm2m_object_t * objectP)
     }
 }
 
-static int convert_pem_privatekey_to_der(const char *private_key_pem, char **private_key_der, uint16_t *len)
-{
-	EVP_PKEY *key = NULL;
-	BIO *bio = NULL;
-	bool ret = false;
-
-	*private_key_der = NULL;
-
-	bio = BIO_new_mem_buf(private_key_pem, -1);
-	if (!bio) {
-		goto exit;
-	}
-
-	key = PEM_read_bio_PrivateKey(bio, NULL, 0, NULL);
-	if (!key) {
-		goto exit;
-	}
-
-	*len = i2d_PrivateKey(key, (unsigned char **)private_key_der);
-	if (len < 0) {
-		goto exit;
-	}
-
-	ret = true;
-
-exit:
-	if (bio) {
-		BIO_free(bio);
-	}
-
-	if (key) {
-		EVP_PKEY_free(key);
-	}
-
-	return ret;
-}
-
-static bool convert_pem_x509_to_der(const char *cert_buffer_pem, char **cert_buffer_der, uint16_t *len)
-{
-    X509 *x509 = NULL;
-    BIO *bio = NULL;
-    bool ret = false;
-
-    *cert_buffer_der = NULL;
-    bio = BIO_new_mem_buf(cert_buffer_pem, -1);
-    if (!bio)
-    {
-        goto exit;
-    }
-
-    x509 = PEM_read_bio_X509(bio, NULL, 0, NULL);
-    if (!x509)
-    {
-        goto exit;
-    }
-
-    *len = i2d_X509(x509, (unsigned char **)cert_buffer_der);
-    if (len < 0)
-    {
-        goto exit;
-    }
-
-    ret = true;
-
-exit:
-    if (bio)
-    {
-        BIO_free(bio);
-    }
-
-    if (x509)
-    {
-        X509_free(x509);
-    }
-
-    return ret;
-}
-
 lwm2m_object_t * get_security_object(int serverId,
                                      const char* serverUri,
                                      uint8_t securityMode,
@@ -610,7 +530,7 @@ lwm2m_object_t * get_security_object(int serverId,
         if (NULL == targetP)
         {
 #ifdef WITH_LOGS
-                fprintf(stderr, "Failed to allocate security instance\r\n");
+            fprintf(stderr, "Failed to allocate security instance.\r\n");
 #endif
             lwm2m_free(securityObj);
             return NULL;
@@ -628,8 +548,8 @@ lwm2m_object_t * get_security_object(int serverId,
 #ifdef WITH_LOGS
                 fprintf(stderr, "Bad parameters for PSK mode.\r\n");
 #endif
-               clean_security_object(securityObj);
-               return NULL;
+                clean_security_object(securityObj);
+                return NULL;
             }
 
             targetP->publicIdentity = strdup(clientCertificateOrPskId);
@@ -638,47 +558,52 @@ lwm2m_object_t * get_security_object(int serverId,
             if (!targetP->secretKey)
             {
 #ifdef WITH_LOGS
-                fprintf(stderr, "Failed to allocate secretKey\r\n");
+                fprintf(stderr, "Failed to allocate secretKey.\r\n");
 #endif
-               clean_security_object(securityObj);
-               return NULL;
+                clean_security_object(securityObj);
+                return NULL;
             }
 
             memcpy(targetP->secretKey, psk, pskLen);
             targetP->secretKeyLen = pskLen;
-    }
-
-    if (securityMode == LWM2M_SECURITY_MODE_CERTIFICATE)
-    {
-        convert_pem_x509_to_der(serverCertificate, &targetP->serverPublicKey, &targetP->serverPublicKeyLen);
-        if (!convert_pem_x509_to_der(clientCertificateOrPskId, &targetP->publicIdentity, &targetP->publicIdLen))
-        {
-#ifdef WITH_LOGS
-            fprintf(stderr, "Failed to parse client certificate\r\n");
-#endif
-            clean_security_object(securityObj);
-            return NULL;
         }
 
-        if (!convert_pem_privatekey_to_der(psk, &targetP->secretKey, &targetP->secretKeyLen))
+        if (securityMode == LWM2M_SECURITY_MODE_CERTIFICATE)
         {
+            if (!convert_pem_x509_to_der(serverCertificate, &targetP->serverPublicKey, &targetP->serverPublicKeyLen))
+            {
 #ifdef WITH_LOGS
-            fprintf(stderr, "Failed to parse private key (Certificate mode)\r\n");
+                fprintf(stderr, "Failed to parse server certificate\r\n");
 #endif
-            clean_security_object(securityObj);
-            return NULL;
-        }
+            }
 
-    }
+            if (!convert_pem_x509_to_der(clientCertificateOrPskId, &targetP->publicIdentity, &targetP->publicIdLen))
+            {
+#ifdef WITH_LOGS
+                fprintf(stderr, "Failed to parse client certificate\r\n");
+#endif
+                clean_security_object(securityObj);
+                return NULL;
+            }
+
+            if (!convert_pem_privatekey_to_der(psk, &targetP->secretKey, &targetP->secretKeyLen))
+            {
+#ifdef WITH_LOGS
+                fprintf(stderr, "Failed to parse private key (Certificate mode)\r\n");
+#endif
+                clean_security_object(securityObj);
+                return NULL;
+            }
+        }
 
         // ARTIK Cloud does not support NoSec mode
         if (securityMode == LWM2M_SECURITY_MODE_NONE)
         {
-                clean_security_object(securityObj);
+            clean_security_object(securityObj);
 #ifdef WITH_LOGS
-                fprintf(stderr, "NoSec is not supported.\r\n");
+            fprintf(stderr, "NoSec is not supported.\r\n");
 #endif
-                return NULL;
+            return NULL;
         }
 
         targetP->isBootstrap = isBootstrap;

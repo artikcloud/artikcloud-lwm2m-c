@@ -658,7 +658,7 @@ typedef struct
 
 
 // initialize a liblwm2m context.
-lwm2m_context_t * lwm2m_init(void * userData);
+lwm2m_context_t * lwm2m_init(void * userData, const char * token);
 // close a liblwm2m context.
 void lwm2m_close(lwm2m_context_t * contextP);
 

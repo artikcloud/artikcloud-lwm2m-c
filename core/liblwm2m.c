@@ -58,7 +58,7 @@
 
 static int rand_initialized = false;
 
-lwm2m_context_t * lwm2m_init(void * userData)
+lwm2m_context_t * lwm2m_init(void * userData, const char * token)
 {
     lwm2m_context_t * contextP;
 
@@ -67,6 +67,12 @@ lwm2m_context_t * lwm2m_init(void * userData)
     {
         memset(contextP, 0, sizeof(lwm2m_context_t));
         contextP->userData = userData;
+        contextP->token = strdup(token);
+        if (!contextP->token) {
+            free(contextP);
+            return NULL;
+        }
+
         if (!rand_initialized) {
             srand(time(NULL));
             rand_initialized = true;
@@ -169,7 +175,6 @@ void lwm2m_close(lwm2m_context_t * contextP)
     {
         lwm2m_free(contextP->token);
     }
-
 #endif
 
 #ifdef LWM2M_SERVER_MODE
@@ -310,7 +315,6 @@ int lwm2m_configure(lwm2m_context_t * contextP,
 int lwm2m_add_object(lwm2m_context_t * contextP,
                      lwm2m_object_t * objectP)
 {
-    uint16_t i;
     lwm2m_object_t * targetP;
 
     targetP = (lwm2m_object_t *)LWM2M_LIST_FIND(contextP->objectList, objectP->objID);
@@ -330,7 +334,6 @@ int lwm2m_add_object(lwm2m_context_t * contextP,
 int lwm2m_remove_object(lwm2m_context_t * contextP,
                         uint16_t id)
 {
-    uint16_t i;
     lwm2m_object_t * targetP;
 
     contextP->objectList = (lwm2m_object_t *)LWM2M_LIST_RM(contextP->objectList, id, &targetP);

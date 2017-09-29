@@ -92,7 +92,6 @@ static int prv_getRegistrationQuery(lwm2m_context_t * contextP,
         /*
          * We need to append the token to the parameters list
          */
-
         res = utils_stringCopy(buffer + index, length - index, "&token=");
         if (res < 0) return 0;
         index += res;
@@ -137,7 +136,10 @@ static void prv_handleRegistrationReply(lwm2m_transaction_t * transacP,
 {
     coap_packet_t * packet = (coap_packet_t *)message;
     lwm2m_server_t * targetP = (lwm2m_server_t *)(transacP->peerP);
+
+#ifdef LWM2M_WITH_LOGS
     lwm2m_context_t * contextP = (lwm2m_context_t *)(transacP->userData);
+#endif
 
     if (targetP->status == STATE_REG_PENDING)
     {
@@ -228,7 +230,10 @@ static void prv_handleRegistrationUpdateReply(lwm2m_transaction_t * transacP,
 {
     coap_packet_t * packet = (coap_packet_t *)message;
     lwm2m_server_t * targetP = (lwm2m_server_t *)(transacP->peerP);
+
+#ifdef LWM2M_WITH_LOGS
     lwm2m_context_t * contextP = (lwm2m_context_t *)(transacP->userData);
+#endif
 
     if (targetP->status == STATE_REG_UPDATE_PENDING)
     {

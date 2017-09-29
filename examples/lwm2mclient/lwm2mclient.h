@@ -98,7 +98,7 @@ enum lwm2m_sec_mode_type {
     char serverUri[LWM2M_MAX_STR_LEN];   /*serverUri*/
     enum lwm2m_sec_mode_type securityMode;                /*securityMode: determine wich security mode is used*/
     char *clientCertificateOrPskId;      /*pskId : DEVICE ID or client certificate*/
-    char *token;                         /*token : DEVICE TOKEN */
+    char token[LWM2M_MAX_STR_LEN];                         /*token : DEVICE TOKEN */
     char *privateKey;                    /*privateKey : private key*/
     char *serverCertificate;             /*serverCertificate: store the LWM2M server certificate*/
     char client_name[LWM2M_MAX_STR_LEN]; /*name : DEVICE ID*/
@@ -255,11 +255,13 @@ typedef struct {
  *
  * \param[in] root_ca If not null, use it as trusted root CA for verifying the
  *                    server's certificate.
+ * \param[in] use_se If true the private key stored in the SE is used
+ *                  (only usefull in certificate mode and only implemented for TizenRT).
  *
  *  \return handle to the client connection, or NULL if an error
  *  occured
  */
-client_handle_t* lwm2m_client_start(object_container_t *init_val, char *root_ca);
+client_handle_t* lwm2m_client_start(object_container_t *init_val, char *root_ca, bool use_se);
 
 /*!
  *  \brief Process current tasks
@@ -301,7 +303,7 @@ int lwm2m_clients_service(client_handle_t **handles, int number_handles, int tim
  *   - LWM2M_CLIENT_ERROR in case an error happened
  *   - LWM2M_CLIENT_QUIT in case the connection was terminated
  */
-int lwm2m_client_service(client_handle_t *handles, int timeout_ms);
+int lwm2m_client_service(client_handle_t *handle, int timeout_ms);
 
 
 /*!

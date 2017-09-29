@@ -625,20 +625,20 @@ static int prv_getMandatoryInfo(lwm2m_object_t * objectP,
 
 int object_getServers(lwm2m_context_t * contextP)
 {
-    lwm2m_object_t * targetP;
+    lwm2m_object_t * iterP;
     lwm2m_object_t * securityObjP = NULL;
     lwm2m_object_t * serverObjP = NULL;
     lwm2m_list_t * securityInstP;   // instanceID of the server in the LWM2M Security Object
 
-    for (targetP = contextP->objectList; targetP != NULL; targetP = targetP->next)
+    for (iterP = contextP->objectList; iterP != NULL; iterP = iterP->next)
     {
-        if (targetP->objID == LWM2M_SECURITY_OBJECT_ID)
+        if (iterP->objID == LWM2M_SECURITY_OBJECT_ID)
         {
-            securityObjP = targetP;
+            securityObjP = iterP;
         }
-        else if (targetP->objID == LWM2M_SERVER_OBJECT_ID)
+        else if (iterP->objID == LWM2M_SERVER_OBJECT_ID)
         {
-            serverObjP = targetP;
+            serverObjP = iterP;
         }
     }
 

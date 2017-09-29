@@ -21,6 +21,7 @@ set(SOURCES
         object_connectivity_moni.c
         object_connectivity_stat.c
         object_access_control.c
+        openssl_utils.c
     )
 
 

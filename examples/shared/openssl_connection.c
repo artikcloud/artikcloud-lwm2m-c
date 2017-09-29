@@ -521,8 +521,10 @@ static bool ssl_init(connection_t * conn)
 #ifdef WITH_LOGS
                 fprintf(stderr, "%s: server.serverCertificate does not match peer certificate.\n", __func__);
 #endif
+                X509_free(server_cert);
                 goto error;
             }
+            X509_free(server_cert);
         }
     }
     else
@@ -645,6 +647,7 @@ int connection_restart(connection_t *conn)
     newConn = connection_create(conn->protocol,
                                 conn->root_ca,
                                 conn->verify_cert,
+                                conn->use_se,
                                 sock,
                                 conn->host,
                                 conn->local_port,
@@ -774,6 +777,7 @@ connection_t * connection_find(connection_t * connList,
 connection_t * connection_create(coap_protocol_t protocol,
                                  char *root_ca,
                                  bool verify_cert,
+                                 bool use_se,
                                  int sock,
                                  char *host,
                                  char *local_port,
@@ -871,6 +875,7 @@ connection_t * connection_create(coap_protocol_t protocol,
         connP->address_family = addressFamily;
         connP->sec_obj = sec_obj;
         connP->sec_inst = sec_inst;
+        connP->use_se = use_se;
 
         if ((protocol == COAP_TCP_TLS) ||
             (protocol == COAP_UDP_DTLS))
@@ -938,8 +943,12 @@ void connection_free(connection_t * connList)
         nextP = connList->next;
         if (connList->host)
             free(connList->host);
-       if (connList->root_ca)
+        if (connList->root_ca)
             free(connList->root_ca);
+        if (connList->ssl)
+            SSL_free(connList->ssl);
+        if (connList->ssl_ctx)
+            SSL_CTX_free(connList->ssl_ctx);
         free(connList);
 
         connList = nextP;
@@ -1054,4 +1063,47 @@ bool lwm2m_session_is_equal(void * session1,
                             void * userData)
 {
     return (session1 == session2);
+}
+
+int connection_read(connection_t *connP, uint8_t * buffer, size_t size) {
+    int numBytes;
+
+    switch(connP->protocol)
+    {
+        case COAP_UDP:
+            numBytes = recvfrom(connP->sock, buffer, size, 0, NULL, NULL);
+            if (numBytes < 0)
+            {
+#ifdef WITH_LOGS
+                fprintf(stderr, "Error in recvfrom(): %d %s\r\n", errno, strerror(errno));
+#endif
+                return 0;
+            }
+            break;
+        case COAP_TCP:
+            numBytes = recv(connP->sock, buffer, size, 0);
+            if (numBytes < 0)
+            {
+#ifdef WITH_LOGS
+                fprintf(stderr, "Error in recv(): %d %s\r\n", errno, strerror(errno));
+#endif
+                return 0;
+            }
+            break;
+        case COAP_UDP_DTLS:
+        case COAP_TCP_TLS:
+            numBytes = SSL_read(connP->ssl, buffer, size);
+            if (numBytes < 1)
+            {
+                return 0;
+            }
+            break;
+        default:
+#ifdef WITH_LOGS
+            fprintf(stderr, "Error protocol = %d is not supported.\r\n", connP->protocol);
+#endif
+            return 0;
+    }
+
+    return numBytes;
 }

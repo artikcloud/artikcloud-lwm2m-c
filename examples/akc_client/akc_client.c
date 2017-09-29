@@ -106,7 +106,7 @@ static bool fill_buffer_from_file(const char *file, char **pbuffer)
     }
 
     rewind(stream);
-    buffer = malloc(size * sizeof(char));
+    buffer = malloc((size + 1)* sizeof(char));
     if (!buffer) {
         fprintf(stderr, "cannot allocate %ld bytes\n", size);
         goto error;
@@ -114,6 +114,7 @@ static bool fill_buffer_from_file(const char *file, char **pbuffer)
 
     fread(buffer, sizeof(char), size, stream);
     fclose(stream);
+    buffer[size] = '\0';
 
     *pbuffer = buffer;
     return true;
@@ -208,7 +209,7 @@ int main(int argc, char *argv[])
                     return -1;
                 }
 
-                akc_server.token = strdup(optarg);
+                strncpy(akc_server.token, optarg, LWM2M_MAX_STR_LEN);
                 break;
             case 'c':
                 if (!fill_buffer_from_file(optarg, &akc_server.clientCertificateOrPskId)) {
@@ -269,7 +270,7 @@ int main(int argc, char *argv[])
     init_val_ob.device = &default_device;
     init_val_ob.firmware = &default_firmware;
 
-    client = lwm2m_client_start(&init_val_ob, root_ca);
+    client = lwm2m_client_start(&init_val_ob, root_ca, false);
     if (!client)
     {
         fprintf(stderr, "Failed to start client\n");

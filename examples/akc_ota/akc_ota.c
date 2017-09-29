@@ -556,7 +556,7 @@ int main(int argc, char *argv[])
                     return -1;
                 }
 
-                akc_server.token = strdup(optarg);
+                strncpy(akc_server.token, optarg, LWM2M_MAX_STR_LEN);
                 break;
             case 'c':
                 if (!fill_buffer_from_file(optarg, &akc_server.clientCertificateOrPskId)) {
@@ -617,7 +617,7 @@ int main(int argc, char *argv[])
     init_val_ob.device = &default_device;
     init_val_ob.firmware = &default_firmware;
 
-    ota_updater.client = lwm2m_client_start(&init_val_ob, root_ca);
+    ota_updater.client = lwm2m_client_start(&init_val_ob, root_ca, false);
     if (!ota_updater.client)
     {
         fprintf(stderr, "Failed to start client\n");

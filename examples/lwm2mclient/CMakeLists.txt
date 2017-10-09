@@ -49,7 +49,7 @@ else()
         set(OPENSSL_CONFIG_CMD ./config)
     endif()
     set(OPENSSL_LIBRARIES ${OPENSSL_LIBRARIES} dl pthread)
-    set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libwakaama-client.version -Wl,--strip-all")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libwakaama-client.version -Wl,--strip-all")
 endif()
 
 

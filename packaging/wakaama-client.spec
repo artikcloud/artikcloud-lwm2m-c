@@ -1,5 +1,5 @@
 Name: wakaama-client
-Version: 1.3
+Version: 1.4
 Release: 0%{?dist}
 License: EDL&EPL
 Summary: Implementation of the Open Mobile Alliance's LightWeight M2M protocol (LWM2M)

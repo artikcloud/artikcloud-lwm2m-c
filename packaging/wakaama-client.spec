@@ -66,6 +66,7 @@ cp %{_srcdir}/README-wakaama.md %{_builddir}
 %files devel
 %defattr(-,root,root,-)
 %{_libdir}/*.so
+%{_libdir}/*.a
 %{_includedir}/*
 
 %files examples

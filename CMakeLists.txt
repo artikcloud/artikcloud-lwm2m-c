@@ -1,5 +1,12 @@
 cmake_minimum_required (VERSION 2.8)
 
+include(GNUInstallDirs)
+if ("${CMAKE_LIBRARY_ARCHITECTURE}" STREQUAL "")
+        SET(CMAKE_INSTALL_INCLUDEDIR "include")
+else()
+        SET(CMAKE_INSTALL_INCLUDEDIR "include/${CMAKE_LIBRARY_ARCHITECTURE}")
+endif()
+
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 add_definitions("-fno-omit-frame-pointer")  # Allows the fast unwinder to function properly
 add_definitions("-fno-common") # Allows ASan to instrument global variable

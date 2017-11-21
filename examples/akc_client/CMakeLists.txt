@@ -16,7 +16,7 @@ set (SOURCES
 add_executable (${PROJECT_NAME} ${SOURCES})
 target_link_libraries (${PROJECT_NAME} wakaama-client)
 
-install (TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
+install (TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Add WITH_LOGS to debug variant
 set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:Debug>:WITH_LOGS>)

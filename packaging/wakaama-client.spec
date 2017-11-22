@@ -42,6 +42,7 @@ cmake %{_srcdir} -DCMAKE_INSTALL_PREFIX=%{_prefix} \
                  -DCMAKE_BUILD_TYPE=%{?debug:Debug}%{?!debug:Release} \
                  -DLWM2M_USE_EMBEDDED_OPENSSL=0
 %else
+%define __strip "arm-linux-gnueabihf-strip"
 cmake %{_srcdir} -DCMAKE_TOOLCHAIN_FILE=%{_srcdir}/target/toolchain-cross-arm.cmake \
                  -DCMAKE_INSTALL_PREFIX=%{_prefix} \
                  -DCMAKE_SYSROOT=%{_sysrootdir} \

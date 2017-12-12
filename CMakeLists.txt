@@ -7,7 +7,7 @@ else()
         SET(CMAKE_INSTALL_INCLUDEDIR "include/${CMAKE_LIBRARY_ARCHITECTURE}")
 endif()
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+if (ENABLE_ADDRESS_SANITIZER)
 add_definitions("-fno-omit-frame-pointer")  # Allows the fast unwinder to function properly
 add_definitions("-fno-common") # Allows ASan to instrument global variable
 

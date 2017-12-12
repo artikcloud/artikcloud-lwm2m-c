@@ -635,3 +635,15 @@ char * get_server_uri(lwm2m_object_t * objectP,
 
     return NULL;
 }
+
+uint16_t get_server_id(lwm2m_object_t * objectP, uint16_t secObjInstID)
+{
+    security_instance_t *targetP = (security_instance_t *)LWM2M_LIST_FIND(objectP->instanceList, secObjInstID);
+
+    if (NULL != targetP)
+    {
+        return targetP->shortID;
+    }
+
+    return LWM2M_MAX_ID;
+}

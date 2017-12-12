@@ -137,6 +137,7 @@ extern void free_object_conn_s(lwm2m_object_t *object);
 extern void free_object_conn_m(lwm2m_object_t *object);
 extern void acl_ctrl_free_object(lwm2m_object_t *object);
 extern char *get_server_uri(lwm2m_object_t *object, uint16_t secObjInstID);
+extern uint16_t get_server_id(lwm2m_object_t * objectP, uint16_t secObjInstID);
 extern lwm2m_object_t *acc_ctrl_create_object(void);
 extern bool acc_ctrl_obj_add_inst(lwm2m_object_t *accCtrlObjP, uint16_t instId, uint16_t acObjectId, uint16_t acObjInstId,
         uint16_t acOwner);
@@ -1264,4 +1265,23 @@ int lwm2m_serialize_tlv_int(int num, int *ints, lwm2m_resource_t* res)
     }
 
     return LWM2M_CLIENT_OK;
+}
+
+time_t lwm2m_last_succesful_registration(client_handle_t* handle)
+{
+    client_data_t *client = NULL;
+    uint16_t id;
+
+    if (!handle)
+        return 0;
+
+    client = (client_data_t *)handle->client;
+
+    /* Get instance 0 of the instance list */
+    id = get_server_id(client->objArray[LWM2M_OBJ_SECURITY], 0);
+
+    if (id == LWM2M_MAX_ID)
+        return 0;
+
+    return lwm2m_last_registration(client->lwm2mH, id);
 }

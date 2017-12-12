@@ -31,6 +31,7 @@ static void prv_quit(char *buffer, void *user_data);
 static void prv_change_obj(char *buffer, void *user_data);
 static void prv_read_obj(char *buffer, void *user_data);
 static void prv_write_error(char *buffer, void *user_data);
+static void prv_last_registration(char *buffer, void *user_data);
 
 static bool quit_client = false;
 
@@ -38,6 +39,7 @@ command_desc_t commands[] = {
     { "change", "Change the value of a resource. (e.g. \"change /3/0/14 +01:00\")", NULL, prv_change_obj, NULL },
     { "read", "Read the value of a resource. (e.g. \"read /3/0/14\")", NULL, prv_read_obj, NULL },
     { "error", "Write error code to resource /3/0/11", NULL, prv_write_error, NULL },
+    { "lastreg", "Display the timestamp of the last successful registration", NULL, prv_last_registration, NULL },
     { "quit", "Quit the client.", NULL, prv_quit, NULL },
     { NULL, NULL, NULL, NULL, NULL }
 };
@@ -291,6 +293,15 @@ void prv_write_error(char *buffer, void *user_data)
     free(res.buffer);
 }
 
+void prv_last_registration(char *buffer, void *user_data)
+{
+    time_t ts = 0;
+    client_handle_t *handle = (client_handle_t *)user_data;
+
+    ts = lwm2m_last_succesful_registration(handle);
+
+    fprintf(stdout, "%ld\r\n>", ts);
+}
 
 void prv_quit(char *buffer, void *user_data)
 {

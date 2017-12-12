@@ -143,13 +143,15 @@ static void prv_handleRegistrationReply(lwm2m_transaction_t * transacP,
 
     if (targetP->status == STATE_REG_PENDING)
     {
-        time_t tv_sec = lwm2m_gettime();
-        if (tv_sec >= 0)
-        {
-            targetP->registration = tv_sec;
-        }
         if (packet != NULL && packet->code == COAP_201_CREATED)
         {
+            time_t tv_sec = lwm2m_gettime();
+
+            if (tv_sec >= 0)
+            {
+                targetP->registration = tv_sec;
+            }
+
             targetP->status = STATE_REGISTERED;
             if (NULL != targetP->location)
             {
@@ -237,13 +239,14 @@ static void prv_handleRegistrationUpdateReply(lwm2m_transaction_t * transacP,
 
     if (targetP->status == STATE_REG_UPDATE_PENDING)
     {
-        time_t tv_sec = lwm2m_gettime();
-        if (tv_sec >= 0)
-        {
-            targetP->registration = tv_sec;
-        }
         if (packet != NULL && packet->code == COAP_204_CHANGED)
         {
+            time_t tv_sec = lwm2m_gettime();
+
+            if (tv_sec >= 0)
+            {
+                targetP->registration = tv_sec;
+            }
             targetP->status = STATE_REGISTERED;
             LOG("    => REGISTERED: %s\r\n", contextP->endpointName);
         }
@@ -335,6 +338,33 @@ int lwm2m_update_registration(lwm2m_context_t * contextP,
     }
 
     return result;
+}
+
+time_t lwm2m_last_registration(lwm2m_context_t * contextP,
+		uint16_t shortServerID)
+{
+    lwm2m_server_t * targetP;
+
+    if (shortServerID == 0)
+        return 0;
+
+    targetP = contextP->serverList;
+    if (targetP == NULL)
+    {
+        if (object_getServers(contextP) == -1)
+        {
+            return 0;
+        }
+    }
+    while (targetP != NULL)
+    {
+        if (targetP->shortID == shortServerID)
+        {
+            // found the server, return its last registration timestamp
+            return targetP->registration;
+        }
+        targetP = targetP->next;
+    }
 }
 
 uint8_t registration_start(lwm2m_context_t * contextP)

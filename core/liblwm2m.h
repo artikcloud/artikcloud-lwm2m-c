@@ -680,6 +680,7 @@ int lwm2m_remove_object(lwm2m_context_t * contextP, uint16_t id);
 // or all if the ID is 0.
 // If withObjects is true, the registration update contains the object list.
 int lwm2m_update_registration(lwm2m_context_t * contextP, uint16_t shortServerID, bool withObjects);
+time_t lwm2m_last_registration(lwm2m_context_t * contextP, uint16_t shortServerID);
 
 void lwm2m_resource_value_changed(lwm2m_context_t * contextP, lwm2m_uri_t * uriP);
 #endif

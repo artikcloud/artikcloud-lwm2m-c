@@ -870,7 +870,7 @@ connection_t * connection_create(coap_protocol_t protocol,
         memcpy(&(connP->addr), sa, sl);
         connP->host = strndup(host, strlen(host));
         connP->addrLen = sl;
-        strncpy(connP->local_port, remote_port, 16);
+        strncpy(connP->local_port, local_port, 16);
         strncpy(connP->remote_port, remote_port, 16);
         connP->address_family = addressFamily;
         connP->sec_obj = sec_obj;

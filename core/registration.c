@@ -1156,11 +1156,9 @@ void registration_step(lwm2m_context_t * contextP,
             time_t nextUpdate;
             time_t interval;
 
-            nextUpdate = targetP->lifetime;
-            if (30 < nextUpdate)
-            {
-                nextUpdate -= 15; // update 15s earlier to have a chance to resend
-            }
+            // Set next update to half of the lifetime to make sure we start
+            // sending before the lifetime expires
+            nextUpdate = targetP->lifetime / 2;
 
             interval = targetP->registration + nextUpdate - currentTime;
             if (0 >= interval)

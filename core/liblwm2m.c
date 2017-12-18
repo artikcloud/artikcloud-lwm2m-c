@@ -53,7 +53,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-
+#include <time.h>
 #include <stdio.h>
 
 static int rand_initialized = false;

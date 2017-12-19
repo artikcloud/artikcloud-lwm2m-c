@@ -104,9 +104,9 @@ connection_t *connection_find(connection_t *connList, struct sockaddr_storage *a
 
 connection_t *connection_create(coap_protocol_t protocol, char *root_ca, bool verify_cert,
         bool use_se, int sock, char *host, char *local_port, char *remote_port, int addressFamily,
-        lwm2m_object_t * obj, int instanceId);
+        lwm2m_object_t * obj, int instanceId, int timeout);
 
-int connection_restart(connection_t *conn);
+int connection_restart(connection_t *conn, int timeout);
 
 void connection_free(connection_t * connList);
 

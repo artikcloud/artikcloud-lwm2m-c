@@ -608,7 +608,7 @@ static char *security_get_secret_key(lwm2m_object_t * obj, int instanceId, int *
     }
 }
 
-int connection_restart(connection_t *conn)
+int connection_restart(connection_t *conn, int timeout)
 {
     int sock;
     connection_t *newConn = NULL;
@@ -654,7 +654,8 @@ int connection_restart(connection_t *conn)
                                 conn->remote_port,
                                 conn->address_family,
                                 conn->sec_obj,
-                                conn->sec_inst);
+                                conn->sec_inst,
+                                timeout);
 
     if (!newConn)
     {
@@ -784,16 +785,20 @@ connection_t * connection_create(coap_protocol_t protocol,
                                  char *remote_port,
                                  int addressFamily,
                                  lwm2m_object_t * sec_obj,
-                                 int sec_inst)
+                                 int sec_inst,
+                                 int timeout)
 {
     struct addrinfo hints;
     struct addrinfo *servinfo = NULL;
     struct addrinfo *p;
-    int s;
+    int s, ret;
     struct sockaddr *sa;
     socklen_t sl;
     connection_t * connP = NULL;
     long arg = 0;
+    int flags = 0;
+    fd_set rset, wset;
+    struct timeval  ts;
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = addressFamily;
@@ -827,11 +832,52 @@ connection_t * connection_create(coap_protocol_t protocol,
             sa = p->ai_addr;
             sl = p->ai_addrlen;
 
-            if (-1 == connect(s, p->ai_addr, p->ai_addrlen))
+            /* We go non-blocking mode to set timeout on connect */
+            flags = fcntl(s, F_GETFL, 0);
+            fcntl(s, F_SETFL, flags | O_NONBLOCK);
+
+#ifdef WITH_LOGS
+            fprintf(stderr, "Try to connect to server with timeout %d ms\n", timeout);
+#endif
+            ret = connect(s, p->ai_addr, p->ai_addrlen);
+            if (ret < 0)
             {
-                close(s);
-                s = -1;
+                if (errno != EINPROGRESS)
+                {
+#ifdef WITH_LOGS
+                    fprintf(stderr, "Connect to socket failed (err=%d)\n", errno);
+#endif
+                    goto fail;
+                }
+
+                FD_ZERO(&rset);
+                FD_ZERO(&wset);
+                FD_SET(s, &rset);
+                FD_SET(s, &wset);
+                ts.tv_sec = timeout / 1000;
+                ts.tv_usec = (timeout - (ts.tv_sec * 1000)) * 1000;
+                ret = select(s + 1, &rset, &wset, NULL, (timeout) ? &ts : NULL);
+                if (ret <= 0)
+                {
+#ifdef WITH_LOGS
+                    fprintf(stderr, "Waiting for socket failed (err=%d)\n", ret);
+#endif
+                    goto fail;
+                }
+
+                if (!FD_ISSET(s, &rset) && !FD_ISSET(s, &wset))
+                {
+#ifdef WITH_LOGS
+                    fprintf(stderr, "No fd was set\n");
+#endif
+                    goto fail;
+                }
             }
+
+            continue;
+fail:
+            close(s);
+            s = -1;
         }
     }
 

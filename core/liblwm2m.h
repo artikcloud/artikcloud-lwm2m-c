@@ -120,7 +120,7 @@ void lwm2m_printf(const char * format, ...);
 // Returns a session handle that MUST uniquely identify a peer.
 // secObjInstID: ID of the Securty Object instance to open a connection to
 // userData: parameter to lwm2m_init()
-void * lwm2m_connect_server(uint16_t secObjInstID, void * userData);
+void * lwm2m_connect_server(uint16_t secObjInstID, void * userData, int timeout);
 // Close a session created by lwm2m_connect_server()
 // sessionH: session handle identifying the peer (opaque to the core)
 // userData: parameter to lwm2m_init()

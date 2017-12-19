@@ -86,6 +86,7 @@
 
 #define MAX_PACKET_SIZE            1024
 #define MAX_CONNECTION_RETRIES     5
+#define MAX_NUMBER_CLIENTS         128
 
 typedef struct {
     coap_protocol_t proto;
@@ -152,7 +153,7 @@ extern uint8_t firmware_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *o
 extern uint8_t location_change_object(lwm2m_data_t *dataArray, lwm2m_object_t *object);
 extern uint8_t connectivity_moni_change(lwm2m_data_t *dataArray, lwm2m_object_t *object);
 
-void * lwm2m_connect_server(uint16_t secObjInstID, void * userData)
+void * lwm2m_connect_server(uint16_t secObjInstID, void * userData, int timeout)
 {
     client_data_t * dataP = NULL;
     char * uri = NULL;
@@ -199,15 +200,17 @@ void * lwm2m_connect_server(uint16_t secObjInstID, void * userData)
     port++;
 
 #ifdef WITH_LOGS
-    fprintf(stdout, "\r\nOpening connection to server at %s:%s\r\n", host, port);
+    fprintf(stdout, "\r\nOpening connection to server at %s:%s with timeout %d ms\r\n",
+            host, port, timeout);
 #endif
 
     // If secure connection, make sure we have a security object
     instance = LWM2M_LIST_FIND(dataP->securityObjP->instanceList, secObjInstID);
     if (instance == NULL) goto exit;
 
-    conn = connection_create(protocol, dataP->root_ca, dataP->verify_cert, dataP->use_se,
-            dataP->sock, host, dataP->local_port, port, dataP->addressFamily, securityObj, instance->id);
+    conn = connection_create(protocol, dataP->root_ca, dataP->verify_cert,
+            dataP->use_se, dataP->sock, host, dataP->local_port, port,
+            dataP->addressFamily, securityObj, instance->id, timeout);
     if (!conn)
     {
 #ifdef WITH_LOGS
@@ -347,6 +350,8 @@ static void poll_lwm2m_sockets(client_data_t **clients, int number_clients, int 
 #ifdef WITH_LOGS
             fprintf(stderr, "server has closed the connection\r\n");
 #endif
+            close(data->sock);
+            data->sock = -1;
         }
     }
 
@@ -654,15 +659,6 @@ client_handle_t* lwm2m_client_start(object_container_t *init_val, char *root_ca,
         goto error;
     }
 
-    /* Service once to initialize the first steps */
-    if (lwm2m_client_service(handle, 0) <= LWM2M_CLIENT_OK)
-    {
-#ifdef WITH_LOGS
-        printf("Failed to connect LWM2M server.\n");
-#endif
-        goto error;
-    }
-
     return handle;
 
 error:
@@ -775,21 +771,13 @@ int lwm2m_client_service(client_handle_t *handle, int timeout_ms)
 int lwm2m_clients_service(client_handle_t **handles, int number_handles, int timeout_ms)
 {
     time_t min_timeout = 60;
-    client_data_t **clients = NULL;
+    client_data_t *clients[MAX_NUMBER_CLIENTS];
     int number_clients = 0;
     int i = 0;
 
-    if (!handles || number_handles <= 0) {
+    if (!handles || number_handles <= 0 || number_handles > MAX_NUMBER_CLIENTS) {
 #ifdef WITH_LOGS
         fprintf(stderr, "lwm2m_clients_service: wrong parameters\r\n");
-#endif
-        return LWM2M_CLIENT_ERROR;
-    }
-
-    clients = lwm2m_malloc(sizeof(client_data_t *)*number_handles);
-    if (!clients) {
-#ifdef WITH_LOGS
-        fprintf(stderr, "lwm2m_clients_service: Out of memory");
 #endif
         return LWM2M_CLIENT_ERROR;
     }
@@ -797,7 +785,7 @@ int lwm2m_clients_service(client_handle_t **handles, int number_handles, int tim
     for (i = 0; i < number_handles; i++)
     {
         int result;
-        time_t timeout = 60;
+        time_t timeout = timeout_ms;
         client_data_t *data =  (client_data_t *)handles[i]->client;
         result = lwm2m_step(data->lwm2mH, &timeout);
         min_timeout = min_timeout > timeout ? timeout : min_timeout;
@@ -827,7 +815,7 @@ int lwm2m_clients_service(client_handle_t **handles, int number_handles, int tim
                 handles[i]->error = LWM2M_CLIENT_ERROR;
                 continue;
             }
-            connection_restart(data->conn);
+            connection_restart(data->conn, timeout_ms);
             min_timeout = 0;
             data->connection_retries++;
             continue;
@@ -839,7 +827,16 @@ int lwm2m_clients_service(client_handle_t **handles, int number_handles, int tim
 
     min_timeout = min_timeout * 1000 < timeout_ms || timeout_ms == 0 ? min_timeout * 1000 : timeout_ms;
     poll_lwm2m_sockets(clients, number_clients, min_timeout);
-    lwm2m_free(clients);
+
+    /* Check if some connections got closed, set error accordingly */
+    for (i = 0; i < number_handles; i++)
+    {
+        client_data_t *data =  (client_data_t *)handles[i]->client;
+
+        if (data->sock <= 0)
+            handles[i]->error = LWM2M_CLIENT_ERROR;
+    }
+
     return min_timeout;
 }
 

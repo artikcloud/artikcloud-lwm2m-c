@@ -415,7 +415,7 @@ next_step:
         break;
 #endif
     case STATE_REGISTER_REQUIRED:
-        result = registration_start(contextP);
+        result = registration_start(contextP, timeoutP);
         if (COAP_NO_ERROR != result) return result;
         contextP->state = STATE_REGISTERING;
         break;

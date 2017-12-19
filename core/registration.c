@@ -173,7 +173,7 @@ static void prv_handleRegistrationReply(lwm2m_transaction_t * transacP,
 
 // send the registration for a single server
 static uint8_t prv_register(lwm2m_context_t * contextP,
-                            lwm2m_server_t * server)
+                            lwm2m_server_t * server, time_t timeout)
 {
     char query[200];
     int query_length;
@@ -202,7 +202,7 @@ static uint8_t prv_register(lwm2m_context_t * contextP,
 
     if (server->sessionH == NULL)
     {
-        server->sessionH = lwm2m_connect_server(server->secObjInstID, contextP->userData);
+        server->sessionH = lwm2m_connect_server(server->secObjInstID, contextP->userData, (int)timeout);
     }
 
     if (NULL == server->sessionH) return COAP_503_SERVICE_UNAVAILABLE;
@@ -367,7 +367,7 @@ time_t lwm2m_last_registration(lwm2m_context_t * contextP,
     }
 }
 
-uint8_t registration_start(lwm2m_context_t * contextP)
+uint8_t registration_start(lwm2m_context_t * contextP, time_t * timeoutP)
 {
     lwm2m_server_t * targetP;
     uint8_t result;
@@ -380,7 +380,7 @@ uint8_t registration_start(lwm2m_context_t * contextP)
         if (targetP->status == STATE_DEREGISTERED
          || targetP->status == STATE_REG_FAILED)
         {
-            result = prv_register(contextP, targetP);
+            result = prv_register(contextP, targetP, *timeoutP);
         }
         targetP = targetP->next;
     }

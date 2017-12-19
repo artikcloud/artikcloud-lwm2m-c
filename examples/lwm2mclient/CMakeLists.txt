@@ -54,7 +54,11 @@ else()
         endif()
     endif()
     set(OPENSSL_LIBRARIES ${OPENSSL_LIBRARIES} dl pthread)
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libwakaama-client.version -Wl,--strip-all")
+    if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libwakaama-client.version")
+    else()
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libwakaama-client.version -Wl,--strip-all")
+    endif()
 endif()
 
 

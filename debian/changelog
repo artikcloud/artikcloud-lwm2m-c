@@ -1,3 +1,10 @@
+wakaama-client (1.5-0) xenial; urgency=medium
+
+  * Improve overall stability and error reporting under
+  flaky connectivity conditions
+
+ -- Gregory Lemercier <g.lemercier@samsung.com>  Tue, 19 Dec 2017 15:00:00 +0200
+
 wakaama-client (1.4-1) xenial; urgency=medium
 
   * Add static libraries to dev package

@@ -498,29 +498,6 @@ static void on_resource_changed(void *param, void *extra)
     }
 }
 
-static void read_obj(char *uri, client_handle_t *handle)
-{
-    char *end = NULL;
-    char *val = NULL;
-    lwm2m_resource_t res;
-    int i = 0;
-
-    strncpy(res.uri, uri, strlen(uri)+1);
-
-    if (lwm2m_read_resource(handle, &res))
-    {
-        fprintf(stdout, "Read %s failed !\n", uri);
-        return;
-    }
-
-    val = strndup((char*)res.buffer, res.length);
-
-    fprintf(stdout, "URI: %s - Value: %s\r\n> ", res.uri, val);
-
-    free(res.buffer);
-    free(val);
-}
-
 int main(int argc, char *argv[])
 {
     int opt;
@@ -640,8 +617,6 @@ int main(int argc, char *argv[])
         if ((ret == LWM2M_CLIENT_QUIT) || (ret == LWM2M_CLIENT_ERROR))
             break;
 
-        read_obj(LWM2M_URI_FIRMWARE_UPDATE_RES, ota_updater.client);
-        read_obj(LWM2M_URI_FIRMWARE_STATE, ota_updater.client);
         if (ota_updater.ota_download.is_finished) {
             lwm2m_resource_t state, update_res;
 

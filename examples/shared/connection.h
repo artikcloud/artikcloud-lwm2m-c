@@ -84,6 +84,7 @@ typedef struct _connection_t
     int                     sec_inst;
     bool                    connected;
     bool                    use_se;
+    int                     timeout;
 } connection_t;
 
 #define MAX_DTLS_INFO_LEN    128
@@ -106,7 +107,7 @@ connection_t *connection_create(coap_protocol_t protocol, char *root_ca, bool ve
         bool use_se, int sock, char *host, char *local_port, char *remote_port, int addressFamily,
         lwm2m_object_t * obj, int instanceId, int timeout);
 
-int connection_restart(connection_t *conn, int timeout);
+int connection_restart(connection_t *conn);
 
 void connection_free(connection_t * connList);
 

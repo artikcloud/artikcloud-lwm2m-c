@@ -728,7 +728,8 @@ connection_t * connection_create(coap_protocol_t protocol,
                                  char *remote_port,
                                  int addressFamily,
                                  lwm2m_object_t * sec_obj,
-                                 int sec_inst)
+                                 int sec_inst,
+                                 int timeout)
 {
     struct addrinfo hints;
     struct addrinfo *servinfo = NULL;
@@ -819,6 +820,7 @@ connection_t * connection_create(coap_protocol_t protocol,
         connP->sec_obj = sec_obj;
         connP->sec_inst = sec_inst;
         connP->use_se = use_se;
+        connP->timeout = timeout;
 
         if ((protocol == COAP_TCP_TLS) ||
             (protocol == COAP_UDP_DTLS))

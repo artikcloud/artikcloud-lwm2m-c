@@ -112,6 +112,7 @@ typedef struct
     int connection_retries;
     char *root_ca;
     bool use_se;
+    int connect_timeout;
 } client_data_t;
 
 static coap_uri_protocol protocols[] = {
@@ -210,7 +211,8 @@ void * lwm2m_connect_server(uint16_t secObjInstID, void * userData, int timeout)
 
     conn = connection_create(protocol, dataP->root_ca, dataP->verify_cert,
             dataP->use_se, dataP->sock, host, dataP->local_port, port,
-            dataP->addressFamily, securityObj, instance->id, timeout);
+            dataP->addressFamily, securityObj, instance->id,
+            dataP->connect_timeout);
     if (!conn)
     {
 #ifdef WITH_LOGS
@@ -437,6 +439,7 @@ client_handle_t* lwm2m_client_start(object_container_t *init_val, char *root_ca,
     data->lwm2mH = ctx;
     data->root_ca = root_ca;
     data->use_se = use_se;
+    data->connect_timeout = init_val->server->connect_timeout;
 
     /*
      * If valid local port is not provided, then randomize one based on a predefined range.
@@ -815,7 +818,7 @@ int lwm2m_clients_service(client_handle_t **handles, int number_handles, int tim
                 handles[i]->error = LWM2M_CLIENT_ERROR;
                 continue;
             }
-            connection_restart(data->conn, timeout_ms);
+            connection_restart(data->conn);
             min_timeout = 0;
             data->connection_retries++;
             continue;

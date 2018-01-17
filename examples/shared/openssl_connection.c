@@ -608,7 +608,7 @@ static char *security_get_secret_key(lwm2m_object_t * obj, int instanceId, int *
     }
 }
 
-int connection_restart(connection_t *conn, int timeout)
+int connection_restart(connection_t *conn)
 {
     int sock;
     connection_t *newConn = NULL;
@@ -655,7 +655,7 @@ int connection_restart(connection_t *conn, int timeout)
                                 conn->address_family,
                                 conn->sec_obj,
                                 conn->sec_inst,
-                                timeout);
+                                conn->timeout);
 
     if (!newConn)
     {
@@ -922,6 +922,7 @@ fail:
         connP->sec_obj = sec_obj;
         connP->sec_inst = sec_inst;
         connP->use_se = use_se;
+        connP->timeout = timeout;
 
         if ((protocol == COAP_TCP_TLS) ||
             (protocol == COAP_UDP_DTLS))

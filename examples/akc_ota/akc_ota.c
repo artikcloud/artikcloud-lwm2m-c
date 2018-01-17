@@ -56,7 +56,8 @@ static object_security_server_t akc_server = {
     0,                                        /* battery */
     123,                                      /* serverId */
     true,                                     /* verifyCert */
-    0                                         /* localPort */
+    0,                                        /* localPort */
+    1000                                      /* connect_timeout */
 };
 
 static object_device_t default_device = {
@@ -635,7 +636,7 @@ int main(int argc, char *argv[])
 
     while (!quit)
     {
-        int ret = lwm2m_client_service(ota_updater.client, 0);
+        int ret = lwm2m_client_service(ota_updater.client, 100);
         if ((ret == LWM2M_CLIENT_QUIT) || (ret == LWM2M_CLIENT_ERROR))
             break;
 

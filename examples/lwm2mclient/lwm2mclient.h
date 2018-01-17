@@ -108,6 +108,7 @@ enum lwm2m_sec_mode_type {
     int serverId;                        /*serverId*/
     bool verifyCert;                     /*verify server certificate*/
     int localPort;                       /*local source port - random if set to 0*/
+    int connect_timeout;                 /*timeout in ms for connecting to server*/
 } object_security_server_t;
 
 /*

@@ -1,24 +1,24 @@
-# SmartThings XT Cloud LWM2M C SDK
+# Artik Cloud LWM2M C SDK
 
-This SDK helps developers to create C applications to connect to SmartThings XT Cloud LightWeight M2M server.
+This SDK helps developers to create C applications to connect to Artik Cloud LightWeight M2M server.
 
-It is based on [Eclipse Wakaama](README-wakaama.md) (formerly liblwm2m), to which SmartThings XT Cloud specifics are added to generate a
+It is based on [Eclipse Wakaama](README-wakaama.md) (formerly liblwm2m), to which Artik Cloud specifics are added to generate a
 shared library ("libwakaama") containing ready-to-use APIs to connect any device to the monitoring
-features offered by the SmartThings XT Cloud LWM2M server.
+features offered by the Artik Cloud LWM2M server.
 
 Source code
 -----------
 
-The relevant code for the SmartThings XT Cloud LWM2M C SDK can be found under the following locations:
+The relevant code for the Artik Cloud LWM2M C SDK can be found under the following locations:
   * core: LWM2M core code for accessing and manipulating objects
   * examples/lwm2mclient: LWM2M client layer offering several APIs to expose well-known LWM2M objects
-  * examples/stxt_client: Sample program using the LWM2M client API to connect to the server and expose some objects
-  * examples/stxt_ota: Sample program using the LWM2M client API to connect to the SmartThings XT Cloud server and apply OTA updates
+  * examples/akc_client: Sample program using the LWM2M client API to connect to the server and expose some objects
+  * examples/akc_ota: Sample program using the LWM2M client API to connect to the ARTIK Cloud server and apply OTA updates
 
 Prerequisites
 -------------
 
-The SmartThings XT Cloud LWM2M C SDK should compile and run on most UNIX based systems. It has been tested against Mac OS X, Ubuntu 16.04, and Fedora 24 (ARM). It only depends on the OpenSSL library, which is compiled along and linked as a static library. Therefore only the following build tools need to be installed before launching compilation:
+The Artik Cloud LWM2M C SDK should compile and run on most UNIX based systems. It has been tested against Mac OS X, Ubuntu 16.04, and Fedora 24 (ARM). It only depends on the OpenSSL library, which is compiled along and linked as a static library. Therefore only the following build tools need to be installed before launching compilation:
   * cmake
   * gcc
   * g++
@@ -46,14 +46,14 @@ Fetch the sources
 
 ~~~shell
 $ cd <workdir>
-$ git clone https://github.com/smartthings-xt/SmartThings-XT-LwM2M-SDK-cpp.git
+$ git clone https://github.com/artikcloud/artikcloud-lwm2m-c.git
 ~~~
 
 Compilation
 -----------
 
 ~~~shell
-$ cd <workdir>/SmartThings-XT-LwM2M-SDK-cpp
+$ cd <workdir>/artikcloud-lwm2m-c
 $ mkdir build
 $ cd build
 $ cmake ..
@@ -62,19 +62,19 @@ $ make
 
 After the build completes successfully, the following binaries are generated:
 
-  * build/examples/lwm2mclient//libwakaama-client.(so|dylib): The shared library containing the Wakaama and SmartThings XT Cloud specific code
-  * build/examples/stxt_client/stxt_client: The SmartThings XT Cloud sample program
+  * build/examples/lwm2mclient//libwakaama-client.(so|dylib): The shared library containing the Wakaama and Artik Cloud specific code
+  * build/examples/akc_client/akc_client: The Artik Cloud sample program
 
 Run the sample program
 ----------------------
 
-The **stxt_client** sample program takes the following parameters:
+The **akc_client** sample program takes the following parameters:
 
 ~~~shell
-Usage: stxt_client [options]
+Usage: akc_client [options]
 	-u <server URI> : LWM2M server URI
-	-d <device ID> : SmartThings XT device ID
-	-t <device token> : SmartThings XT device token
+	-d <device ID> : AKC device ID
+	-t <device token> : AKC device token
 	-c <path device certificate> : Device certificate
 	-k <path device private key> : Device private key
 	-s <path server certificate> : Server certificate
@@ -115,7 +115,7 @@ TLS Certificate management
 
 When connecting to a TCP/TLS enabled LWM2M server, server certificate verification is done
 by default. If you want to disable certificate verification, add the **noverify** parameter
-at the end of the **stxt_client** invoking command.
+at the end of the **akc_client** invoking command.
 
 Certificate verification is done against trusted certificates that must be stored under a
 specific keystore directory, set by default to **/usr/local/ssl/certs**. This directory can
@@ -135,20 +135,20 @@ Otherwise you can use the one built along with the SDK as follows:
 
 **Mac OS X**
 ~~~shell
-$ export DYLD_LIBRARY_PATH=<workdir>/SmartThings-XT-LwM2M-SDK-cpp/external/openssl
-$ <workdir>/SmartThings-XT-LwM2M-SDK-cpp/external/openssl/apps/openssl rehash < certs dir >
+$ export DYLD_LIBRARY_PATH=<workdir>/artikcloud-lwm2m-c/external/openssl
+$ <workdir>/artikcloud-lwm2m-c/external/openssl/apps/openssl rehash < certs dir >
 ~~~
 
 **Linux**
 ~~~shell
-$ export LD_LIBRARY_PATH=<workdir>/SmartThings-XT-LwM2M-SDK-cpp/external/openssl
-$ <workdir>/SmartThings-XT-LwM2M-SDK-cpp/external/openssl/apps/openssl rehash < certs dir >
+$ export LD_LIBRARY_PATH=<workdir>/artikcloud-lwm2m-c/external/openssl
+$ <workdir>/artikcloud-lwm2m-c/external/openssl/apps/openssl rehash < certs dir >
 ~~~
 
-SmartThings XT Cloud intermediate certificates
+Artik Cloud intermediate certificates
 -------------------------------------
 
-When using TCP/TLS connection to SmartThings XT Cloud LWM2M server, you need to have proper intermediate
+When using TCP/TLS connection to Artik Cloud LWM2M server, you need to have proper intermediate
 certificates in the keystore in order for the server certificate verification to pass. These
 certificates can be downloaded in PEM format from the following links:
 
@@ -167,18 +167,18 @@ libwakaama-client.(so|dylib) and include "lwm2mclient.h".
 
 The API exposed by the library is detailed here: [Client API](README-client-api.md)
 
-More about SmartThings XT Cloud
+More about ARTIK Cloud
 ----------------------
 
-If you are not familiar with SmartThings XT Cloud, we have extensive documentation at https://developer.artik.cloud/documentation
+If you are not familiar with ARTIK Cloud, we have extensive documentation at https://developer.artik.cloud/documentation
 
-The full SmartThings XT Cloud API specification can be found at https://developer.artik.cloud/documentation/api-reference/
+The full ARTIK Cloud API specification can be found at https://developer.artik.cloud/documentation/api-reference/
 
 Check out advanced sample applications at https://developer.artik.cloud/documentation/samples/
 
-To create and manage your services and devices on SmartThings XT Cloud, create an account at https://developer.artik.cloud
+To create and manage your services and devices on ARTIK Cloud, create an account at https://developer.artik.cloud
 
-Also see the SmartThings XT Cloud blog for tutorials, updates, and more: http://artik.io/blog/cloud
+Also see the ARTIK Cloud blog for tutorials, updates, and more: http://artik.io/blog/cloud
 
 License and Copyright
 ---------------------

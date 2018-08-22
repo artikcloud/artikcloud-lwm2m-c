@@ -4,12 +4,12 @@ if (CMAKE_MAJOR_VERSION GREATER 2)
 	cmake_policy(SET CMP0042 NEW)
 endif()
 
-project (stxt_client)
+project (akc_client)
 
 include_directories (${OBJECT_SOURCES_DIR} ../lwm2mclient)
 
 set (SOURCES
-    stxt_client.c
+    akc_client.c
     client_cmdline.c
     )
 

@@ -596,7 +596,7 @@ lwm2m_object_t * get_security_object(int serverId,
             }
         }
 
-        // SmartThings XT Cloud does not support NoSec mode
+        // ARTIK Cloud does not support NoSec mode
         if (securityMode == LWM2M_SECURITY_MODE_NONE)
         {
             clean_security_object(securityObj);

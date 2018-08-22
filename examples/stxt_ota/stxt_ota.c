@@ -45,13 +45,13 @@ typedef struct {
 } ota_updater_t;
 
 static object_security_server_t akc_server = {
-    "coaps+tcp://coaps-api.artik.cloud:5689", /* serverUri */
+    "coaps+tcp://coaps.xt.smartthings.com:5689", /* serverUri */
     LWM2M_SEC_MODE_PSK,                       /* securityMode: PSK */
-    "<Artik Cloud device ID>",                /* pskId : DEVICE ID */
-    "<Artik Cloud device token>",             /* token : DEVICE TOKEN */
+    "<SmartThings XT Cloud device ID>",                /* pskId : DEVICE ID */
+    "<SmartThings XT Cloud device token>",             /* token : DEVICE TOKEN */
     NULL,                                     /* privateKey */
     NULL,                                     /* serverCertificate */
-    "<Artik Cloud device ID>",                /* name : DEVICE ID */
+    "<SmartThings XT Cloud device ID>",                /* name : DEVICE ID */
     30,                                       /* lifetime */
     0,                                        /* battery */
     123,                                      /* serverId */
@@ -94,10 +94,10 @@ static bool quit = false;
 
 static void usage()
 {
-    fprintf(stdout, "Usage: akc_ota [options]\r\n");
+    fprintf(stdout, "Usage: stxt_ota [options]\r\n");
     fprintf(stdout, "\t-u <server URI> : LWM2M server URI\r\n");
-    fprintf(stdout, "\t-d <device ID> : AKC device ID\r\n");
-    fprintf(stdout, "\t-t <device token> : AKC device token\r\n");
+    fprintf(stdout, "\t-d <device ID> : SmartThings XT device ID\r\n");
+    fprintf(stdout, "\t-t <device token> : SmartThings XT device token\r\n");
     fprintf(stdout, "\t-c <path device certificate> : Device certificate\r\n");
     fprintf(stdout, "\t-k <path device private key> : Device private key\r\n");
     fprintf(stdout, "\t-s <path server certificate> : Server certificate\r\n");

@@ -4,7 +4,7 @@ if (CMAKE_MAJOR_VERSION GREATER 2)
 	cmake_policy(SET CMP0042 NEW)
 endif()
 
-project (akc_ota)
+project (stxt_ota)
 
 find_package (CURL)
 find_package (LibArchive)
@@ -12,7 +12,7 @@ find_package (LibArchive)
 include_directories (${OBJECT_SOURCES_DIR} ../lwm2mclient)
 
 set (SOURCES
-    akc_ota.c
+    stxt_ota.c
     )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

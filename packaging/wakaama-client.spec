@@ -28,7 +28,7 @@ Group: Development/Libraries
 Requires: %{name} = %{version}-%{release}
 
 %description examples
-This package contains akc_client and akc_ota
+This package contains stxt_client and stxt_ota
 
 %prep
 rm -rf %{_builddir}/*
@@ -72,5 +72,5 @@ cp %{_srcdir}/README-wakaama.md %{_builddir}
 
 %files examples
 %defattr(-,root,root,-)
-%{_bindir}/akc_client
-%{_bindir}/akc_ota
+%{_bindir}/stxt_client
+%{_bindir}/stxt_ota
